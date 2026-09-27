@@ -14,7 +14,6 @@ export function DemoBanner() {
   const db = useSQLiteContext();
   const activeProfileId = activeProfile?.id ?? 1;
 
-  // If not in demo mode, render nothing
   if (!isDemoMode) return null;
 
   const handleEndDemo = async () => {
@@ -37,19 +36,21 @@ export function DemoBanner() {
       style={[
         styles.banner, 
         { 
-          backgroundColor: isDark ? 'rgba(10, 132, 255, 0.15)' : 'rgba(0, 122, 255, 0.1)', 
-          borderColor: colors.accent + '44' 
+          // Vibrant amber/orange tint for clear mode emphasis while staying modern
+          backgroundColor: isDark ? 'rgba(245, 158, 11, 0.15)' : 'rgba(245, 158, 11, 0.12)',
+          borderBottomColor: isDark ? 'rgba(245, 158, 11, 0.3)' : 'rgba(245, 158, 11, 0.25)',
         }
       ]}
     >
       <View style={styles.leftContent}>
-        <Ionicons name="sparkles" size={16} color={colors.accent} />
-        <Text style={[styles.bannerText, { color: colors.text }]}>
+        <Ionicons name="sparkles" size={15} color="#F59E0B" />
+        <Text style={[styles.bannerText, { color: isDark ? '#FBBF24' : '#B45309' }]}>
           Demo Workspace Active
         </Text>
       </View>
+
       <TouchableOpacity 
-        style={[styles.exitButton, { backgroundColor: colors.accent }]} 
+        style={[styles.exitButton, { backgroundColor: '#F59E0B' }]} 
         onPress={handleEndDemo}
         activeOpacity={0.8}
       >
@@ -64,13 +65,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    marginHorizontal: 16,
-    marginTop: 12,
-    marginBottom: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    width: '100%',
+    margin: 0,
+    marginTop: 0,
+    marginBottom: 0,
   },
   leftContent: {
     flexDirection: 'row',
@@ -79,16 +80,22 @@ const styles = StyleSheet.create({
   },
   bannerText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
+    letterSpacing: -0.1,
   },
   exitButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+    shadowColor: '#F59E0B',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 1,
   },
   exitButtonText: {
     color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
   },
 });

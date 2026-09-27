@@ -1,7 +1,6 @@
 import { AllocationChart } from '@/components/dashboard/AllocationChart';
 import { MonthStepper } from '@/components/dashboard/MonthStepper';
 import { SummaryCards } from '@/components/dashboard/SummaryCards';
-import { DemoBanner } from '@/components/DemoBanner';
 import { TransactionDetailModal } from '@/components/modals/TransactionDetailModal';
 import { TransactionListModal } from '@/components/modals/TransactionListModal';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -75,6 +74,12 @@ export default function DashboardScreen() {
   const { colors } = useTheme();
   const { activeProfile, isDemoMode } = useProfile();
   const activeProfileId = activeProfile?.id ?? 1;
+
+  // Dynamically switch wrapper: standard View in demo mode (zero gap), SafeAreaView in normal mode (notch protection)
+  const ContainerWrapper = isDemoMode ? View : SafeAreaView;
+  const containerProps = isDemoMode 
+    ? {} 
+    : { edges: ['top', 'bottom'] as const };
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -418,9 +423,12 @@ export default function DashboardScreen() {
   const totalTransactions = categoryData.reduce((a, b) => a + (b.count || 0), 0);
 
   return (
-<SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top']}>
+    <ContainerWrapper 
+      style={[styles.safeArea, { backgroundColor: colors.background }]} 
+      {...containerProps}
+    >
       <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <ScrollView
+        <ScrollView
           style={[styles.container, { backgroundColor: colors.background }]}
           contentContainerStyle={styles.content}
           refreshControl={
@@ -431,8 +439,6 @@ export default function DashboardScreen() {
             />
           }
         >
-
-
           {/* 2. Conditional Empty State / Welcome Onboarding View */}
           {availableMonths.length === 0 && !isDemoMode ? (
             <View style={styles.welcomeContainer}>
@@ -476,38 +482,34 @@ export default function DashboardScreen() {
                 </TouchableOpacity>
               </View>
             </View>
-) : (
-  <>
-    {/* Universal Demo Workspace Banner - Placed right at the top of active overview */}
-    <DemoBanner />
+          ) : (
+            <>
+              {/* Top Header Bar */}
+              <View style={styles.headerRow}>
+                <Text style={[styles.headerTitle, { color: colors.text }]}>Overview</Text>
 
-    {/* Top Header Bar */}
-    <View style={styles.headerRow}>
-      <Text style={[styles.headerTitle, { color: colors.text }]}>Overview</Text>
+                <TouchableOpacity
+                  style={[
+                    styles.settingsHeaderBtn,
+                    { backgroundColor: colors.card, borderColor: colors.border },
+                  ]}
+                  activeOpacity={0.8}
+                  onPress={() => router.push('/settings')}
+                >
+                  <Ionicons name="settings-outline" size={20} color={colors.text} />
+                </TouchableOpacity>
+              </View>
 
-      <TouchableOpacity
-        style={[
-          styles.settingsHeaderBtn,
-          { backgroundColor: colors.card, borderColor: colors.border },
-        ]}
-        activeOpacity={0.8}
-        onPress={() => router.push('/settings')}
-      >
-        <Ionicons name="settings-outline" size={20} color={colors.text} />
-      </TouchableOpacity>
-    </View>
-
-    {/* Month Stepper Navigation */}
-    <MonthStepper
-      selectedMonth={selectedMonth}
-      availableMonths={availableMonths}
-      monthNames={MONTH_NAMES}
-      coverageStatus={coverageStatus}
-      onPrevMonth={handlePrevMonth}
-      onNextMonth={handleNextMonth}
-      onOpenMonthPicker={() => setMonthPickerVisible(true)}
-    />
-    {/* ... Rest of your dashboard components */}
+              {/* Month Stepper Navigation */}
+              <MonthStepper
+                selectedMonth={selectedMonth}
+                availableMonths={availableMonths}
+                monthNames={MONTH_NAMES}
+                coverageStatus={coverageStatus}
+                onPrevMonth={handlePrevMonth}
+                onNextMonth={handleNextMonth}
+                onOpenMonthPicker={() => setMonthPickerVisible(true)}
+              />
 
               {/* Hero Summary Cards */}
               <SummaryCards
@@ -608,7 +610,7 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         </Modal>
       </View>
-    </SafeAreaView>
+    </ContainerWrapper>
   );
 }
 

@@ -27,10 +27,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function SettingsScreen() {
+  const { activeProfile, setIsDemoMode, refreshProfiles } = useProfile();
   const { isDark, toggleTheme, colors } = useTheme();
   const router = useRouter();
   const db = useSQLiteContext();
-  const { activeProfile } = useProfile();
   const activeProfileId = activeProfile?.id ?? 1;
 
   const [loading, setLoading] = useState(false);
@@ -113,7 +113,12 @@ export default function SettingsScreen() {
             try {
               setLoading(true);
               await clearAllData(db, activeProfileId);
-              Alert.alert('Database Cleared', 'All data and budget goals for this profile have been completely reset.');
+              if (setIsDemoMode) {
+                setIsDemoMode(false);
+              }
+              await refreshProfiles();
+              router.dismissAll();
+              router.replace('/welcome');
             } catch (error) {
               console.error('Reset error:', error);
               Alert.alert('Error', 'Failed to clear database.');

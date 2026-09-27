@@ -1244,3 +1244,74 @@ export async function clearDemoWorkspace(db: SQLiteDatabase, demoProfileId: numb
     await db.runAsync('UPDATE profiles SET is_demo = 0 WHERE id = ?;', [demoProfileId]);
   });
 }
+
+export async function getAvailableYears(db: SQLiteDatabase, profileId: number = 1): Promise<string[]> {
+  try {
+    const results = await db.getAllAsync<{ year: string }>(
+      `SELECT DISTINCT SUBSTR(date, 1, 4) as year 
+       FROM transactions 
+       WHERE profileId = ? AND date IS NOT NULL 
+       ORDER BY year DESC;`,
+      [profileId]
+    );
+    
+    if (!results || results.length === 0) {
+      const currentYear = String(new Date().getFullYear());
+      return [currentYear];
+    }
+
+    return results.map(r => r.year);
+  } catch (error) {
+    console.error('Failed to get available years:', error);
+    return [String(new Date().getFullYear())];
+  }
+}
+
+export async function getYearCoverageStatus(
+  db: SQLiteDatabase,
+  year: string,
+  profileId: number = 1
+): Promise<{ status: 'IN_PROGRESS' | 'PARTIAL' | 'COMPLETE' | 'EMPTY'; minDate?: string; maxDate?: string; label: string }> {
+  try {
+    const res = await db.getFirstAsync<{ minDate: string; maxDate: string }>(
+      `SELECT MIN(date) as minDate, MAX(date) as maxDate 
+       FROM transactions 
+       WHERE SUBSTR(date, 1, 4) = ? AND profileId = ?;`,
+      [year, profileId]
+    );
+
+    if (!res || !res.minDate) {
+      return { status: 'EMPTY', label: 'Statement Pending' };
+    }
+
+    const currentYear = String(new Date().getFullYear());
+    const isCurrentYear = year === currentYear;
+    const maxDay = parseInt(res.maxDate.slice(-2), 10);
+
+    if (isCurrentYear) {
+      return {
+        status: 'IN_PROGRESS',
+        minDate: res.minDate,
+        maxDate: res.maxDate,
+        label: `In Progress (${res.minDate.slice(5)} – ${res.maxDate.slice(5)})`,
+      };
+    } else if (maxDay < 25) {
+      return {
+        status: 'PARTIAL',
+        minDate: res.minDate,
+        maxDate: res.maxDate,
+        label: `Partial Statement (${res.minDate.slice(5)} – ${res.maxDate.slice(5)})`,
+      };
+    } else {
+      return {
+        status: 'COMPLETE',
+        minDate: res.minDate,
+        maxDate: res.maxDate,
+        label: `Full Year (${year})`,
+      };
+    }
+  } catch (error) {
+    console.error('Failed to get year coverage status:', error);
+    return { status: 'EMPTY', label: 'Statement Pending' };
+  }
+}

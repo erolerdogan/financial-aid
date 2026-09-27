@@ -1,4 +1,3 @@
-import { DemoBanner } from '@/components/DemoBanner';
 import { TransactionDetailModal } from '@/components/modals/TransactionDetailModal';
 import { TransactionListModal } from '@/components/modals/TransactionListModal';
 import { getCategoryColor } from '@/constants/colors';
@@ -7,10 +6,12 @@ import {
   FixedCostSummary,
   FixedOverrideState,
   getAnnualTrendWithBudget,
+  getAvailableYears,
   getCategoryGoal,
   getFixedVsFlexibleSummary,
   getTransactionFixedState,
   getTransactionsByMonthAndCategory,
+  getYearCoverageStatus,
   setCategoryGoal,
   setMerchantFixedOverride,
   Transaction
@@ -23,12 +24,14 @@ import React, { useCallback, useRef, useState } from 'react';
 import type { TextStyle } from 'react-native';
 import {
   ActivityIndicator,
+  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   View
 } from 'react-native';
 import { LineChart } from 'react-native-gifted-charts';
@@ -48,19 +51,25 @@ const CATEGORIES = [
   'Taxes & Municipal Fees',
 ];
 
-const MONTH_NAMES: Record<string, string> = {
-  '2026-01': 'January 2026',
-  '2026-02': 'February 2026',
-  '2026-03': 'March 2026',
-  '2026-04': 'April 2026',
-  '2026-05': 'May 2026',
-  '2026-06': 'June 2026',
-  '2026-07': 'July 2026',
-  '2026-08': 'August 2026',
-  '2026-09': 'September 2026',
-  '2026-10': 'October 2026',
-  '2026-11': 'November 2026',
-  '2026-12': 'December 2026',
+const getCurrentYear = (): string => {
+  return String(new Date().getFullYear());
+};
+
+const getMonthNamesForYear = (year: string): Record<string, string> => {
+  return {
+    [`${year}-01`]: `January ${year}`,
+    [`${year}-02`]: `February ${year}`,
+    [`${year}-03`]: `March ${year}`,
+    [`${year}-04`]: `April ${year}`,
+    [`${year}-05`]: `May ${year}`,
+    [`${year}-06`]: `June ${year}`,
+    [`${year}-07`]: `July ${year}`,
+    [`${year}-08`]: `August ${year}`,
+    [`${year}-09`]: `September ${year}`,
+    [`${year}-10`]: `October ${year}`,
+    [`${year}-11`]: `November ${year}`,
+    [`${year}-12`]: `December ${year}`,
+  };
 };
 
 const formatShortMonth = (monthKey: string): string => {
@@ -76,18 +85,43 @@ const formatShortMonth = (monthKey: string): string => {
   return `${shortMonth} '${shortYear}`;
 };
 
+interface YearCoverageStatus {
+  status: 'IN_PROGRESS' | 'PARTIAL' | 'COMPLETE' | 'EMPTY';
+  label: string;
+}
+
 export default function TrendsScreen() {
   const router = useRouter();
   const db = useSQLiteContext();
   const { colors, isDark } = useTheme();
-  const { activeProfile } = useProfile();
+  const { activeProfile, isDemoMode } = useProfile();
   const activeProfileId = activeProfile?.id ?? 1;
+
+  // Dynamically switch wrapper: standard View in demo mode (zero gap), SafeAreaView in normal mode (notch protection)
+  const ContainerWrapper = isDemoMode ? View : SafeAreaView;
+  const containerProps = isDemoMode 
+    ? {} 
+    : { edges: ['top', 'bottom'] as const };
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('All');
 
-  // Scrub & Selection State Ref/State decouple to eliminate re-query flicker
+  // Year Selection State
+  const [availableYears, setAvailableYears] = useState<string[]>([getCurrentYear()]);
+  const [selectedYear, setSelectedYear] = useState<string>(getCurrentYear());
+  const [yearPickerVisible, setYearPickerVisible] = useState(false);
+  const [yearCoverage, setYearCoverage] = useState<YearCoverageStatus>({
+    status: 'EMPTY',
+    label: '',
+  });
+
+  const MONTH_NAMES = getMonthNamesForYear(selectedYear);
+
+  // Sorted Category Pills State
+  const [sortedCategories, setSortedCategories] = useState<string[]>(CATEGORIES);
+
+  // Scrub & Selection State
   const [selectedMonthKey, setSelectedMonthKey] = useState<string | null>(null);
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
 
@@ -120,7 +154,6 @@ export default function TrendsScreen() {
 
   const activeColor = selectedCategory === 'All' ? colors.accent : getCategoryColor(selectedCategory);
 
-  // Handle Scrub Drag Updates
   const handleScrubUpdate = useCallback((monthKey: string, amount: number) => {
     if (activeScrubKey.current !== monthKey) {
       activeScrubKey.current = monthKey;
@@ -129,12 +162,10 @@ export default function TrendsScreen() {
     }
   }, []);
 
-  // Lock Selection when drag touch drops / ends
   const handleScrubDrop = useCallback(() => {
     if (activeScrubKey.current) {
       setSelectedMonthKey((prev) => {
         if (prev === activeScrubKey.current) {
-          // Deselect if dropped on same month
           setSelectedAmount(null);
           return null;
         }
@@ -143,106 +174,146 @@ export default function TrendsScreen() {
       });
     }
   }, []);
-// 1. Raw SQLite data state
-const [rawTrendData, setRawTrendData] = useState<any[]>([]);
 
-// 2. Fetch SQLite data (without setChartData inside)
-const loadAnalyticsData = useCallback(async () => {
-  if (!db) return;
-  try {
-    setLoading(true);
+  const [rawTrendData, setRawTrendData] = useState<any[]>([]);
 
-    const trendWithBudget = await getAnnualTrendWithBudget(db, '2026', selectedCategory, activeProfileId);
-    const currentGoal = await getCategoryGoal(db, selectedCategory, activeProfileId);
-    setCategoryBudget(currentGoal);
+  const loadAnalyticsData = useCallback(async () => {
+    if (!db) return;
+    try {
+      setLoading(true);
 
-    setRawTrendData(trendWithBudget || []);
+      const dbYears = await getAvailableYears(db, activeProfileId);
+      if (dbYears && dbYears.length > 0) {
+        setAvailableYears(dbYears);
+        if (!dbYears.includes(selectedYear)) {
+          setSelectedYear(dbYears[0]);
+        }
+      }
 
-    const values = (trendWithBudget || []).map((m) => m.totalAmount);
-    const peakVal = Math.max(...values, currentGoal, 10);
-    setMaxChartValue(Math.ceil(peakVal * 1.15));
+      const categoryTotalsPromises = CATEGORIES.slice(1).map(async (cat) => {
+        const trend = await getAnnualTrendWithBudget(db, selectedYear, cat, activeProfileId);
+        const sum = (trend || []).reduce((acc, m) => acc + m.totalAmount, 0);
+        return { category: cat, total: sum };
+      });
 
-    const total = values.reduce((a, b) => a + b, 0);
-    const activeValues = values.filter((v) => v > 0);
-    const avg = activeValues.length > 0 ? total / activeValues.length : 0;
+      const categoryTotals = await Promise.all(categoryTotalsPromises);
+      categoryTotals.sort((a, b) => b.total - a.total);
+      setSortedCategories(['All', ...categoryTotals.map((item) => item.category)]);
 
-    const maxVal = Math.max(...values);
-    const minVal = Math.min(...(activeValues.length > 0 ? activeValues : [0]));
+      const [trendWithBudget, currentGoal, coverageRes] = await Promise.all([
+        getAnnualTrendWithBudget(db, selectedYear, selectedCategory, activeProfileId),
+        getCategoryGoal(db, selectedCategory, activeProfileId),
+        getYearCoverageStatus(db, selectedYear, activeProfileId),
+      ]);
 
-    const highest = trendWithBudget.find((m) => m.totalAmount === maxVal && m.totalAmount > 0)?.monthName || '-';
-    const lowest = trendWithBudget.find((m) => m.totalAmount === minVal && m.totalAmount > 0)?.monthName || '-';
+      setCategoryBudget(currentGoal);
+      setRawTrendData(trendWithBudget || []);
 
-    setSummary({
-      total,
-      average: avg,
-      highestMonth: highest !== '-' ? highest : '-',
-      lowestMonth: lowest !== '-' ? lowest : '-',
-    });
-  } catch (error) {
-    console.error('Failed to query trends data:', error);
-  } finally {
-    setLoading(false);
-    setRefreshing(false);
-  }
-}, [db, selectedCategory, activeProfileId]);
+      const values = (trendWithBudget || []).map((m) => m.totalAmount);
+      const peakVal = Math.max(...values, currentGoal, 10);
+      setMaxChartValue(Math.ceil(peakVal * 1.15));
 
-// 3. Compute chartData dynamically via useMemo (No duplicate variable declaration)
-const chartData = React.useMemo(() => {
-  return rawTrendData.map((item) => {
-    const hasData = item.totalAmount > 0;
-    const val = hasData ? Math.round(item.totalAmount) : 0;
-    const isSelected = item.monthName === selectedMonthKey;
-    let ptColor = activeColor;
+      const total = values.reduce((a, b) => a + b, 0);
+      const activeValues = values.filter((v) => v > 0);
+      const avg = activeValues.length > 0 ? total / activeValues.length : 0;
 
-    if (item.budgetLimit > 0 && hasData) {
-      if (val > item.budgetLimit) ptColor = '#FF3B30';
-      else if (val === item.budgetLimit) ptColor = '#FFCC00';
-      else ptColor = '#34C759';
+      const maxVal = Math.max(...values);
+      const minVal = Math.min(...(activeValues.length > 0 ? activeValues : [0]));
+
+      const highest = trendWithBudget.find((m) => m.totalAmount === maxVal && m.totalAmount > 0)?.monthName || '-';
+      const lowest = trendWithBudget.find((m) => m.totalAmount === minVal && m.totalAmount > 0)?.monthName || '-';
+
+      setSummary({
+        total,
+        average: avg,
+        highestMonth: highest !== '-' ? highest : '-',
+        lowestMonth: lowest !== '-' ? lowest : '-',
+      });
+
+      setYearCoverage(coverageRes);
+    } catch (error) {
+      console.error('Failed to query trends data:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
+  }, [db, selectedYear, selectedCategory, activeProfileId]);
 
-    const labelStyle: TextStyle = isSelected
-      ? { color: activeColor, fontWeight: '800', fontSize: 11 }
-      : { color: colors.textSecondary, fontWeight: '400', fontSize: 10 };
+  const chartData = React.useMemo(() => {
+    return rawTrendData.map((item) => {
+      const hasData = item.totalAmount > 0;
+      const val = hasData ? Math.round(item.totalAmount) : 0;
+      const isSelected = item.monthName === selectedMonthKey;
+      let ptColor = activeColor;
 
-    return {
-      value: val,
-      label: item.monthName.split('-')[1],
-      monthKey: item.monthName,
-      hideDataPoint: !hasData,
-      labelTextStyle: labelStyle,
-      // Dynamic Custom Node Component that updates when selectedMonthKey changes
-      customDataPoint: hasData
-        ? () => (
-            <View
-              style={{
-                width: isSelected ? 18 : 8,
-                height: isSelected ? 18 : 8,
-                borderRadius: isSelected ? 9 : 4,
-                backgroundColor: isSelected ? activeColor : ptColor,
-                borderWidth: isSelected ? 3 : 1.5,
-                borderColor: isSelected ? '#FFFFFF' : colors.card,
-                shadowColor: activeColor,
-                shadowOffset: { width: 0, height: 0 },
-                shadowOpacity: isSelected ? 1 : 0,
-                shadowRadius: isSelected ? 8 : 0,
-                elevation: isSelected ? 6 : 0,
-                transform: [
-                  { translateX: isSelected ? -5 : 0 },
-                  { translateY: isSelected ? -5 : 0 },
-                ],
-              }}
-            />
-          )
-        : undefined,
-    };
-  });
-}, [rawTrendData, selectedMonthKey, activeColor, colors.card, colors.textSecondary]);
+      if (item.budgetLimit > 0 && hasData) {
+        if (val > item.budgetLimit) ptColor = '#FF3B30';
+        else if (val === item.budgetLimit) ptColor = '#FFCC00';
+        else ptColor = '#34C759';
+      }
+
+      const labelStyle: TextStyle = isSelected
+        ? { color: activeColor, fontWeight: '800', fontSize: 11 }
+        : { color: colors.textSecondary, fontWeight: '400', fontSize: 10 };
+
+      return {
+        value: val,
+        label: item.monthName.split('-')[1],
+        monthKey: item.monthName,
+        hideDataPoint: !hasData,
+        labelTextStyle: labelStyle,
+        customDataPoint: hasData
+          ? () => (
+              <View
+                style={{
+                  width: isSelected ? 18 : 8,
+                  height: isSelected ? 18 : 8,
+                  borderRadius: isSelected ? 9 : 4,
+                  backgroundColor: isSelected ? activeColor : ptColor,
+                  borderWidth: isSelected ? 3 : 1.5,
+                  borderColor: isSelected ? '#FFFFFF' : colors.card,
+                  shadowColor: activeColor,
+                  shadowOffset: { width: 0, height: 0 },
+                  shadowOpacity: isSelected ? 1 : 0,
+                  shadowRadius: isSelected ? 8 : 0,
+                  elevation: isSelected ? 6 : 0,
+                  transform: [
+                    { translateX: isSelected ? -5 : 0 },
+                    { translateY: isSelected ? -5 : 0 },
+                  ],
+                }}
+              />
+            )
+          : undefined,
+      };
+    });
+  }, [rawTrendData, selectedMonthKey, activeColor, colors.card, colors.textSecondary]);
 
   useFocusEffect(
     useCallback(() => {
       loadAnalyticsData();
     }, [loadAnalyticsData])
   );
+
+  const currentYearIndex = availableYears.indexOf(selectedYear);
+  const canGoPrev = currentYearIndex < availableYears.length - 1;
+  const canGoNext = currentYearIndex > 0;
+
+  const handlePrevYear = () => {
+    if (canGoPrev) {
+      setSelectedYear(availableYears[currentYearIndex + 1]);
+      setSelectedMonthKey(null);
+      setSelectedAmount(null);
+    }
+  };
+
+  const handleNextYear = () => {
+    if (canGoNext) {
+      setSelectedYear(availableYears[currentYearIndex - 1]);
+      setSelectedMonthKey(null);
+      setSelectedAmount(null);
+    }
+  };
 
   const handleSelectCategory = (cat: string) => {
     setSelectedCategory(cat);
@@ -352,13 +423,27 @@ const chartData = React.useMemo(() => {
     await loadAnalyticsData();
   };
 
+  const getBadgeColor = (status: YearCoverageStatus['status']) => {
+    switch (status) {
+      case 'COMPLETE': return { bg: 'rgba(52, 199, 89, 0.12)', text: '#34C759' };
+      case 'PARTIAL': return { bg: 'rgba(255, 149, 0, 0.12)', text: '#FF9500' };
+      case 'IN_PROGRESS': return { bg: 'rgba(0, 122, 255, 0.12)', text: colors.accent };
+      default: return { bg: 'rgba(142, 142, 147, 0.12)', text: colors.textSecondary };
+    }
+  };
+
+  const badgeTheme = getBadgeColor(yearCoverage.status);
+
   return (
-<SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top']}>
+    <ContainerWrapper 
+      style={[styles.safeArea, { backgroundColor: colors.background }]} 
+      {...containerProps}
+    >
       <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <DemoBanner />
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[styles.content, { paddingBottom: 60 }]}
+          keyboardShouldPersistTaps="handled"
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -370,9 +455,6 @@ const chartData = React.useMemo(() => {
             />
           }
         >
-          {/* Demo Workspace Banner */}
-          <DemoBanner />
-
           {/* Header Bar */}
           <View style={styles.headerRow}>
             <Text style={[styles.headerTitle, { color: colors.text }]}>Trends</Text>
@@ -387,14 +469,53 @@ const chartData = React.useMemo(() => {
               <Ionicons name="settings-outline" size={20} color={colors.text} />
             </TouchableOpacity>
           </View>
-          {/* Horizontal Filter Pills */}
+
+          {/* Clean Year Stepper */}
+          <View style={[styles.stepperContainer, { backgroundColor: isDark ? '#2C2C2E' : '#E5E5EA' }]}>
+            <TouchableOpacity
+              style={[styles.arrowButton, !canGoPrev && styles.disabledButton, { backgroundColor: colors.card }]}
+              onPress={handlePrevYear}
+              disabled={!canGoPrev}
+            >
+              <Text style={[styles.arrowText, !canGoPrev && styles.disabledText, { color: colors.accent }]}>‹</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.labelContainer}
+              onPress={() => setYearPickerVisible(true)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.stepperLabel, { color: colors.text }]}>{selectedYear}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.arrowButton, !canGoNext && styles.disabledButton, { backgroundColor: colors.card }]}
+              onPress={handleNextYear}
+              disabled={!canGoNext}
+            >
+              <Text style={[styles.arrowText, !canGoNext && styles.disabledText, { color: colors.accent }]}>›</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Separate Color-Coded Coverage Badge */}
+          {yearCoverage.label ? (
+            <View style={styles.badgeWrapper}>
+              <View style={[styles.coverageBadge, { backgroundColor: badgeTheme.bg }]}>
+                <Text style={[styles.coverageText, { color: badgeTheme.text }]}>
+                  {yearCoverage.label}
+                </Text>
+              </View>
+            </View>
+          ) : null}
+
+          {/* Horizontal Filter Pills (Sorted Highest to Lowest Spend) */}
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             style={styles.pillScrollView}
             contentContainerStyle={styles.pillContainer}
           >
-            {CATEGORIES.map((cat) => {
+            {sortedCategories.map((cat) => {
               const isActive = selectedCategory === cat;
               const color = cat === 'All' ? colors.accent : getCategoryColor(cat);
 
@@ -430,7 +551,7 @@ const chartData = React.useMemo(() => {
             <View style={[styles.heroCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={styles.heroHeader}>
                 <Text style={[styles.heroLabel, { color: colors.textSecondary }]}>
-                  {selectedCategory === 'All' ? 'Total 2026 Spending' : `Total 2026 ${selectedCategory}`}
+                  {selectedCategory === 'All' ? `Total ${selectedYear} Spending` : `Total ${selectedYear} ${selectedCategory}`}
                 </Text>
                 <View style={[styles.heroBadge, { backgroundColor: `${activeColor}18` }]}>
                   <Text style={[styles.heroBadgeText, { color: activeColor }]}>Annual</Text>
@@ -475,7 +596,7 @@ const chartData = React.useMemo(() => {
           {/* Annual Expenses Chart Card */}
           <View style={[styles.chartCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.chartHeaderRow}>
-              <Text style={[styles.chartTitle, { color: colors.text }]}>Annual Expenses</Text>
+              <Text style={[styles.chartTitle, { color: colors.text }]}>{selectedYear} Expenses</Text>
               <TouchableOpacity
                 activeOpacity={0.6}
                 onPress={() => {
@@ -498,7 +619,7 @@ const chartData = React.useMemo(() => {
             ) : (
               <View style={styles.chartWrapper} onTouchEnd={handleScrubDrop}>
                 <LineChart
-                  key={`${selectedCategory}-${categoryBudget}`}
+                  key={`${selectedCategory}-${categoryBudget}-${selectedYear}`}
                   data={chartData}
                   maxValue={maxChartValue}
                   noOfSections={3}
@@ -550,11 +671,10 @@ const chartData = React.useMemo(() => {
                     },
                   }}
                 />
-
               </View>
             )}
 
-            {/* Grid Layout Banners — Clean Render Without Flashes */}
+            {/* Grid Layout Banners */}
             {selectedMonthKey && selectedAmount !== null && (
               <View style={styles.bannerGridContainer}>
                 <View style={styles.bannerGridRow}>
@@ -579,28 +699,26 @@ const chartData = React.useMemo(() => {
                     <Text style={[styles.gridCardSubtext, { color: colors.accent }]}>Inspect Items</Text>
                   </TouchableOpacity>
 
-                  {/* Goal Target Card */}
-                  <View
+                  {/* Goal Target Card (Fully Clickable) */}
+                  <TouchableOpacity
                     style={[
                       styles.gridCard,
                       { backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7', borderLeftColor: activeColor },
                     ]}
+                    activeOpacity={isEditingInline ? 1 : 0.8}
+                    onPress={() => {
+                      if (!isEditingInline) {
+                        setInlineInputVal(categoryBudget > 0 ? categoryBudget.toString() : '');
+                        setIsEditingInline(true);
+                      }
+                    }}
                   >
                     <View style={styles.gridCardHeader}>
                       <Text style={[styles.gridCardTitle, { color: colors.textSecondary }]} numberOfLines={1}>
                         Goal Target
                       </Text>
                       {!isEditingInline && (
-                        <TouchableOpacity
-                          onPress={() => {
-                            setInlineInputVal(categoryBudget > 0 ? categoryBudget.toString() : '');
-                            setIsEditingInline(true);
-                          }}
-                        >
-                          <Text style={[styles.quickEditText, { color: colors.accent }]}>
-                            {categoryBudget > 0 ? 'Edit' : 'Set'}
-                          </Text>
-                        </TouchableOpacity>
+                        <Ionicons name="pencil-outline" size={13} color={colors.accent} />
                       )}
                     </View>
 
@@ -632,14 +750,14 @@ const chartData = React.useMemo(() => {
                     ) : (
                       <>
                         <Text style={[styles.gridCardHeroValue, { color: colors.text }]}>
-                          {categoryBudget > 0 ? `€${categoryBudget.toFixed(0)}` : 'None'}
+                          {categoryBudget > 0 ? `€${categoryBudget.toFixed(0)}` : 'Set Goal'}
                         </Text>
                         <Text style={[styles.gridCardSubtext, { color: colors.textSecondary }]}>
-                          {categoryBudget > 0 ? 'Monthly Limit' : 'No target set'}
+                          {categoryBudget > 0 ? 'Monthly Limit' : 'Tap to add limit'}
                         </Text>
                       </>
                     )}
-                  </View>
+                  </TouchableOpacity>
                 </View>
 
                 {/* Dismiss Button */}
@@ -661,6 +779,59 @@ const chartData = React.useMemo(() => {
             )}
           </View>
         </ScrollView>
+
+        {/* Year Picker Modal Sheet */}
+        <Modal visible={yearPickerVisible} transparent animationType="slide">
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setYearPickerVisible(false)}
+          >
+            <TouchableWithoutFeedback>
+              <View style={[styles.sheetContainer, { backgroundColor: colors.card }]}>
+                <View style={styles.sheetHeader}>
+                  <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
+                  <Text style={[styles.sheetTitle, { color: colors.text }]}>Select Year</Text>
+                </View>
+                <ScrollView style={{ maxHeight: 240 }}>
+                  {availableYears.map((yr) => {
+                    const isSelected = selectedYear === yr;
+                    return (
+                      <TouchableOpacity
+                        key={yr}
+                        style={[
+                          styles.sheetItem,
+                          { borderBottomColor: colors.border },
+                          isSelected && [
+                            styles.sheetItemActive,
+                            { backgroundColor: colors.tintBackground },
+                          ],
+                        ]}
+                        onPress={() => {
+                          setSelectedYear(yr);
+                          setSelectedMonthKey(null);
+                          setSelectedAmount(null);
+                          setYearPickerVisible(false);
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.sheetItemText,
+                            { color: colors.text },
+                            isSelected && [styles.sheetItemTextActive, { color: colors.accent }],
+                          ]}
+                        >
+                          {yr}
+                        </Text>
+                        {isSelected && <Ionicons name="checkmark-circle" size={20} color={colors.accent} />}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            </TouchableWithoutFeedback>
+          </TouchableOpacity>
+        </Modal>
 
         {/* Modals */}
         <TransactionListModal
@@ -685,17 +856,17 @@ const chartData = React.useMemo(() => {
           onSelectFixedState={handleSelectFixedStateInDetail}
         />
       </View>
-    </SafeAreaView>
+    </ContainerWrapper>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   container: { flex: 1 },
-  content: { padding: 16, paddingBottom: 32 },
+  content: { padding: 16 },
   headerRow: {
     marginTop: 8,
-    marginBottom: 12,
+    marginBottom: 8,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -717,6 +888,66 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 3,
     elevation: 1,
+  },
+
+  // MonthSelector Matching Styles
+  stepperContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 8,
+  },
+  arrowButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  disabledButton: {
+    backgroundColor: 'transparent',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  arrowText: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginTop: -2,
+  },
+  disabledText: {
+    color: '#C7C7CC',
+  },
+  labelContainer: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  stepperLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+
+  // Separate Coverage Badge Styles
+  badgeWrapper: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  coverageBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  coverageText: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
   },
 
   pillScrollView: { marginBottom: 12, marginTop: 4 },
@@ -905,4 +1136,27 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
   },
+
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  sheetContainer: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingBottom: 32,
+    paddingTop: 12,
+  },
+  sheetHeader: { alignItems: 'center', marginBottom: 16 },
+  sheetHandle: { width: 36, height: 4, borderRadius: 2, marginBottom: 12, alignSelf: 'center' },
+  sheetTitle: { fontSize: 17, fontWeight: '700' },
+  sheetItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  sheetItemActive: { borderRadius: 12 },
+  sheetItemText: { fontSize: 16, fontWeight: '500' },
+  sheetItemTextActive: { fontWeight: '700' },
 });
