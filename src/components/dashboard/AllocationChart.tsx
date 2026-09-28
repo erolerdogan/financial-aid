@@ -1,4 +1,5 @@
 import { getCategoryColor } from '@/constants/colors';
+import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { CategoryTotal, Transaction } from '@/db/database';
 import { Ionicons } from '@expo/vector-icons';
@@ -30,6 +31,7 @@ export function AllocationChart({
   onSelectTransaction,
 }: AllocationChartProps) {
   const { colors, isDark } = useTheme();
+  const { currencySymbol } = useProfile();
   const [showAllCategories, setShowAllCategories] = useState(false);
 
   if (categoryData.length === 0) return null;
@@ -96,7 +98,9 @@ export function AllocationChart({
             </G>
           </Svg>
           <View style={styles.centerTextContainer}>
-            <Text style={[styles.totalAmount, { color: colors.text }]}>€{totalSpending.toFixed(0)}</Text>
+            <Text style={[styles.totalAmount, { color: colors.text }]}>
+              {currencySymbol}{totalSpending.toFixed(0)}
+            </Text>
             <Text style={[styles.totalLabel, { color: colors.textSecondary }]}>Total Expenses</Text>
           </View>
         </View>
@@ -148,7 +152,7 @@ export function AllocationChart({
                       isDimmed && { color: colors.textSecondary },
                     ]}
                   >
-                    €{item.totalAmount.toFixed(0)}
+                    {currencySymbol}{item.totalAmount.toFixed(0)}
                   </Text>
                   <Text
                     style={[
@@ -220,7 +224,9 @@ export function AllocationChart({
                               { color: trx.amount < 0 ? colors.text : '#34C759' },
                             ]}
                           >
-                            {trx.amount < 0 ? `-€${Math.abs(trx.amount).toFixed(2)}` : `+€${trx.amount.toFixed(2)}`}
+                            {trx.amount < 0
+                              ? `-${currencySymbol}${Math.abs(trx.amount).toFixed(2)}`
+                              : `+${currencySymbol}${trx.amount.toFixed(2)}`}
                           </Text>
                         </TouchableOpacity>
                       );

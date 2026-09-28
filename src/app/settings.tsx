@@ -1,5 +1,5 @@
 import { ProfileSwitcherModal } from '@/components/ProfileSwitcherModal';
-import { useProfile } from '@/contexts/ProfileContext';
+import { CURRENCY_SYMBOLS, useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { clearAllData } from '@/db/database';
 import { useStatementImporter } from '@/hooks/useStatementImporter';
@@ -14,28 +14,66 @@ import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   ScrollView,
   StyleSheet,
   Switch,
   Text,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+const AVAILABLE_CURRENCIES = [
+  { code: 'EUR', label: 'Euro (€)' },
+  { code: 'USD', label: 'US Dollar ($)' },
+  { code: 'GBP', label: 'British Pound (£)' },
+  { code: 'JPY', label: 'Japanese Yen (¥)' },
+  { code: 'CAD', label: 'Canadian Dollar (CA$)' },
+  { code: 'AUD', label: 'Australian Dollar (A$)' },
+  { code: 'CHF', label: 'Swiss Franc (CHF)' },
+];
+
 export default function SettingsScreen() {
-  const { activeProfile, setIsDemoMode, refreshProfiles } = useProfile();
+  const { activeProfile, updateCurrency, refreshProfiles } = useProfile();
   const { isDark, toggleTheme, colors } = useTheme();
   const router = useRouter();
   const db = useSQLiteContext();
 
   const [loading, setLoading] = useState(false);
   const [profileModalVisible, setProfileModalVisible] = useState(false);
+  const [currencyModalVisible, setCurrencyModalVisible] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
   const { importStatement, importing } = useStatementImporter({
     showAlert: true,
   });
+
+  const activeCurrencyCode = activeProfile?.currency || 'EUR';
+  const activeCurrencySymbol = CURRENCY_SYMBOLS[activeCurrencyCode] || '€';
+
+  const handleSelectCurrency = (newCurrencyCode: string) => {
+    if (newCurrencyCode === activeCurrencyCode) {
+      setCurrencyModalVisible(false);
+      return;
+    }
+
+    Alert.alert(
+      'Switch Currency',
+      `Convert all transaction amounts and update the display symbol from ${activeCurrencyCode} (${activeCurrencySymbol}) to ${newCurrencyCode}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Convert & Update Symbol',
+          onPress: async () => {
+            await updateCurrency(newCurrencyCode);
+            setCurrencyModalVisible(false);
+          },
+        },
+      ]
+    );
+  };
 
   const handleResetDatabase = () => {
     Alert.alert(
@@ -50,9 +88,6 @@ export default function SettingsScreen() {
             try {
               setLoading(true);
               await clearAllData(db);
-              if (setIsDemoMode) {
-                setIsDemoMode(false);
-              }
               await refreshProfiles();
               router.dismissAll();
               router.replace('/welcome');
@@ -92,6 +127,7 @@ export default function SettingsScreen() {
       </View>
 
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        {/* PROFILES SECTION */}
         <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>PROFILES</Text>
         <View style={[styles.cardGroup, { backgroundColor: colors.card }]}>
           <TouchableOpacity
@@ -126,6 +162,7 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* DATA & STORAGE SECTION */}
         <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>DATA & STORAGE</Text>
         <View style={[styles.cardGroup, { backgroundColor: colors.card }]}>
           <TouchableOpacity
@@ -167,8 +204,36 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* PREFERENCES SECTION */}
         <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>PREFERENCES</Text>
         <View style={[styles.cardGroup, { backgroundColor: colors.card }]}>
+          {/* CURRENCY SELECTION ROW */}
+          <TouchableOpacity
+            style={styles.rowItem}
+            activeOpacity={0.7}
+            onPress={() => setCurrencyModalVisible(true)}
+          >
+            <View style={styles.rowLeft}>
+              <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
+                <Ionicons name="cash-outline" size={18} color={colors.accent} />
+              </View>
+              <View>
+                <Text style={[styles.rowTitle, { color: colors.text }]}>Currency</Text>
+                <Text style={[styles.rowSub, { color: colors.textSecondary }]}>
+                  {activeCurrencyCode} ({activeCurrencySymbol})
+                </Text>
+              </View>
+            </View>
+            <View style={styles.rowRight}>
+              <Text style={[styles.actionBadgeText, { color: colors.accent }]}>
+                {activeCurrencyCode}
+              </Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+            </View>
+          </TouchableOpacity>
+
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
           <TouchableOpacity
             style={styles.rowItem}
             activeOpacity={0.7}
@@ -187,6 +252,7 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* NOTIFICATIONS SECTION */}
         <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>NOTIFICATIONS</Text>
         <View style={[styles.cardGroup, { backgroundColor: colors.card }]}>
           <View style={styles.rowItem}>
@@ -211,6 +277,7 @@ export default function SettingsScreen() {
           </View>
         </View>
 
+        {/* APPEARANCE SECTION */}
         <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>APPEARANCE</Text>
         <View style={[styles.cardGroup, { backgroundColor: colors.card }]}>
           <View style={styles.rowItem}>
@@ -231,10 +298,56 @@ export default function SettingsScreen() {
         </View>
       </ScrollView>
 
+      {/* Profile Switcher Modal */}
       <ProfileSwitcherModal
         visible={profileModalVisible}
         onClose={() => setProfileModalVisible(false)}
       />
+
+      {/* Currency Picker Sheet Modal */}
+      <Modal visible={currencyModalVisible} transparent animationType="slide">
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setCurrencyModalVisible(false)}
+        >
+          <TouchableWithoutFeedback>
+            <View style={[styles.sheetContainer, { backgroundColor: colors.card }]}>
+              <View style={styles.sheetHeader}>
+                <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
+                <Text style={[styles.sheetTitle, { color: colors.text }]}>Select Currency</Text>
+              </View>
+              <ScrollView style={{ maxHeight: 320 }}>
+                {AVAILABLE_CURRENCIES.map((curr) => {
+                  const isSelected = activeCurrencyCode === curr.code;
+                  return (
+                    <TouchableOpacity
+                      key={curr.code}
+                      style={[
+                        styles.sheetItem,
+                        { borderBottomColor: colors.border },
+                        isSelected && { backgroundColor: colors.tintBackground },
+                      ]}
+                      onPress={() => handleSelectCurrency(curr.code)}
+                    >
+                      <Text
+                        style={[
+                          styles.sheetItemText,
+                          { color: colors.text },
+                          isSelected && { fontWeight: '700', color: colors.accent },
+                        ]}
+                      >
+                        {curr.label}
+                      </Text>
+                      {isSelected && <Ionicons name="checkmark-circle" size={20} color={colors.accent} />}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          </TouchableWithoutFeedback>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -303,4 +416,24 @@ const styles = StyleSheet.create({
   rowSub: { fontSize: 11, marginTop: 1 },
   actionBadgeText: { fontSize: 12, fontWeight: '600' },
   divider: { height: StyleSheet.hairlineWidth },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  sheetContainer: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingBottom: 32,
+    paddingTop: 12,
+  },
+  sheetHeader: { alignItems: 'center', marginBottom: 16 },
+  sheetHandle: { width: 36, height: 4, borderRadius: 2, marginBottom: 12, alignSelf: 'center' },
+  sheetTitle: { fontSize: 17, fontWeight: '700' },
+  sheetItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  sheetItemText: { fontSize: 16, fontWeight: '500' },
 });

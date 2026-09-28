@@ -1,4 +1,5 @@
 import { getCategoryColor } from '@/constants/colors';
+import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { FixedOverrideState, Transaction } from '@/db/database';
 import { Ionicons } from '@expo/vector-icons';
@@ -38,6 +39,7 @@ export function TransactionDetailModal({
 }: TransactionDetailModalProps) {
   const handleDismissAction = onDismiss ?? onClose;
   const { colors, isDark } = useTheme();
+  const { currencySymbol } = useProfile();
 
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
@@ -107,12 +109,17 @@ export function TransactionDetailModal({
   if (!transaction) return null;
 
   const isIncome = transaction.amount > 0;
-  const formattedAmount = `${isIncome ? '+' : '-'}€${Math.abs(transaction.amount).toFixed(2)}`;
+  const formattedAmount = `${isIncome ? '+' : '-'}${currencySymbol}${Math.abs(transaction.amount).toFixed(2)}`;
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={() => handleDismissAnimation(onDismiss)}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="none"
+      onRequestClose={() => handleDismissAnimation(handleDismissAction)}
+    >
       <View style={styles.modalOverlay}>
-        <TouchableWithoutFeedback onPress={() => handleDismissAnimation(onDismiss)}>
+        <TouchableWithoutFeedback onPress={() => handleDismissAnimation(handleDismissAction)}>
           <Animated.View
             style={[
               StyleSheet.absoluteFill,
@@ -146,7 +153,7 @@ export function TransactionDetailModal({
               <Text style={[styles.backBtnText, { color: colors.accent }]}>{parentTitle}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => handleDismissAnimation(onDismiss)}>
+            <TouchableOpacity onPress={() => handleDismissAnimation(handleDismissAction)}>
               <Ionicons name="close-circle" size={24} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>

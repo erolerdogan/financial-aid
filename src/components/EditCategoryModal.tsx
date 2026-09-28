@@ -1,8 +1,9 @@
+import { useProfile } from '@/contexts/ProfileContext';
 import { addCustomRule, Transaction, updateTransactionCategory } from '@/db/database';
 import { useSQLiteContext } from 'expo-sqlite';
 import React, { useState } from 'react';
 import {
-    Alert, Modal, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View
+  Alert, Modal, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View
 } from 'react-native';
 
 const CATEGORIES = [
@@ -34,6 +35,9 @@ export function EditCategoryModal({
   onSuccess,
 }: EditCategoryModalProps) {
   const db = useSQLiteContext();
+  const { activeProfile, currencySymbol } = useProfile();
+  const activeProfileId = activeProfile?.id ?? 1;
+
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [createRule, setCreateRule] = useState<boolean>(false);
 
@@ -54,7 +58,7 @@ export function EditCategoryModal({
       // 2. Optional: Add global rule for future imports
       if (createRule) {
         const keyword = transaction.merchant.toUpperCase();
-        await addCustomRule(db, keyword, selectedCategory);
+        await addCustomRule(db, keyword, selectedCategory, activeProfileId);
       }
 
       Alert.alert('Saved', 'Transaction category updated successfully.');
@@ -80,7 +84,9 @@ export function EditCategoryModal({
           <View style={styles.merchantCard}>
             <Text style={styles.merchantName}>{transaction.merchant}</Text>
             <Text style={styles.rawText}>{transaction.rawDescription}</Text>
-            <Text style={styles.amountText}>€{transaction.amount.toFixed(2)}</Text>
+            <Text style={styles.amountText}>
+              {transaction.amount < 0 ? '-' : '+'}{currencySymbol}{Math.abs(transaction.amount).toFixed(2)}
+            </Text>
           </View>
 
           <Text style={styles.sectionHeader}>Select New Category</Text>

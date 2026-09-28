@@ -1,5 +1,6 @@
 import { FixedFlexibleCard } from '@/components/dashboard/FixedFlexibleCard';
 import { getCategoryColor } from '@/constants/colors';
+import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { FixedCostSummary, Transaction } from '@/db/database';
 import { Ionicons } from '@expo/vector-icons';
@@ -51,10 +52,11 @@ export function TransactionListModal({
   onSelectTransaction,
 }: TransactionListModalProps) {
   const { colors, isDark } = useTheme();
+  const { currencySymbol } = useProfile();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filterMode, setFilterMode] = useState<ExpenseFilterMode>('ALL');
-  const [isReady, setIsReady] = useState(false); // 🚀 Defer list rendering during slide transition
+  const [isReady, setIsReady] = useState(false);
 
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
@@ -110,7 +112,6 @@ export function TransactionListModal({
       translateY.setValue(SCREEN_HEIGHT);
       overlayOpacity.setValue(0);
 
-      // 1. Kick off UI thread native animation instantly
       Animated.parallel([
         Animated.timing(overlayOpacity, {
           toValue: 1,
@@ -126,7 +127,6 @@ export function TransactionListModal({
         }),
       ]).start();
 
-      // 2. Defer heavy list JS mounting until sheet slide completes
       const task = InteractionManager.runAfterInteractions(() => {
         setIsReady(true);
       });
@@ -210,8 +210,8 @@ export function TransactionListModal({
             ]}
           >
             {trx.amount < 0
-              ? `-€${Math.abs(trx.amount).toFixed(2)}`
-              : `+€${trx.amount.toFixed(2)}`}
+              ? `-${currencySymbol}${Math.abs(trx.amount).toFixed(2)}`
+              : `+${currencySymbol}${trx.amount.toFixed(2)}`}
           </Text>
           <Ionicons name="chevron-forward" size={14} color={colors.textSecondary} />
         </View>
@@ -261,12 +261,11 @@ export function TransactionListModal({
               </View>
               <View style={[styles.totalBadge, { backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7' }]}>
                 <Text style={[styles.totalBadgeText, { color: colors.text }]}>
-                  €{totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {currencySymbol}{totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </Text>
               </View>
             </View>
 
-            {/* Render FlatList directly without nested ScrollView */}
             {!isReady || loading ? (
               <ActivityIndicator size="small" color={colors.accent} style={{ marginVertical: 48 }} />
             ) : (

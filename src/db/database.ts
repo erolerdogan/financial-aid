@@ -5,6 +5,7 @@ export interface Profile {
   name: string;
   avatarColor: string;
   isDefault: number;
+  currency: string; // e.g., 'EUR', 'USD', 'GBP', 'JPY'
 }
 
 export type FixedOverrideState = 'AUTO' | 'FIXED' | 'FLEXIBLE';
@@ -110,7 +111,8 @@ export async function initDatabase(db: SQLiteDatabase): Promise<void> {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
       avatarColor TEXT NOT NULL,
-      isDefault INTEGER DEFAULT 0
+      isDefault INTEGER DEFAULT 0,
+      currency TEXT NOT NULL DEFAULT 'EUR'
     );
 
     CREATE TABLE IF NOT EXISTS transactions (
@@ -128,7 +130,6 @@ export async function initDatabase(db: SQLiteDatabase): Promise<void> {
       is_fixed INTEGER
     );
 
-    -- Composite unique index for transaction deduplication
     CREATE UNIQUE INDEX IF NOT EXISTS idx_transactions_dedup 
     ON transactions(date, amount, rawDescription, profileId);
 
@@ -156,37 +157,43 @@ export async function initDatabase(db: SQLiteDatabase): Promise<void> {
       UNIQUE(keyword, profileId)
     );
   `);
-  
-  // Non-destructive column migrations
+
+  // Column migrations executed safely one-by-one via runAsync
   try {
-    await db.execAsync(`ALTER TABLE transactions ADD COLUMN profileId INTEGER NOT NULL DEFAULT 1;`);
+    await db.runAsync(`ALTER TABLE profiles ADD COLUMN currency TEXT NOT NULL DEFAULT 'EUR';`);
+  } catch (e) {
+    // Column already exists
+  }
+
+  try {
+    await db.runAsync(`ALTER TABLE transactions ADD COLUMN profileId INTEGER NOT NULL DEFAULT 1;`);
   } catch (e) {}
 
   try {
-    await db.execAsync(`ALTER TABLE transactions ADD COLUMN is_fixed INTEGER;`);
+    await db.runAsync(`ALTER TABLE transactions ADD COLUMN is_fixed INTEGER;`);
   } catch (e) {}
 
   try {
-    await db.execAsync(`ALTER TABLE category_rules ADD COLUMN profileId INTEGER NOT NULL DEFAULT 1;`);
+    await db.runAsync(`ALTER TABLE category_rules ADD COLUMN profileId INTEGER NOT NULL DEFAULT 1;`);
   } catch (e) {}
 
   try {
-    await db.execAsync(`ALTER TABLE category_goals ADD COLUMN profileId INTEGER NOT NULL DEFAULT 1;`);
+    await db.runAsync(`ALTER TABLE category_goals ADD COLUMN profileId INTEGER NOT NULL DEFAULT 1;`);
   } catch (e) {}
 
   try {
-    await db.execAsync(`ALTER TABLE fixed_cost_rules ADD COLUMN profileId INTEGER NOT NULL DEFAULT 1;`);
+    await db.runAsync(`ALTER TABLE fixed_cost_rules ADD COLUMN profileId INTEGER NOT NULL DEFAULT 1;`);
   } catch (e) {}
 
   try {
-    await db.execAsync(`ALTER TABLE fixed_cost_rules ADD COLUMN overrideState TEXT NOT NULL DEFAULT 'FIXED';`);
+    await db.runAsync(`ALTER TABLE fixed_cost_rules ADD COLUMN overrideState TEXT NOT NULL DEFAULT 'FIXED';`);
   } catch (e) {}
 
-  // Ensure EXACTLY one single default profile exists on fresh initial run
+  // Initial single default profile seed
   const existingProfiles = await db.getAllAsync<{ id: number }>(`SELECT id FROM profiles;`);
   if (existingProfiles.length === 0) {
     await db.runAsync(
-      `INSERT INTO profiles (name, avatarColor, isDefault) VALUES ('Personal', '#007AFF', 1);`
+      `INSERT INTO profiles (name, avatarColor, isDefault, currency) VALUES ('Personal', '#007AFF', 1, 'EUR');`
     );
   }
 }
@@ -199,11 +206,11 @@ export async function getProfiles(db: SQLiteDatabase): Promise<Profile[]> {
 export async function createProfile(db: SQLiteDatabase, name: string, avatarColor: string): Promise<Profile | null> {
   try {
     const result = await db.runAsync(
-      `INSERT INTO profiles (name, avatarColor, isDefault) VALUES (?, ?, 0);`,
+      `INSERT INTO profiles (name, avatarColor, isDefault, currency) VALUES (?, ?, 0, 'EUR');`,
       [name, avatarColor]
     );
     const newId = result.lastInsertRowId;
-    return { id: newId, name, avatarColor, isDefault: 0 };
+    return { id: newId, name, avatarColor, isDefault: 0, currency: 'EUR' };
   } catch (error) {
     console.error('Failed to create profile:', error);
     return null;
@@ -220,6 +227,14 @@ export async function updateProfile(
     `UPDATE profiles SET name = ?, avatarColor = ? WHERE id = ?;`,
     [name.trim(), avatarColor, id]
   );
+}
+
+export async function updateProfileCurrency(
+  db: SQLiteDatabase,
+  id: number,
+  currency: string
+): Promise<void> {
+  await db.runAsync(`UPDATE profiles SET currency = ? WHERE id = ?;`, [currency, id]);
 }
 
 export async function deleteProfile(
@@ -865,7 +880,6 @@ export async function clearAllData(
   if (!db) return;
 
   if (profileId !== undefined) {
-    // Soft reset: Delete only records for a specific profile
     await db.withTransactionAsync(async () => {
       await db.runAsync(`DELETE FROM transactions WHERE profileId = ?;`, [profileId]);
       await db.runAsync(`DELETE FROM category_goals WHERE profileId = ?;`, [profileId]);
@@ -873,7 +887,6 @@ export async function clearAllData(
       await db.runAsync(`DELETE FROM fixed_cost_rules WHERE profileId = ?;`, [profileId]);
     });
   } else {
-    // Hard Factory Reset: Completely wipe schemas to guarantee a 100% clean slate
     await db.execAsync(`
       DROP TABLE IF EXISTS transactions;
       DROP TABLE IF EXISTS category_goals;

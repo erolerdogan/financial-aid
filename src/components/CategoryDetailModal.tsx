@@ -1,3 +1,4 @@
+import { useProfile } from '@/contexts/ProfileContext';
 import { getTransactionsByMonthAndCategory, Transaction } from '@/db/database';
 import { useSQLiteContext } from 'expo-sqlite';
 import React, { useEffect, useState } from 'react';
@@ -21,23 +22,27 @@ export function CategoryDetailModal({
   onClose,
 }: CategoryDetailModalProps) {
   const db = useSQLiteContext();
+  const { activeProfile, currencySymbol } = useProfile();
+  const activeProfileId = activeProfile?.id ?? 1;
+
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    if (category && monthName) {
-      getTransactionsByMonthAndCategory(db, monthName, category)
+    if (category && monthName && db) {
+      // Pass all 4 required parameters: db, monthName, category, profileId
+      getTransactionsByMonthAndCategory(db, monthName, category, activeProfileId)
         .then(setTransactions)
         .catch((err) => console.error('Failed to load category transactions:', err));
     } else {
       setTransactions([]);
     }
     setSearchQuery('');
-  }, [category, monthName, db]);
+  }, [category, monthName, db, activeProfileId]);
 
   if (!category) return null;
 
-  const totalAmount = transactions.reduce((sum, tx) => sum + tx.amount, 0);
+  const totalAmount = transactions.reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
 
   const filteredTransactions = transactions.filter(
     (tx) =>
@@ -63,7 +68,7 @@ export function CategoryDetailModal({
           {/* Category Summary Header */}
           <View style={styles.summaryCard}>
             <Text style={styles.summaryLabel}>Total Spent</Text>
-            <Text style={styles.summaryAmount}>€{totalAmount.toFixed(2)}</Text>
+            <Text style={styles.summaryAmount}>{currencySymbol}{totalAmount.toFixed(2)}</Text>
             <Text style={styles.summaryCount}>
               {transactions.length} {transactions.length === 1 ? 'transaction' : 'transactions'}
             </Text>
@@ -86,13 +91,15 @@ export function CategoryDetailModal({
             renderItem={({ item }) => (
               <View style={styles.txCard}>
                 <View style={styles.txLeft}>
-                  <Text style={styles.merchant}>{item.merchant}</Text>
+                  <Text style={styles.merchant}>{item.merchant !== 'Unknown' ? item.merchant : item.rawDescription}</Text>
                   <Text style={styles.rawDesc} numberOfLines={1}>
                     {item.rawDescription}
                   </Text>
                 </View>
                 <View style={styles.txRight}>
-                  <Text style={styles.amount}>€{item.amount.toFixed(2)}</Text>
+                  <Text style={styles.amount}>
+                    {item.amount < 0 ? '-' : '+'}{currencySymbol}{Math.abs(item.amount).toFixed(2)}
+                  </Text>
                   <Text style={styles.date}>{item.date}</Text>
                 </View>
               </View>

@@ -95,7 +95,7 @@ export default function TrendsScreen() {
   const router = useRouter();
   const db = useSQLiteContext();
   const { colors } = useTheme();
-  const { activeProfile } = useProfile();
+  const { activeProfile, currencySymbol } = useProfile();
   const activeProfileId = activeProfile?.id ?? 1;
 
   const [loading, setLoading] = useState(true);
@@ -572,7 +572,7 @@ export default function TrendsScreen() {
               </View>
             </View>
             <Text style={[styles.heroValue, { color: activeColor }]}>
-              €{summary.total.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+              {currencySymbol}{summary.total.toLocaleString('en-US', { maximumFractionDigits: 0 })}
             </Text>
           </View>
 
@@ -582,7 +582,7 @@ export default function TrendsScreen() {
                 Monthly Avg
               </Text>
               <Text style={[styles.subValue, { color: colors.text }]}>
-                €{summary.average.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                {currencySymbol}{summary.average.toLocaleString('en-US', { maximumFractionDigits: 0 })}
               </Text>
             </View>
 
@@ -705,7 +705,7 @@ export default function TrendsScreen() {
                     <Ionicons name="chevron-forward" size={14} color={colors.accent} />
                   </View>
                   <Text style={[styles.gridCardHeroValue, { color: colors.text }]}>
-                    €{selectedAmount.toLocaleString()}
+                    {currencySymbol}{selectedAmount.toLocaleString()}
                   </Text>
                   <Text style={[styles.gridCardSubtext, { color: colors.accent }]}>Inspect Items</Text>
                 </TouchableOpacity>
@@ -760,7 +760,7 @@ export default function TrendsScreen() {
                   ) : (
                     <>
                       <Text style={[styles.gridCardHeroValue, { color: colors.text }]}>
-                        {categoryBudget > 0 ? `€${categoryBudget.toFixed(0)}` : 'Set Goal'}
+                        {categoryBudget > 0 ? `${currencySymbol}${categoryBudget.toFixed(0)}` : 'Set Goal'}
                       </Text>
                       <Text style={[styles.gridCardSubtext, { color: colors.textSecondary }]}>
                         {categoryBudget > 0 ? 'Monthly Limit' : 'Tap to add limit'}

@@ -1,3 +1,4 @@
+import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -20,6 +21,7 @@ export function SummaryCards({
   onOpenCardModal,
 }: SummaryCardsProps) {
   const { colors } = useTheme();
+  const { currencySymbol } = useProfile();
 
   return (
     <View style={styles.container}>
@@ -31,7 +33,7 @@ export function SummaryCards({
         >
           <Text style={[styles.label, { color: colors.textSecondary }]}>Total Income</Text>
           <Text style={[styles.amount, { color: '#34C759' }]}>
-            €{summary.totalIncome.toFixed(2)}
+            {currencySymbol}{summary.totalIncome.toFixed(2)}
           </Text>
         </TouchableOpacity>
 
@@ -42,7 +44,7 @@ export function SummaryCards({
         >
           <Text style={[styles.label, { color: colors.textSecondary }]}>Total Expenses</Text>
           <Text style={[styles.amount, { color: '#FF3B30' }]}>
-            €{summary.totalExpenses.toFixed(2)}
+            {currencySymbol}{summary.totalExpenses.toFixed(2)}
           </Text>
         </TouchableOpacity>
       </View>
@@ -55,7 +57,7 @@ export function SummaryCards({
             { color: summary.netSavings >= 0 ? '#34C759' : '#FF3B30' },
           ]}
         >
-          €{summary.netSavings.toFixed(2)}
+          {currencySymbol}{summary.netSavings.toFixed(2)}
         </Text>
       </View>
     </View>
