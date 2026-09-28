@@ -1,4 +1,6 @@
 import { insertTransactions, Transaction } from '@/db/database';
+import { parseCSVContent, parseExcelContent } from '@/utils/parser';
+import * as FileSystem from 'expo-file-system/legacy';
 import { SQLiteDatabase } from 'expo-sqlite';
 
 export interface ImportTransactionPayload {
@@ -18,19 +20,11 @@ export interface ImportResultSummary {
   skippedCount: number;
 }
 
-/**
- * Normalizes date (YYYY-MM-DD), amount (2 decimal places), and description string 
- * to guarantee identical fingerprint hashes for Excel and CSV rows.
- */
 export function generateTransactionHash(date: string, amount: number, rawDescription: string): string {
-  // Normalize date string (e.g., extract YYYY-MM-DD from ISO strings)
   const cleanDate = (date || '').split('T')[0].trim();
-
-  // Standardize amount to strict 2-decimal string
   const cleanAmount = Math.abs(Number(amount)).toFixed(2);
   const sign = Number(amount) < 0 ? '-' : '+';
 
-  // Standardize description text
   const cleanDesc = (rawDescription || '')
     .trim()
     .toLowerCase()
@@ -40,16 +34,56 @@ export function generateTransactionHash(date: string, amount: number, rawDescrip
   return `${cleanDate}_${sign}${cleanAmount}_${cleanDesc}`;
 }
 
+// Native Base64 to ArrayBuffer decoder (No Node.js 'buffer' dependency needed)
+function base64ToArrayBuffer(base64: string): ArrayBuffer {
+  const binaryString = atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
+
+export async function parseFileToTransactions(fileUri: string, fileName: string) {
+  const cleanName = (fileName || '').toLowerCase();
+
+  const cacheDir = FileSystem.cacheDirectory;
+  const tempDestination = `${cacheDir}${Date.now()}_${fileName}`;
+
+  await FileSystem.copyAsync({
+    from: fileUri,
+    to: tempDestination,
+  });
+
+  try {
+    if (cleanName.endsWith('.xlsx') || cleanName.endsWith('.xls')) {
+      const base64Data = await FileSystem.readAsStringAsync(tempDestination, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      
+      const arrayBuffer = base64ToArrayBuffer(base64Data);
+      return parseExcelContent(arrayBuffer);
+    } else {
+      const csvText = await FileSystem.readAsStringAsync(tempDestination, {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
+      return parseCSVContent(csvText);
+    }
+  } finally {
+    await FileSystem.deleteAsync(tempDestination, { idempotent: true });
+  }
+}
+
 export async function processBatchImport(
   db: SQLiteDatabase,
   items: ImportTransactionPayload[],
-  profileId: number = 1
+  profileId: number
 ): Promise<ImportResultSummary> {
-  if (!items || items.length === 0) {
+  if (!items || items.length === 0 || !profileId) {
     return { totalProcessed: 0, insertedCount: 0, skippedCount: 0 };
   }
 
-  // 1. Fetch existing transactions to populate hash set
   const existingRows = await db.getAllAsync<{ date: string; amount: number; rawDescription: string }>(
     `SELECT date, amount, rawDescription FROM transactions WHERE profileId = ?;`,
     [profileId]
@@ -84,7 +118,6 @@ export async function processBatchImport(
     }
   }
 
-  // 2. Insert filtered non-duplicate transactions
   const { insertedCount, skippedCount: dbSkipped } = await insertTransactions(
     db,
     cleanTransactionsToInsert,

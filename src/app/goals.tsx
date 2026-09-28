@@ -1,3 +1,4 @@
+import { ScreenContainer } from '@/components/ScreenContainer';
 import { getCategoryColor } from '@/constants/colors';
 import { useTheme } from '@/contexts/ThemeContext';
 import {
@@ -22,7 +23,6 @@ import {
   TouchableWithoutFeedback,
   View
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useProfile } from '../contexts/ProfileContext';
 
 export default function GoalsScreen() {
@@ -77,7 +77,7 @@ export default function GoalsScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top']}>
+    <ScreenContainer>
       <View style={[styles.headerRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <Text style={[styles.headerTitle, { color: colors.text }]}>Category Budget Goals</Text>
         <TouchableOpacity
@@ -205,7 +205,7 @@ export default function GoalsScreen() {
           </TouchableOpacity>
         </KeyboardAvoidingView>
       </Modal>
-    </SafeAreaView>
+    </ScreenContainer>
   );
 }
 

@@ -3,6 +3,8 @@ import { MonthStepper } from '@/components/dashboard/MonthStepper';
 import { SummaryCards } from '@/components/dashboard/SummaryCards';
 import { TransactionDetailModal } from '@/components/modals/TransactionDetailModal';
 import { TransactionListModal } from '@/components/modals/TransactionListModal';
+import { ProfileSwitcherModal } from '@/components/ProfileSwitcherModal';
+import { ScreenContainer } from '@/components/ScreenContainer';
 import { useTheme } from '@/contexts/ThemeContext';
 import {
   CategoryTotal,
@@ -21,12 +23,13 @@ import {
   setMerchantFixedOverride,
   Transaction
 } from '@/db/database';
-import { generateSampleData } from '@/utils/sampleData';
+import { useStatementImporter } from '@/hooks/useStatementImporter';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import React, { useCallback, useState } from 'react';
 import {
+  ActivityIndicator,
   Modal,
   RefreshControl,
   ScrollView,
@@ -36,7 +39,6 @@ import {
   TouchableWithoutFeedback,
   View
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useProfile } from '../../contexts/ProfileContext';
 
 const MONTH_NAMES: Record<string, string> = {
@@ -72,21 +74,18 @@ export default function DashboardScreen() {
   const router = useRouter();
   const db = useSQLiteContext();
   const { colors } = useTheme();
-  const { activeProfile, isDemoMode } = useProfile();
+  
+  const { activeProfile, dataVersion, refreshProfiles } = useProfile();
   const activeProfileId = activeProfile?.id ?? 1;
 
-  // Dynamically switch wrapper: standard View in demo mode (zero gap), SafeAreaView in normal mode (notch protection)
-  const ContainerWrapper = isDemoMode ? View : SafeAreaView;
-  const containerProps = isDemoMode 
-    ? {} 
-    : { edges: ['top', 'bottom'] as const };
+  const { importStatement, importing } = useStatementImporter({ showAlert: true });
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [loadingDemo, setLoadingDemo] = useState(false);
 
   // Modals & Selection State
   const [monthPickerVisible, setMonthPickerVisible] = useState(false);
+  const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [currentFixedState, setCurrentFixedState] = useState<FixedOverrideState>('AUTO');
   const [detailParentTitle, setDetailParentTitle] = useState<string>('Back');
@@ -221,12 +220,13 @@ export default function DashboardScreen() {
   useFocusEffect(
     useCallback(() => {
       loadDashboardData();
-    }, [loadDashboardData])
+    }, [loadDashboardData, dataVersion])
   );
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setRefreshing(true);
-    loadDashboardData();
+    await refreshProfiles();
+    await loadDashboardData();
   };
 
   const currentIndex = availableMonths.indexOf(selectedMonth);
@@ -407,215 +407,204 @@ export default function DashboardScreen() {
     }
   };
 
-  const handleLoadDemo = async () => {
-    if (!db) return;
-    try {
-      setLoadingDemo(true);
-      await generateSampleData(db, activeProfileId);
-      await loadDashboardData();
-    } catch (err) {
-      console.error('Failed to load sample data:', err);
-    } finally {
-      setLoadingDemo(false);
-    }
-  };
-
   const totalTransactions = categoryData.reduce((a, b) => a + (b.count || 0), 0);
 
   return (
-    <ContainerWrapper 
-      style={[styles.safeArea, { backgroundColor: colors.background }]} 
-      {...containerProps}
-    >
-      <View style={{ flex: 1, backgroundColor: colors.background }}>
-        <ScrollView
-          style={[styles.container, { backgroundColor: colors.background }]}
-          contentContainerStyle={styles.content}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              tintColor={colors.accent}
-            />
-          }
-        >
-          {/* 2. Conditional Empty State / Welcome Onboarding View */}
-          {availableMonths.length === 0 && !isDemoMode ? (
-            <View style={styles.welcomeContainer}>
-              <View style={styles.welcomeHeader}>
-                <Text style={styles.badge}>LOCAL-FIRST & PRIVATE</Text>
-                <Text style={[styles.welcomeTitle, { color: colors.text }]}>
-                  Track Your Finances
-                </Text>
-                <Text style={[styles.welcomeSubtitle, { color: colors.textSecondary }]}>
-                  Your financial data stays 100% on this device. Start by importing your bank statement or explore with sample data.
+    <ScreenContainer>
+      <ScrollView
+        style={[styles.container, { backgroundColor: colors.background }]}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.accent}
+          />
+        }
+      >
+        {/* Top Header Bar */}
+        <View style={styles.headerRow}>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Overview</Text>
+
+          <View style={styles.headerRightGroup}>
+            <TouchableOpacity
+              style={[styles.profilePill, { backgroundColor: colors.card, borderColor: colors.border }]}
+              onPress={() => setProfileModalVisible(true)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.miniAvatar, { backgroundColor: activeProfile?.avatarColor || '#007AFF' }]}>
+                <Text style={styles.miniAvatarText}>
+                  {activeProfile?.name?.substring(0, 1) || 'P'}
                 </Text>
               </View>
+              <Text style={[styles.profilePillText, { color: colors.text }]}>
+                {activeProfile?.name || 'Personal'}
+              </Text>
+              <Ionicons name="chevron-down" size={12} color={colors.textSecondary} />
+            </TouchableOpacity>
 
-              <View style={styles.actionContainer}>
-                <TouchableOpacity 
-                  style={[styles.primaryButton, { backgroundColor: colors.accent }]} 
-                  onPress={() => router.push('/settings')} 
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.primaryButtonText}>Import Bank Statement</Text>
-                  <Text style={styles.buttonSubtext}>CSV or XLSX file</Text>
-                </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.settingsHeaderBtn,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
+              activeOpacity={0.8}
+              onPress={() => router.push('/settings')}
+            >
+              <Ionicons name="settings-outline" size={18} color={colors.text} />
+            </TouchableOpacity>
+          </View>
+        </View>
 
-                <TouchableOpacity 
-                  style={[
-                    styles.secondaryButton, 
-                    { 
-                      backgroundColor: colors.card, 
-                      borderColor: colors.border 
-                    }
-                  ]} 
-                  onPress={handleLoadDemo} 
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.secondaryButtonText, { color: colors.accent }]}>
-                    Explore Demo Workspace
-                  </Text>
-                  <Text style={[styles.buttonSubtextSecondary, { color: colors.textSecondary }]}>
-                    Pre-loaded sample transactions
-                  </Text>
-                </TouchableOpacity>
-              </View>
+        {/* Empty Workspace View vs Main Dashboard */}
+        {availableMonths.length === 0 ? (
+          <View style={[styles.emptyHeroCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={[styles.emptyIconContainer, { backgroundColor: colors.tintBackground }]}>
+              <Ionicons name="wallet-outline" size={32} color={colors.accent} />
             </View>
-          ) : (
-            <>
-              {/* Top Header Bar */}
-              <View style={styles.headerRow}>
-                <Text style={[styles.headerTitle, { color: colors.text }]}>Overview</Text>
+            <Text style={[styles.emptyHeroTitle, { color: colors.text }]}>
+              No Transactions in {activeProfile?.name || 'this profile'}
+            </Text>
+            <Text style={[styles.emptyHeroSubtitle, { color: colors.textSecondary }]}>
+              Your financial data stays 100% private on this device. Import a statement to start tracking your finances.
+            </Text>
 
-                <TouchableOpacity
-                  style={[
-                    styles.settingsHeaderBtn,
-                    { backgroundColor: colors.card, borderColor: colors.border },
-                  ]}
-                  activeOpacity={0.8}
-                  onPress={() => router.push('/settings')}
-                >
-                  <Ionicons name="settings-outline" size={20} color={colors.text} />
-                </TouchableOpacity>
+            <View style={styles.emptyActionStack}>
+              <TouchableOpacity
+                style={[styles.primaryImportBtn, { backgroundColor: colors.accent }]}
+                onPress={importStatement}
+                disabled={importing}
+                activeOpacity={0.85}
+              >
+                {importing ? (
+                  <ActivityIndicator size="small" color="#FFF" />
+                ) : (
+                  <Ionicons name="cloud-upload-outline" size={18} color="#FFF" />
+                )}
+                <Text style={styles.primaryImportText}>
+                  {importing ? 'Processing Statement...' : 'Import Bank Statement'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <>
+            <MonthStepper
+              selectedMonth={selectedMonth}
+              availableMonths={availableMonths}
+              monthNames={MONTH_NAMES}
+              coverageStatus={coverageStatus}
+              onPrevMonth={handlePrevMonth}
+              onNextMonth={handleNextMonth}
+              onOpenMonthPicker={() => setMonthPickerVisible(true)}
+            />
+
+            <SummaryCards
+              summary={summary}
+              totalTransactions={totalTransactions}
+              categoryCount={categoryData.length}
+              onOpenCardModal={handleOpenCardModal}
+            />
+
+            <AllocationChart
+              categoryData={categoryData}
+              selectedBarCategory={selectedBarCategory}
+              selectedCategoryTransactions={selectedCategoryTransactions}
+              loadingTransactions={loadingTransactions}
+              onBarPress={handleBarPress}
+              onSelectTransaction={(trx) => {
+                setWasOpenedFromList(false);
+                handleSelectTransaction(trx, selectedBarCategory ?? 'Category');
+              }}
+            />
+          </>
+        )}
+      </ScrollView>
+
+      <TransactionListModal
+        visible={listModalVisible}
+        listType={listModalType}
+        selectedMonth={selectedMonth}
+        monthNames={MONTH_NAMES}
+        transactions={listModalTransactions}
+        loading={loadingListModal}
+        fixedSummary={listModalType === 'INCOME' ? incomeSummary : fixedSummary}
+        onClose={() => setListModalVisible(false)}
+        onSelectTransaction={handleSelectFromFlatList}
+      />
+
+      <TransactionDetailModal
+        visible={selectedTransaction !== null}
+        transaction={selectedTransaction}
+        fixedState={currentFixedState}
+        parentTitle={detailParentTitle}
+        onClose={handleGoBackFromDetail}
+        onDismiss={handleDismissDetailDirectly}
+        onSelectFixedState={handleSelectFixedState}
+      />
+
+      <ProfileSwitcherModal
+        visible={profileModalVisible}
+        onClose={() => setProfileModalVisible(false)}
+      />
+
+      <Modal visible={monthPickerVisible} transparent animationType="slide">
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setMonthPickerVisible(false)}
+        >
+          <TouchableWithoutFeedback>
+            <View style={[styles.sheetContainer, { backgroundColor: colors.card }]}>
+              <View style={styles.sheetHeader}>
+                <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
+                <Text style={[styles.sheetTitle, { color: colors.text }]}>Select Month</Text>
               </View>
-
-              {/* Month Stepper Navigation */}
-              <MonthStepper
-                selectedMonth={selectedMonth}
-                availableMonths={availableMonths}
-                monthNames={MONTH_NAMES}
-                coverageStatus={coverageStatus}
-                onPrevMonth={handlePrevMonth}
-                onNextMonth={handleNextMonth}
-                onOpenMonthPicker={() => setMonthPickerVisible(true)}
-              />
-
-              {/* Hero Summary Cards */}
-              <SummaryCards
-                summary={summary}
-                totalTransactions={totalTransactions}
-                categoryCount={categoryData.length}
-                onOpenCardModal={handleOpenCardModal}
-              />
-
-              {/* Spending Allocation Donut Chart */}
-              <AllocationChart
-                categoryData={categoryData}
-                selectedBarCategory={selectedBarCategory}
-                selectedCategoryTransactions={selectedCategoryTransactions}
-                loadingTransactions={loadingTransactions}
-                onBarPress={handleBarPress}
-                onSelectTransaction={(trx) => {
-                  setWasOpenedFromList(false);
-                  handleSelectTransaction(trx, selectedBarCategory ?? 'Category');
-                }}
-              />
-            </>
-          )}
-        </ScrollView>
-
-        <TransactionListModal
-          visible={listModalVisible}
-          listType={listModalType}
-          selectedMonth={selectedMonth}
-          monthNames={MONTH_NAMES}
-          transactions={listModalTransactions}
-          loading={loadingListModal}
-          fixedSummary={listModalType === 'INCOME' ? incomeSummary : fixedSummary}
-          onClose={() => setListModalVisible(false)}
-          onSelectTransaction={handleSelectFromFlatList}
-        />
-
-        <TransactionDetailModal
-          visible={selectedTransaction !== null}
-          transaction={selectedTransaction}
-          fixedState={currentFixedState}
-          parentTitle={detailParentTitle}
-          onClose={handleGoBackFromDetail}
-          onDismiss={handleDismissDetailDirectly}
-          onSelectFixedState={handleSelectFixedState}
-        />
-
-        {/* Month Picker Sheet Modal */}
-        <Modal visible={monthPickerVisible} transparent animationType="slide">
-          <TouchableOpacity
-            style={styles.modalOverlay}
-            activeOpacity={1}
-            onPress={() => setMonthPickerVisible(false)}
-          >
-            <TouchableWithoutFeedback>
-              <View style={[styles.sheetContainer, { backgroundColor: colors.card }]}>
-                <View style={styles.sheetHeader}>
-                  <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
-                  <Text style={[styles.sheetTitle, { color: colors.text }]}>Select Month</Text>
-                </View>
-                <ScrollView style={{ maxHeight: 320 }}>
-                  {availableMonths.map((m) => {
-                    const isSelected = selectedMonth === m;
-                    return (
-                      <TouchableOpacity
-                        key={m}
+              <ScrollView style={{ maxHeight: 320 }}>
+                {availableMonths.map((m) => {
+                  const isSelected = selectedMonth === m;
+                  return (
+                    <TouchableOpacity
+                      key={m}
+                      style={[
+                        styles.sheetItem,
+                        { borderBottomColor: colors.border },
+                        isSelected && [
+                          styles.sheetItemActive,
+                          { backgroundColor: colors.tintBackground },
+                        ],
+                      ]}
+                      onPress={() => {
+                        setSelectedMonth(m);
+                        setSelectedBarCategory(null);
+                        setSelectedCategoryTransactions([]);
+                        setMonthPickerVisible(false);
+                      }}
+                    >
+                      <Text
                         style={[
-                          styles.sheetItem,
-                          { borderBottomColor: colors.border },
-                          isSelected && [
-                            styles.sheetItemActive,
-                            { backgroundColor: colors.tintBackground },
-                          ],
+                          styles.sheetItemText,
+                          { color: colors.text },
+                          isSelected && [styles.sheetItemTextActive, { color: colors.accent }],
                         ]}
-                        onPress={() => {
-                          setSelectedMonth(m);
-                          setSelectedBarCategory(null);
-                          setSelectedCategoryTransactions([]);
-                          setMonthPickerVisible(false);
-                        }}
                       >
-                        <Text
-                          style={[
-                            styles.sheetItemText,
-                            { color: colors.text },
-                            isSelected && [styles.sheetItemTextActive, { color: colors.accent }],
-                          ]}
-                        >
-                          {MONTH_NAMES[m] || m}
-                        </Text>
-                        {isSelected && <Ionicons name="checkmark-circle" size={20} color={colors.accent} />}
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-              </View>
-            </TouchableWithoutFeedback>
-          </TouchableOpacity>
-        </Modal>
-      </View>
-    </ContainerWrapper>
+                        {MONTH_NAMES[m] || m}
+                      </Text>
+                      {isSelected && <Ionicons name="checkmark-circle" size={20} color={colors.accent} />}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          </TouchableWithoutFeedback>
+        </TouchableOpacity>
+      </Modal>
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1 },
   container: { flex: 1 },
   content: { padding: 20, paddingBottom: 40 },
   headerRow: {
@@ -630,10 +619,40 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: -0.5,
   },
+  headerRightGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  profilePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    gap: 6,
+  },
+  miniAvatar: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  miniAvatarText: {
+    color: '#FFF',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  profilePillText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
   settingsHeaderBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: StyleSheet.hairlineWidth,
@@ -642,73 +661,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 3,
     elevation: 1,
-  },
-  welcomeContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 16,
-  },
-  welcomeHeader: {
-    alignItems: 'center',
-    marginBottom: 48,
-  },
-  badge: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#34C759',
-    letterSpacing: 1,
-    marginBottom: 12,
-  },
-  welcomeTitle: {
-    fontSize: 32,
-    fontWeight: '800',
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  welcomeSubtitle: {
-    fontSize: 16,
-    textAlign: 'center',
-    lineHeight: 22,
-    paddingHorizontal: 16,
-  },
-  actionContainer: {
-    width: '100%',
-    gap: 16,
-  },
-  primaryButton: {
-    borderRadius: 16,
-    paddingVertical: 18,
-    alignItems: 'center',
-    shadowColor: '#007AFF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-  },
-  primaryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  buttonSubtext: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 12,
-    marginTop: 2,
-  },
-  secondaryButton: {
-    borderRadius: 16,
-    paddingVertical: 18,
-    alignItems: 'center',
-    borderWidth: 1,
-  },
-  secondaryButtonText: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  buttonSubtextSecondary: {
-    fontSize: 12,
-    marginTop: 2,
   },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   sheetContainer: {
@@ -732,4 +684,61 @@ const styles = StyleSheet.create({
   sheetItemActive: { borderRadius: 12 },
   sheetItemText: { fontSize: 16, fontWeight: '500' },
   sheetItemTextActive: { fontWeight: '700' },
+
+  emptyHeroCard: {
+    borderRadius: 24,
+    padding: 28,
+    alignItems: 'center',
+    marginTop: 32,
+    marginHorizontal: 4,
+    borderWidth: StyleSheet.hairlineWidth,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  emptyIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  emptyHeroTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  emptyHeroSubtitle: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+    paddingHorizontal: 8,
+  },
+  emptyActionStack: {
+    width: '100%',
+    gap: 12,
+  },
+  primaryImportBtn: {
+    height: 48,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  primaryImportText: {
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
 });

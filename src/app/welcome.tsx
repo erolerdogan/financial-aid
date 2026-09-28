@@ -1,104 +1,54 @@
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { processBatchImport } from '@/services/importService';
-import { parseCSVContent, parseExcelContent } from '@/utils/parser';
+import { useStatementImporter } from '@/hooks/useStatementImporter';
 import { generateSampleData } from '@/utils/sampleData';
 import { Ionicons } from '@expo/vector-icons';
-import * as DocumentPicker from 'expo-document-picker';
-import { File } from 'expo-file-system';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import React, { useState } from 'react';
-import { ActivityIndicator, Alert, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React from 'react';
+import { ActivityIndicator, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function WelcomeScreen() {
   const db = useSQLiteContext();
-  const { setIsDemoMode, refreshProfiles, activeProfile } = useProfile();
+  const { setIsDemoMode, refreshProfiles, activeProfile, profiles, switchProfile } = useProfile();
   const { colors, isDark } = useTheme();
-  const activeProfileId = activeProfile?.id ?? 1;
 
-  const [importing, setImporting] = useState(false);
-
-  const handleImportDocument = async () => {
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: [
-          'text/csv',
-          'text/comma-separated-values',
-          'application/csv',
-          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          'application/vnd.ms-excel',
-          '*/*',
-        ],
-        copyToCacheDirectory: true,
-      });
-
-      if (result.canceled || !result.assets || result.assets.length === 0) {
-        return;
+  const { importStatement, importing } = useStatementImporter({
+    showAlert: false,
+    onSuccess: async () => {
+      await refreshProfiles();
+      const targetProfile = activeProfile ?? profiles[0];
+      if (targetProfile) {
+        switchProfile(targetProfile);
       }
-
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      setImporting(true);
-
-      const asset = result.assets[0];
-      const fileUri = asset.uri;
-      const fileName = (asset.name || '').toLowerCase();
-
-      let parsedTransactions = [];
-      const file = new File(fileUri);
-
-      // Exactly matches settings.tsx file parsing logic
-      if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
-        const arrayBuffer = await file.arrayBuffer();
-        parsedTransactions = parseExcelContent(arrayBuffer);
-      } else {
-        const csvText = await file.text();
-        parsedTransactions = parseCSVContent(csvText);
-      }
-
-      if (!parsedTransactions || parsedTransactions.length === 0) {
-        Alert.alert('Import Warning', 'No valid transactions found in file.');
-        setImporting(false);
-        return;
-      }
-
-      if (db) {
-        // Execute batch deduplication import
-        const summary = await processBatchImport(db, parsedTransactions, activeProfileId);
-        
-        // Refresh app state and jump straight into the dashboard tabs
-        await refreshProfiles();
-        router.replace('/(tabs)');
-      }
-    } catch (error: any) {
-      console.error('Welcome Import Error:', error);
-      Alert.alert('Import Failed', error?.message || 'An error occurred during import.');
-    } finally {
-      setImporting(false);
-    }
-  };
+      router.replace('/(tabs)');
+    },
+  });
 
   const handleDemoMode = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (db) {
-      await generateSampleData(db, activeProfileId);
+      const targetProfile = activeProfile ?? profiles[0];
+      const targetProfileId = targetProfile?.id ?? 1;
+      await generateSampleData(db, targetProfileId);
       setIsDemoMode(true);
       await refreshProfiles();
+      if (targetProfile) {
+        switchProfile(targetProfile);
+      }
       router.replace('/(tabs)');
     }
   };
 
   const gradientColors = isDark 
-    ? (['#0F172A', '#1E1B4B', '#09090B'] as readonly [string, string, ...string[]])
-    : (['#F8FAFC', '#E2E8F0', '#CBD5E1'] as readonly [string, string, ...string[]]);
+    ? (['#0F172A', '#1E1B4B', '#09090B'] as const)
+    : (['#F8FAFC', '#E2E8F0', '#CBD5E1'] as const);
 
   return (
     <LinearGradient colors={gradientColors} style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
-        
-        {/* Visual Hero / Brand Icon Slot */}
         <View style={styles.heroSlot}>
           <View style={[styles.iconGlowRing, { borderColor: colors.accent + '33' }]}>
             <View style={[styles.iconContainer, { backgroundColor: colors.card }]}>
@@ -112,7 +62,6 @@ export default function WelcomeScreen() {
           </View>
         </View>
 
-        {/* Copywriting Header */}
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.text }]}>
             Your Wealth,{'\n'}Your Device.
@@ -122,11 +71,10 @@ export default function WelcomeScreen() {
           </Text>
         </View>
 
-        {/* Action Buttons */}
         <View style={styles.actionContainer}>
           <TouchableOpacity 
             style={[styles.primaryButton, { backgroundColor: colors.accent, shadowColor: colors.accent }]} 
-            onPress={handleImportDocument} 
+            onPress={importStatement} 
             activeOpacity={0.85}
             disabled={importing}
           >
@@ -166,7 +114,6 @@ export default function WelcomeScreen() {
             <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
-
       </SafeAreaView>
     </LinearGradient>
   );
@@ -181,10 +128,7 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 32,
   },
-  heroSlot: {
-    alignItems: 'center',
-    marginTop: 36,
-  },
+  heroSlot: { alignItems: 'center', marginTop: 36 },
   iconGlowRing: {
     width: 92,
     height: 92,
@@ -215,34 +159,11 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     borderRadius: 20,
   },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#34C759',
-    letterSpacing: 0.8,
-  },
-  header: {
-    alignItems: 'center',
-    paddingHorizontal: 12,
-  },
-  title: {
-    fontSize: 38,
-    fontWeight: '800',
-    textAlign: 'center',
-    letterSpacing: -1,
-    lineHeight: 44,
-    marginBottom: 14,
-  },
-  subtitle: {
-    fontSize: 16,
-    textAlign: 'center',
-    lineHeight: 24,
-    paddingHorizontal: 8,
-  },
-  actionContainer: {
-    width: '100%',
-    gap: 14,
-  },
+  badgeText: { fontSize: 11, fontWeight: '700', color: '#34C759', letterSpacing: 0.8 },
+  header: { alignItems: 'center', paddingHorizontal: 12 },
+  title: { fontSize: 38, fontWeight: '800', textAlign: 'center', letterSpacing: -1, lineHeight: 44, marginBottom: 14 },
+  subtitle: { fontSize: 16, textAlign: 'center', lineHeight: 24, paddingHorizontal: 8 },
+  actionContainer: { width: '100%', gap: 14 },
   primaryButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -267,32 +188,10 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
   },
-  buttonIcon: {
-    marginRight: 16,
-  },
-  buttonTextWrapper: {
-    flex: 1,
-  },
-  primaryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '700',
-    letterSpacing: -0.3,
-  },
-  buttonSubtext: {
-    color: 'rgba(255,255,255,0.75)',
-    fontSize: 12,
-    marginTop: 2,
-    fontWeight: '500',
-  },
-  secondaryButtonText: {
-    fontSize: 17,
-    fontWeight: '700',
-    letterSpacing: -0.3,
-  },
-  buttonSubtextSecondary: {
-    fontSize: 12,
-    marginTop: 2,
-    fontWeight: '500',
-  },
+  buttonIcon: { marginRight: 16 },
+  buttonTextWrapper: { flex: 1 },
+  primaryButtonText: { color: '#FFFFFF', fontSize: 17, fontWeight: '700', letterSpacing: -0.3 },
+  buttonSubtext: { color: 'rgba(255,255,255,0.75)', fontSize: 12, marginTop: 2, fontWeight: '500' },
+  secondaryButtonText: { fontSize: 17, fontWeight: '700', letterSpacing: -0.3 },
+  buttonSubtextSecondary: { fontSize: 12, marginTop: 2, fontWeight: '500' },
 });

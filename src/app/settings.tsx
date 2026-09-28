@@ -2,18 +2,15 @@ import { ProfileSwitcherModal } from '@/components/ProfileSwitcherModal';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { clearAllData } from '@/db/database';
-import { processBatchImport } from '@/services/importService';
+import { useStatementImporter } from '@/hooks/useStatementImporter';
 import {
   cancelCurrentMonthReminders,
   requestAndScheduleImportReminders
 } from '@/utils/notifications';
-import { parseCSVContent, parseExcelContent } from '@/utils/parser';
 import { Ionicons } from '@expo/vector-icons';
-import * as DocumentPicker from 'expo-document-picker';
-import { File } from 'expo-file-system';
 import { useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -31,88 +28,28 @@ export default function SettingsScreen() {
   const { isDark, toggleTheme, colors } = useTheme();
   const router = useRouter();
   const db = useSQLiteContext();
-  const activeProfileId = activeProfile?.id ?? 1;
 
   const [loading, setLoading] = useState(false);
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const isPickingRef = useRef(false);
 
-  const handleImportFile = async () => {
-    if (isPickingRef.current) return;
-    isPickingRef.current = true;
-
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: [
-          'text/csv',
-          'text/comma-separated-values',
-          'application/csv',
-          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          'application/vnd.ms-excel',
-          '*/*',
-        ],
-        copyToCacheDirectory: true,
-      });
-
-      if (result.canceled || !result.assets || result.assets.length === 0) {
-        return;
-      }
-
-      setLoading(true);
-      const asset = result.assets[0];
-      const fileUri = asset.uri;
-      const fileName = (asset.name || '').toLowerCase();
-
-      let parsedTransactions = [];
-
-      if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
-        const file = new File(fileUri);
-        const arrayBuffer = await file.arrayBuffer();
-        parsedTransactions = parseExcelContent(arrayBuffer);
-      } else {
-        const file = new File(fileUri);
-        const csvText = await file.text();
-        parsedTransactions = parseCSVContent(csvText);
-      }
-
-      if (!parsedTransactions || parsedTransactions.length === 0) {
-        Alert.alert('Import Warning', 'No valid transactions found in file.');
-        return;
-      }
-
-      // Execute batch deduplication import
-      const summary = await processBatchImport(db, parsedTransactions, activeProfileId);
-      await cancelCurrentMonthReminders();
-
-      Alert.alert(
-        'Import Completed',
-        `Processed ${summary.totalProcessed} transactions for ${activeProfile?.name || 'this profile'}.\n\n` +
-          `• Added: ${summary.insertedCount}\n` +
-          `• Skipped duplicates: ${summary.skippedCount}`
-      );
-    } catch (error: any) {
-      console.error('Import Error:', error);
-      Alert.alert('Import Failed', error?.message || 'An error occurred during import.');
-    } finally {
-      setLoading(false);
-      isPickingRef.current = false;
-    }
-  };
+  const { importStatement, importing } = useStatementImporter({
+    showAlert: true,
+  });
 
   const handleResetDatabase = () => {
     Alert.alert(
-      'Reset Profile Database',
-      `Are you sure you want to delete all transactions, category goals, and custom rules for ${activeProfile?.name || 'this profile'}? This cannot be undone.`,
+      'Reset All Data & Profiles',
+      'Are you sure you want to delete all profiles, transactions, and settings? This will completely reset the app to a clean state.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Reset',
+          text: 'Reset Everything',
           style: 'destructive',
           onPress: async () => {
             try {
               setLoading(true);
-              await clearAllData(db, activeProfileId);
+              await clearAllData(db);
               if (setIsDemoMode) {
                 setIsDemoMode(false);
               }
@@ -155,7 +92,6 @@ export default function SettingsScreen() {
       </View>
 
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        {/* PROFILES SECTION */}
         <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>PROFILES</Text>
         <View style={[styles.cardGroup, { backgroundColor: colors.card }]}>
           <TouchableOpacity
@@ -190,14 +126,13 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* DATA & STORAGE SECTION */}
         <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>DATA & STORAGE</Text>
         <View style={[styles.cardGroup, { backgroundColor: colors.card }]}>
           <TouchableOpacity
             style={styles.rowItem}
             activeOpacity={0.7}
-            onPress={handleImportFile}
-            disabled={loading}
+            onPress={importStatement}
+            disabled={importing || loading}
           >
             <View style={styles.rowLeft}>
               <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
@@ -205,7 +140,7 @@ export default function SettingsScreen() {
               </View>
               <Text style={[styles.rowTitle, { color: colors.text }]}>Import Bank Statement</Text>
             </View>
-            {loading ? (
+            {importing ? (
               <ActivityIndicator size="small" color={colors.accent} />
             ) : (
               <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
@@ -218,7 +153,7 @@ export default function SettingsScreen() {
             style={styles.rowItem}
             activeOpacity={0.7}
             onPress={handleResetDatabase}
-            disabled={loading}
+            disabled={importing || loading}
           >
             <View style={styles.rowLeft}>
               <View style={[styles.iconCircle, { backgroundColor: '#FFE5E5' }]}>
@@ -232,7 +167,6 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* PREFERENCES SECTION */}
         <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>PREFERENCES</Text>
         <View style={[styles.cardGroup, { backgroundColor: colors.card }]}>
           <TouchableOpacity
@@ -253,7 +187,6 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* NOTIFICATIONS SECTION */}
         <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>NOTIFICATIONS</Text>
         <View style={[styles.cardGroup, { backgroundColor: colors.card }]}>
           <View style={styles.rowItem}>
@@ -278,7 +211,6 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* APPEARANCE SECTION */}
         <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>APPEARANCE</Text>
         <View style={[styles.cardGroup, { backgroundColor: colors.card }]}>
           <View style={styles.rowItem}>

@@ -1,39 +1,35 @@
 import { useProfile } from '@/contexts/ProfileContext';
-import { useTheme } from '@/contexts/ThemeContext';
 import { Redirect } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import DashboardScreen from './(tabs)/index';
 
-export default function RootIndex() {
-  const { hasData, isDemoMode, loadingProfiles } = useProfile();
-  const { colors } = useTheme();
-  const [timedOut, setTimedOut] = useState(false);
+export default function Index() {
+  const { loadingProfiles, hasData } = useProfile();
 
-  // Safety fallback: if loadingProfiles takes more than 1 second, force render to avoid freezing
-  useEffect(() => {
-    const timer = setTimeout(() => setTimedOut(true), 1000);
-    return () => clearTimeout(timer);
-  }, []);
-
-  if (loadingProfiles && !timedOut) {
+  // 1. Show a clean loading indicator while initial SQLite initialization runs
+  if (loadingProfiles) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.accent} />
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
       </View>
     );
   }
 
-  if (!hasData && !isDemoMode) {
+  // 2. Fresh installation or empty database -> Redirect to Welcome screen
+  if (!hasData) {
     return <Redirect href="/welcome" />;
   }
 
-  return <Redirect href="/(tabs)" />;
+  // 3. Returning user with existing data -> Render main tab dashboard
+  return <DashboardScreen />;
 }
 
 const styles = StyleSheet.create({
-  container: {
+  loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#000',
   },
 });

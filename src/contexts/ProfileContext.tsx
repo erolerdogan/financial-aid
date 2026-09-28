@@ -8,12 +8,13 @@ interface ProfileContextType {
   isDemoMode: boolean;
   hasData: boolean;
   loadingProfiles: boolean;
+  dataVersion: number;
   setIsDemoMode: (isDemo: boolean) => void;
-  switchProfile: (profile: Profile) => void;
+  switchProfile: (profile: Profile) => Promise<void>;
   addNewProfile: (name: string, color?: string) => Promise<Profile | null>;
   editProfile: (id: number, name: string, color: string) => Promise<void>;
   refreshProfiles: () => Promise<void>;
-  checkDataState: () => Promise<boolean>;
+  checkDataState: (profileId?: number) => Promise<boolean>;
 }
 
 const ProfileContext = createContext<ProfileContextType>({
@@ -22,8 +23,9 @@ const ProfileContext = createContext<ProfileContextType>({
   isDemoMode: false,
   hasData: false,
   loadingProfiles: true,
+  dataVersion: 0,
   setIsDemoMode: () => {},
-  switchProfile: () => {},
+  switchProfile: async () => {},
   addNewProfile: async () => null,
   editProfile: async () => {},
   refreshProfiles: async () => {},
@@ -37,12 +39,17 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const [loadingProfiles, setLoadingProfiles] = useState(true);
   const [isDemoMode, setIsDemoMode] = useState<boolean>(false);
   const [hasData, setHasData] = useState<boolean>(false);
+  const [dataVersion, setDataVersion] = useState<number>(0);
 
-  const checkDataState = async (): Promise<boolean> => {
+  const checkDataState = async (targetProfileId?: number): Promise<boolean> => {
     if (!db) return false;
+    const profileIdToQuery = targetProfileId ?? activeProfile?.id;
+    if (!profileIdToQuery) return false;
+
     try {
       const result = await db.getFirstAsync<{ count: number }>(
-        'SELECT COUNT(*) as count FROM transactions;'
+        'SELECT COUNT(*) as count FROM transactions WHERE profileId = ?;',
+        [profileIdToQuery]
       );
       const exists = (result?.count ?? 0) > 0;
       setHasData(exists);
@@ -60,10 +67,19 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       await initDatabase(db);
       const list = await getProfiles(db);
       setProfiles(list);
-      if (list.length > 0 && !activeProfile) {
-        setActiveProfile(list[0]);
+
+      // Default activeProfile to first profile if currently null or missing
+      let currentActive = activeProfile;
+      if (list.length > 0 && (!currentActive || !list.some((p) => p.id === currentActive?.id))) {
+        currentActive = list[0];
+        setActiveProfile(currentActive);
       }
-      await checkDataState();
+
+      if (currentActive) {
+        await checkDataState(currentActive.id);
+      }
+
+      setDataVersion((prev) => prev + 1);
     } catch (error) {
       console.error('Error loading profiles:', error);
     } finally {
@@ -75,8 +91,10 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     refreshProfiles();
   }, [db]);
 
-  const switchProfile = (profile: Profile) => {
+  const switchProfile = async (profile: Profile) => {
     setActiveProfile(profile);
+    await checkDataState(profile.id);
+    setDataVersion((prev) => prev + 1);
   };
 
   const addNewProfile = async (name: string, color?: string): Promise<Profile | null> => {
@@ -85,6 +103,8 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     if (newProf) {
       setProfiles((prev) => [...prev, newProf]);
       setActiveProfile(newProf);
+      await checkDataState(newProf.id);
+      setDataVersion((prev) => prev + 1);
     }
     return newProf;
   };
@@ -102,6 +122,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       if (activeProfile?.id === id) {
         setActiveProfile((prev) => (prev ? { ...prev, name: name.trim(), avatarColor: color } : null));
       }
+      setDataVersion((prev) => prev + 1);
     } catch (error) {
       console.error('Error updating profile:', error);
     }
@@ -115,6 +136,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         isDemoMode,
         hasData,
         loadingProfiles,
+        dataVersion,
         setIsDemoMode,
         switchProfile,
         addNewProfile,

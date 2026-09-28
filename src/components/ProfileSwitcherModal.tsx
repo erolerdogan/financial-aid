@@ -1,279 +1,230 @@
+import { useProfile } from '@/contexts/ProfileContext';
+import { useTheme } from '@/contexts/ThemeContext';
+import { deleteProfile, Profile } from '@/db/database';
 import { Ionicons } from '@expo/vector-icons';
+import { useSQLiteContext } from 'expo-sqlite';
 import React, { useState } from 'react';
 import {
-  Keyboard, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View
 } from 'react-native';
-import { useProfile } from '../contexts/ProfileContext';
 
-interface Props {
+const AVATAR_COLORS = ['#007AFF', '#34C759', '#FF9500', '#AF52DE', '#FF2D55', '#5856D6'];
+
+interface ProfileSwitcherModalProps {
   visible: boolean;
   onClose: () => void;
 }
 
-const PRESET_COLORS = ['#007AFF', '#34C759', '#FF9500', '#AF52DE', '#FF2D55', '#5856D6'];
+export function ProfileSwitcherModal({ visible, onClose }: ProfileSwitcherModalProps) {
+  const db = useSQLiteContext();
+  const { colors } = useTheme();
+  const { profiles, activeProfile, switchProfile, addNewProfile, editProfile, refreshProfiles } = useProfile();
 
-export function ProfileSwitcherModal({ visible, onClose }: Props) {
-  const { profiles, activeProfile, switchProfile, addNewProfile, editProfile } = useProfile();
-  
-  const [mode, setMode] = useState<'LIST' | 'ADD' | 'EDIT'>('LIST');
-  const [selectedProfileId, setSelectedProfileId] = useState<number | null>(null);
-  const [profileName, setProfileName] = useState('');
-  const [selectedColor, setSelectedColor] = useState('#007AFF');
-
-  const handleClose = () => {
-    setMode('LIST');
-    setSelectedProfileId(null);
-    setProfileName('');
-    Keyboard.dismiss();
-    onClose();
-  };
-
-  const handleOpenAdd = () => {
-    setSelectedProfileId(null);
-    setProfileName('');
-    setSelectedColor('#007AFF');
-    setMode('ADD');
-  };
-
-  const handleOpenEdit = (profile: any, e: any) => {
-    e.stopPropagation();
-    setSelectedProfileId(profile.id);
-    setProfileName(profile.name);
-    setSelectedColor(profile.avatarColor || '#007AFF');
-    setMode('EDIT');
-  };
+  const [isEditing, setIsEditing] = useState(false);
+  const [selectedForEdit, setSelectedForEdit] = useState<Profile | null>(null);
+  const [nameInput, setNameInput] = useState('');
+  const [selectedColor, setSelectedColor] = useState(AVATAR_COLORS[0]);
 
   const handleSave = async () => {
-    if (!profileName.trim()) return;
-    Keyboard.dismiss();
-
-    if (mode === 'EDIT' && selectedProfileId !== null) {
-      if (editProfile) {
-        await editProfile(selectedProfileId, profileName.trim(), selectedColor);
-      }
+    if (!nameInput.trim()) return;
+    if (selectedForEdit) {
+      await editProfile(selectedForEdit.id, nameInput, selectedColor);
+      resetForm();
     } else {
-      await addNewProfile(profileName.trim(), selectedColor);
+      const newProf = await addNewProfile(nameInput, selectedColor);
+      resetForm();
+      if (newProf) {
+        switchProfile(newProf);
+      }
+      onClose();
     }
+    await refreshProfiles();
+  };
 
-    handleClose();
+  const handleDelete = (profile: Profile) => {
+    if (profiles.length <= 1) {
+      Alert.alert('Cannot Delete', 'You must keep at least one profile.');
+      return;
+    }
+    Alert.alert(
+      'Delete Profile',
+      `Are you sure you want to delete "${profile.name}" and all its associated data?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            await deleteProfile(db, profile.id);
+            await refreshProfiles();
+            if (activeProfile?.id === profile.id) {
+              const remaining = profiles.filter((p) => p.id !== profile.id);
+              if (remaining.length > 0) switchProfile(remaining[0]);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const resetForm = () => {
+    setIsEditing(false);
+    setSelectedForEdit(null);
+    setNameInput('');
+    setSelectedColor(AVATAR_COLORS[0]);
   };
 
   return (
     <Modal visible={visible} transparent animationType="slide">
-      <TouchableWithoutFeedback onPress={handleClose}>
-        <View style={styles.overlay}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.keyboardContainer}
-          >
-            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-              <View style={styles.sheet}>
-                <View style={styles.handle} />
-                <Text style={styles.title}>
-                  {mode === 'ADD' ? 'Add New Profile' : mode === 'EDIT' ? 'Edit Profile' : 'Switch Profile'}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.overlay}
+      >
+        <TouchableOpacity style={{ flex: 1, justifyContent: 'flex-end' }} activeOpacity={1} onPress={onClose}>
+          <TouchableWithoutFeedback>
+            <View style={[styles.sheet, { backgroundColor: colors.card }]}>
+              <View style={[styles.handle, { backgroundColor: colors.border }]} />
+              
+              <View style={styles.headerRow}>
+                <Text style={[styles.title, { color: colors.text }]}>
+                  {isEditing ? (selectedForEdit ? 'Edit Profile' : 'New Profile') : 'Switch Profile'}
                 </Text>
-
-                {mode === 'LIST' ? (
-                  <>
-                    <ScrollView style={{ maxHeight: 260 }}>
-                      {profiles.map((p) => {
-                        const isActive = activeProfile?.id === p.id;
-                        return (
-                          <TouchableOpacity
-                            key={p.id}
-                            style={[styles.profileItem, isActive && styles.activeItem]}
-                            onPress={() => {
-                              switchProfile(p);
-                              handleClose();
-                            }}
-                          >
-                            <View style={styles.profileLeft}>
-                              <View style={[styles.avatar, { backgroundColor: p.avatarColor }]}>
-                                <Text style={styles.avatarText}>
-                                  {p.name.charAt(0).toUpperCase()}
-                                </Text>
-                              </View>
-                              <Text style={styles.profileName}>{p.name}</Text>
-                            </View>
-
-                            <View style={styles.profileRight}>
-                              <TouchableOpacity
-                                style={styles.editBtn}
-                                onPress={(e) => handleOpenEdit(p, e)}
-                              >
-                                <Ionicons name="pencil-outline" size={16} color="#007AFF" />
-                              </TouchableOpacity>
-                              {isActive && (
-                                <Ionicons name="checkmark-circle" size={22} color="#007AFF" />
-                              )}
-                            </View>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </ScrollView>
-
-                    <TouchableOpacity
-                      style={styles.addButton}
-                      onPress={handleOpenAdd}
-                    >
-                      <Ionicons
-                        name="add-circle-outline"
-                        size={20}
-                        color="#007AFF"
-                        style={{ marginRight: 8 }}
-                      />
-                      <Text style={styles.addButtonText}>Add New Profile</Text>
-                    </TouchableOpacity>
-                  </>
-                ) : (
-                  <View style={styles.addForm}>
-                    <Text style={styles.formLabel}>Profile Name</Text>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="e.g. Household, Business, Joint"
-                      placeholderTextColor="#8E8E93"
-                      value={profileName}
-                      onChangeText={setProfileName}
-                      autoFocus
-                      returnKeyType="done"
-                      onSubmitEditing={handleSave}
-                    />
-
-                    <Text style={styles.formLabel}>Theme Color</Text>
-                    <View style={styles.colorRow}>
-                      {PRESET_COLORS.map((c) => (
-                        <TouchableOpacity
-                          key={c}
-                          style={[
-                            styles.colorDot,
-                            { backgroundColor: c },
-                            selectedColor === c && styles.colorDotSelected,
-                          ]}
-                          onPress={() => setSelectedColor(c)}
-                        />
-                      ))}
-                    </View>
-
-                    <View style={styles.formActions}>
-                      <TouchableOpacity
-                        style={styles.cancelBtn}
-                        onPress={() => setMode('LIST')}
-                      >
-                        <Text style={styles.cancelBtnText}>Cancel</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-                        <Text style={styles.saveBtnText}>Save Profile</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
+                {!isEditing && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      resetForm();
+                      setIsEditing(true);
+                    }}
+                  >
+                    <Text style={[styles.addText, { color: colors.accent }]}>+ Add New</Text>
+                  </TouchableOpacity>
                 )}
               </View>
-            </TouchableWithoutFeedback>
-          </KeyboardAvoidingView>
-        </View>
-      </TouchableWithoutFeedback>
+
+              {isEditing ? (
+                <View style={styles.formContainer}>
+                  <TextInput
+                    style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
+                    placeholder="Profile Name"
+                    placeholderTextColor={colors.textSecondary}
+                    value={nameInput}
+                    onChangeText={setNameInput}
+                    autoFocus
+                  />
+                  <Text style={[styles.colorLabel, { color: colors.textSecondary }]}>Choose Avatar Color</Text>
+                  <View style={styles.colorRow}>
+                    {AVATAR_COLORS.map((col) => (
+                      <TouchableOpacity
+                        key={col}
+                        style={[styles.colorCircle, { backgroundColor: col }, selectedColor === col && styles.selectedColor]}
+                        onPress={() => setSelectedColor(col)}
+                      />
+                    ))}
+                  </View>
+
+                  <View style={styles.btnRow}>
+                    <TouchableOpacity
+                      style={[styles.cancelBtn, { borderColor: colors.border }]}
+                      onPress={resetForm}
+                    >
+                      <Text style={[styles.cancelBtnText, { color: colors.text }]}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.saveBtn, { backgroundColor: colors.accent }]}
+                      onPress={handleSave}
+                    >
+                      <Text style={styles.saveBtnText}>Save Profile</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <ScrollView style={{ maxHeight: 300 }}>
+                  {profiles.map((p) => {
+                    const isActive = activeProfile?.id === p.id;
+                    return (
+                      <View
+                        key={p.id}
+                        style={[styles.profileItem, { borderBottomColor: colors.border }, isActive && { backgroundColor: colors.tintBackground }]}
+                      >
+                        <TouchableOpacity
+                          style={styles.profileInfoArea}
+                          onPress={() => {
+                            switchProfile(p);
+                            onClose();
+                          }}
+                        >
+                          <View style={[styles.avatar, { backgroundColor: p.avatarColor }]}>
+                            <Text style={styles.avatarTxt}>{p.name.substring(0, 1)}</Text>
+                          </View>
+                          <Text style={[styles.profileName, { color: colors.text }]}>{p.name}</Text>
+                          {isActive && <Ionicons name="checkmark-circle" size={18} color={colors.accent} />}
+                        </TouchableOpacity>
+
+                        <View style={styles.profileActions}>
+                          <TouchableOpacity
+                            onPress={() => {
+                              setSelectedForEdit(p);
+                              setNameInput(p.name);
+                              setSelectedColor(p.avatarColor);
+                              setIsEditing(true);
+                            }}
+                            style={styles.iconBtn}
+                          >
+                            <Ionicons name="pencil-outline" size={16} color={colors.textSecondary} />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => handleDelete(p)}
+                            style={styles.iconBtn}
+                          >
+                            <Ionicons name="trash-outline" size={16} color="#FF3B30" />
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </ScrollView>
+              )}
+            </View>
+          </TouchableWithoutFeedback>
+        </TouchableOpacity>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'flex-end',
-  },
-  keyboardContainer: {
-    width: '100%',
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    backgroundColor: '#FFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 20,
-    paddingBottom: Platform.OS === 'ios' ? 38 : 24,
-  },
-  handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#D1D1D6',
-    alignSelf: 'center',
-    marginBottom: 12,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1C1C1E',
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  profileItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    marginBottom: 6,
-  },
-  activeItem: { backgroundColor: '#F2F2F7' },
-  profileLeft: { flexDirection: 'row', alignItems: 'center' },
-  profileRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  editBtn: {
-    padding: 6,
-    backgroundColor: '#E6F0FF',
-    borderRadius: 8,
-  },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  avatarText: { color: '#FFF', fontWeight: '700', fontSize: 16 },
-  profileName: { fontSize: 16, fontWeight: '600', color: '#1C1C1E' },
-  addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    marginTop: 8,
-    backgroundColor: '#E6F0FF',
-    borderRadius: 12,
-  },
-  addButtonText: { fontSize: 15, fontWeight: '600', color: '#007AFF' },
-  addForm: { marginTop: 4 },
-  formLabel: { fontSize: 12, fontWeight: '600', color: '#8E8E93', marginBottom: 6 },
-  input: {
-    backgroundColor: '#F2F2F7',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: '#1C1C1E',
-    marginBottom: 16,
-  },
-  colorRow: { flexDirection: 'row', gap: 12, marginBottom: 20 },
-  colorDot: { width: 32, height: 32, borderRadius: 16 },
-  colorDotSelected: { borderWidth: 3, borderColor: '#1C1C1E' },
-  formActions: { flexDirection: 'row', gap: 12 },
-  cancelBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    backgroundColor: '#F2F2F7',
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  cancelBtnText: { color: '#8E8E93', fontWeight: '600', fontSize: 15 },
-  saveBtn: {
-    flex: 1,
-    paddingVertical: 12,
-    backgroundColor: '#007AFF',
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  saveBtnText: { color: '#FFF', fontWeight: '700', fontSize: 15 },
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 36 },
+  handle: { width: 36, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  title: { fontSize: 18, fontWeight: '700' },
+  addText: { fontSize: 14, fontWeight: '600' },
+  formContainer: { gap: 14 },
+  input: { height: 46, borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, paddingHorizontal: 14, fontSize: 15, fontWeight: '600' },
+  colorLabel: { fontSize: 12, fontWeight: '600', marginTop: 4 },
+  colorRow: { flexDirection: 'row', gap: 12, marginBottom: 8 },
+  colorCircle: { width: 32, height: 32, borderRadius: 16 },
+  selectedColor: { borderWidth: 3, borderColor: '#FFF', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 3, elevation: 3 },
+  btnRow: { flexDirection: 'row', gap: 10, marginTop: 10 },
+  cancelBtn: { flex: 1, height: 44, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, justifyContent: 'center', alignItems: 'center' },
+  cancelBtnText: { fontSize: 14, fontWeight: '600' },
+  saveBtn: { flex: 1, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  saveBtnText: { color: '#FFF', fontSize: 14, fontWeight: '700' },
+  profileItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, paddingHorizontal: 8, borderRadius: 12 },
+  profileInfoArea: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+  avatar: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+  avatarTxt: { color: '#FFF', fontWeight: '700', fontSize: 13 },
+  profileName: { fontSize: 15, fontWeight: '600', flex: 1 },
+  profileActions: { flexDirection: 'row', gap: 8 },
+  iconBtn: { padding: 6 },
 });

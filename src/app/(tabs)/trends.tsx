@@ -1,5 +1,7 @@
 import { TransactionDetailModal } from '@/components/modals/TransactionDetailModal';
 import { TransactionListModal } from '@/components/modals/TransactionListModal';
+import { ProfileSwitcherModal } from '@/components/ProfileSwitcherModal';
+import { ScreenContainer } from '@/components/ScreenContainer';
 import { getCategoryColor } from '@/constants/colors';
 import { useTheme } from '@/contexts/ThemeContext';
 import {
@@ -35,7 +37,6 @@ import {
   View
 } from 'react-native';
 import { LineChart } from 'react-native-gifted-charts';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useProfile } from '../../contexts/ProfileContext';
 
 const CATEGORIES = [
@@ -93,15 +94,9 @@ interface YearCoverageStatus {
 export default function TrendsScreen() {
   const router = useRouter();
   const db = useSQLiteContext();
-  const { colors, isDark } = useTheme();
-  const { activeProfile, isDemoMode } = useProfile();
+  const { colors } = useTheme();
+  const { activeProfile } = useProfile();
   const activeProfileId = activeProfile?.id ?? 1;
-
-  // Dynamically switch wrapper: standard View in demo mode (zero gap), SafeAreaView in normal mode (notch protection)
-  const ContainerWrapper = isDemoMode ? View : SafeAreaView;
-  const containerProps = isDemoMode 
-    ? {} 
-    : { edges: ['top', 'bottom'] as const };
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -111,6 +106,7 @@ export default function TrendsScreen() {
   const [availableYears, setAvailableYears] = useState<string[]>([getCurrentYear()]);
   const [selectedYear, setSelectedYear] = useState<string>(getCurrentYear());
   const [yearPickerVisible, setYearPickerVisible] = useState(false);
+  const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [yearCoverage, setYearCoverage] = useState<YearCoverageStatus>({
     status: 'EMPTY',
     label: '',
@@ -232,7 +228,7 @@ export default function TrendsScreen() {
 
       setYearCoverage(coverageRes);
     } catch (error) {
-      console.error('Failed to query trends data:', error);
+      console.error('Failed to query trends data for year:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -294,7 +290,7 @@ export default function TrendsScreen() {
       loadAnalyticsData();
     }, [loadAnalyticsData])
   );
-
+  
   const currentYearIndex = availableYears.indexOf(selectedYear);
   const canGoPrev = currentYearIndex < availableYears.length - 1;
   const canGoNext = currentYearIndex > 0;
@@ -425,39 +421,56 @@ export default function TrendsScreen() {
 
   const getBadgeColor = (status: YearCoverageStatus['status']) => {
     switch (status) {
-      case 'COMPLETE': return { bg: 'rgba(52, 199, 89, 0.12)', text: '#34C759' };
-      case 'PARTIAL': return { bg: 'rgba(255, 149, 0, 0.12)', text: '#FF9500' };
-      case 'IN_PROGRESS': return { bg: 'rgba(0, 122, 255, 0.12)', text: colors.accent };
-      default: return { bg: 'rgba(142, 142, 147, 0.12)', text: colors.textSecondary };
+      case 'COMPLETE': 
+        return { bg: 'rgba(52, 199, 89, 0.12)', text: '#34C759' };
+      case 'PARTIAL': 
+      case 'IN_PROGRESS': 
+        return { bg: 'rgba(255, 149, 0, 0.12)', text: '#FF9500' };
+      default: 
+        return { bg: 'rgba(142, 142, 147, 0.12)', text: colors.textSecondary };
     }
   };
 
   const badgeTheme = getBadgeColor(yearCoverage.status);
 
   return (
-    <ContainerWrapper 
-      style={[styles.safeArea, { backgroundColor: colors.background }]} 
-      {...containerProps}
-    >
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={[styles.content, { paddingBottom: 60 }]}
-          keyboardShouldPersistTaps="handled"
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              tintColor={colors.accent}
-              onRefresh={() => {
-                setRefreshing(true);
-                loadAnalyticsData();
-              }}
-            />
-          }
-        >
-          {/* Header Bar */}
-          <View style={styles.headerRow}>
-            <Text style={[styles.headerTitle, { color: colors.text }]}>Trends</Text>
+    <ScreenContainer>
+      <ScrollView
+        style={[styles.container, { backgroundColor: colors.background }]}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            tintColor={colors.accent}
+            onRefresh={() => {
+              setRefreshing(true);
+              loadAnalyticsData();
+            }}
+          />
+        }
+      >
+        {/* Header Bar with Active Profile Pill & Settings */}
+        <View style={styles.headerRow}>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Trends</Text>
+
+          <View style={styles.headerRightGroup}>
+            <TouchableOpacity
+              style={[styles.profilePill, { backgroundColor: colors.card, borderColor: colors.border }]}
+              onPress={() => setProfileModalVisible(true)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.miniAvatar, { backgroundColor: activeProfile?.avatarColor || '#007AFF' }]}>
+                <Text style={styles.miniAvatarText}>
+                  {activeProfile?.name?.substring(0, 1) || 'P'}
+                </Text>
+              </View>
+              <Text style={[styles.profilePillText, { color: colors.text }]}>
+                {activeProfile?.name || 'Personal'}
+              </Text>
+              <Ionicons name="chevron-down" size={12} color={colors.textSecondary} />
+            </TouchableOpacity>
+
             <TouchableOpacity
               style={[
                 styles.settingsHeaderBtn,
@@ -466,407 +479,407 @@ export default function TrendsScreen() {
               activeOpacity={0.8}
               onPress={() => router.push('/settings')}
             >
-              <Ionicons name="settings-outline" size={20} color={colors.text} />
+              <Ionicons name="settings-outline" size={18} color={colors.text} />
             </TouchableOpacity>
           </View>
+        </View>
 
-          {/* Clean Year Stepper */}
-          <View style={[styles.stepperContainer, { backgroundColor: isDark ? '#2C2C2E' : '#E5E5EA' }]}>
-            <TouchableOpacity
-              style={[styles.arrowButton, !canGoPrev && styles.disabledButton, { backgroundColor: colors.card }]}
-              onPress={handlePrevYear}
-              disabled={!canGoPrev}
-            >
-              <Text style={[styles.arrowText, !canGoPrev && styles.disabledText, { color: colors.accent }]}>‹</Text>
-            </TouchableOpacity>
+        {/* Unified Stepper Container */}
+        <View style={[styles.stepperContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <TouchableOpacity
+            style={[styles.arrowButton, !canGoPrev && styles.disabledButton]}
+            onPress={handlePrevYear}
+            disabled={!canGoPrev}
+          >
+            <Text style={[styles.arrowText, !canGoPrev && styles.disabledText, { color: colors.accent }]}>‹</Text>
+          </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={styles.labelContainer}
-              onPress={() => setYearPickerVisible(true)}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.stepperLabel, { color: colors.text }]}>{selectedYear}</Text>
-            </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.labelContainer}
+            onPress={() => setYearPickerVisible(true)}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.stepperLabel, { color: colors.text }]}>{selectedYear}</Text>
+          </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.arrowButton, !canGoNext && styles.disabledButton, { backgroundColor: colors.card }]}
-              onPress={handleNextYear}
-              disabled={!canGoNext}
-            >
-              <Text style={[styles.arrowText, !canGoNext && styles.disabledText, { color: colors.accent }]}>›</Text>
-            </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.arrowButton, !canGoNext && styles.disabledButton]}
+            onPress={handleNextYear}
+            disabled={!canGoNext}
+          >
+            <Text style={[styles.arrowText, !canGoNext && styles.disabledText, { color: colors.accent }]}>›</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Coverage Status Badge */}
+        {yearCoverage.label ? (
+          <View style={styles.badgeWrapper}>
+            <View style={[styles.coverageBadge, { backgroundColor: badgeTheme.bg }]}>
+              <View style={[styles.coverageDot, { backgroundColor: badgeTheme.text }]} />
+              <Text style={[styles.coverageText, { color: badgeTheme.text }]}>
+                {yearCoverage.label}
+              </Text>
+            </View>
           </View>
+        ) : null}
 
-          {/* Separate Color-Coded Coverage Badge */}
-          {yearCoverage.label ? (
-            <View style={styles.badgeWrapper}>
-              <View style={[styles.coverageBadge, { backgroundColor: badgeTheme.bg }]}>
-                <Text style={[styles.coverageText, { color: badgeTheme.text }]}>
-                  {yearCoverage.label}
+        {/* Horizontal Filter Pills */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.pillScrollView}
+          contentContainerStyle={styles.pillContainer}
+        >
+          {sortedCategories.map((cat) => {
+            const isActive = selectedCategory === cat;
+            const color = cat === 'All' ? colors.accent : getCategoryColor(cat);
+
+            return (
+              <TouchableOpacity
+                key={cat}
+                activeOpacity={0.7}
+                style={[
+                  styles.chipPill,
+                  { backgroundColor: colors.card, borderColor: colors.border },
+                  isActive && { backgroundColor: color, borderColor: color },
+                ]}
+                onPress={() => handleSelectCategory(cat)}
+              >
+                <View style={[styles.miniDot, { backgroundColor: isActive ? '#FFF' : color }]} />
+                <Text
+                  style={[
+                    styles.chipText,
+                    { color: colors.text },
+                    isActive && styles.chipTextActive,
+                  ]}
+                >
+                  {cat}
                 </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        {/* Metric Summary Layout */}
+        <View style={styles.metricsContainer}>
+          <View style={[styles.heroCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={styles.heroHeader}>
+              <Text style={[styles.heroLabel, { color: colors.textSecondary }]}>
+                {selectedCategory === 'All' ? `Total ${selectedYear} Spending` : `Total ${selectedYear} ${selectedCategory}`}
+              </Text>
+              <View style={[styles.heroBadge, { backgroundColor: `${activeColor}18` }]}>
+                <Text style={[styles.heroBadgeText, { color: activeColor }]}>Annual</Text>
               </View>
             </View>
-          ) : null}
+            <Text style={[styles.heroValue, { color: activeColor }]}>
+              €{summary.total.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+            </Text>
+          </View>
 
-          {/* Horizontal Filter Pills (Sorted Highest to Lowest Spend) */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.pillScrollView}
-            contentContainerStyle={styles.pillContainer}
-          >
-            {sortedCategories.map((cat) => {
-              const isActive = selectedCategory === cat;
-              const color = cat === 'All' ? colors.accent : getCategoryColor(cat);
-
-              return (
-                <TouchableOpacity
-                  key={cat}
-                  activeOpacity={0.7}
-                  style={[
-                    styles.chipPill,
-                    { backgroundColor: isDark ? '#2C2C2E' : '#E5E5EA' },
-                    isActive && { backgroundColor: color },
-                  ]}
-                  onPress={() => handleSelectCategory(cat)}
-                >
-                  <View style={[styles.miniDot, { backgroundColor: color }]} />
-                  <Text
-                    style={[
-                      styles.chipText,
-                      { color: colors.text },
-                      isActive && styles.chipTextActive,
-                    ]}
-                  >
-                    {cat}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-
-          {/* Metric Summary Layout */}
-          <View style={styles.metricsContainer}>
-            {/* Hero Card */}
-            <View style={[styles.heroCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <View style={styles.heroHeader}>
-                <Text style={[styles.heroLabel, { color: colors.textSecondary }]}>
-                  {selectedCategory === 'All' ? `Total ${selectedYear} Spending` : `Total ${selectedYear} ${selectedCategory}`}
-                </Text>
-                <View style={[styles.heroBadge, { backgroundColor: `${activeColor}18` }]}>
-                  <Text style={[styles.heroBadgeText, { color: activeColor }]}>Annual</Text>
-                </View>
-              </View>
-              <Text style={[styles.heroValue, { color: activeColor }]}>
-                €{summary.total.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+          <View style={styles.subRow}>
+            <View style={[styles.subCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.subLabel, { color: colors.textSecondary }]} numberOfLines={1}>
+                Monthly Avg
+              </Text>
+              <Text style={[styles.subValue, { color: colors.text }]}>
+                €{summary.average.toLocaleString('en-US', { maximumFractionDigits: 0 })}
               </Text>
             </View>
 
-            {/* 3-Column Sub-Row */}
-            <View style={styles.subRow}>
-              <View style={[styles.subCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.subLabel, { color: colors.textSecondary }]} numberOfLines={1}>
-                  Monthly Avg
-                </Text>
-                <Text style={[styles.subValue, { color: colors.text }]}>
-                  €{summary.average.toLocaleString('en-US', { maximumFractionDigits: 0 })}
-                </Text>
-              </View>
+            <View style={[styles.subCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.subLabel, { color: colors.textSecondary }]} numberOfLines={1}>
+                Peak Month
+              </Text>
+              <Text style={[styles.subValue, { color: colors.text }]}>
+                {formatShortMonth(summary.highestMonth)}
+              </Text>
+            </View>
 
-              <View style={[styles.subCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.subLabel, { color: colors.textSecondary }]} numberOfLines={1}>
-                  Peak Month
-                </Text>
-                <Text style={[styles.subValue, { color: colors.text }]}>
-                  {formatShortMonth(summary.highestMonth)}
-                </Text>
-              </View>
-
-              <View style={[styles.subCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-                <Text style={[styles.subLabel, { color: colors.textSecondary }]} numberOfLines={1}>
-                  Lowest Month
-                </Text>
-                <Text style={[styles.subValue, { color: colors.text }]}>
-                  {formatShortMonth(summary.lowestMonth)}
-                </Text>
-              </View>
+            <View style={[styles.subCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Text style={[styles.subLabel, { color: colors.textSecondary }]} numberOfLines={1}>
+                Lowest Month
+              </Text>
+              <Text style={[styles.subValue, { color: colors.text }]}>
+                {formatShortMonth(summary.lowestMonth)}
+              </Text>
             </View>
           </View>
+        </View>
 
-          {/* Annual Expenses Chart Card */}
-          <View style={[styles.chartCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <View style={styles.chartHeaderRow}>
-              <Text style={[styles.chartTitle, { color: colors.text }]}>{selectedYear} Expenses</Text>
+        {/* Annual Expenses Chart Card */}
+        <View style={[styles.chartCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+          <View style={styles.chartHeaderRow}>
+            <Text style={[styles.chartTitle, { color: colors.text }]}>{selectedYear} Expenses</Text>
+            <TouchableOpacity
+              activeOpacity={0.6}
+              onPress={() => {
+                if (selectedMonthKey) {
+                  setSelectedMonthKey(null);
+                  setSelectedAmount(null);
+                }
+              }}
+            >
+              <Text style={[styles.chartHintText, { color: colors.textSecondary }]}>
+                {selectedMonthKey
+                  ? `${MONTH_NAMES[selectedMonthKey] || selectedMonthKey} (Tap to clear)`
+                  : 'Drag across line to select month'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {loading && !refreshing ? (
+            <ActivityIndicator size="small" color={activeColor} style={{ paddingVertical: 40 }} />
+          ) : (
+            <View style={styles.chartWrapper} onTouchEnd={handleScrubDrop}>
+              <LineChart
+                key={`${selectedCategory}-${categoryBudget}-${selectedYear}`}
+                data={chartData}
+                maxValue={maxChartValue}
+                noOfSections={3}
+                color={activeColor}
+                thickness={2.5}
+                startFillColor={`${activeColor}33`}
+                endFillColor={`${activeColor}00`}
+                startOpacity={0.3}
+                endOpacity={0.0}
+                areaChart
+                curved
+                height={140}
+                spacing={24}
+                xAxisThickness={1}
+                yAxisThickness={0}
+                xAxisColor={colors.border}
+                yAxisTextStyle={{ color: colors.textSecondary, fontSize: 10 }}
+                xAxisLabelTextStyle={{ color: colors.textSecondary, fontSize: 10 }}
+                {...(categoryBudget > 0
+                  ? {
+                      showReferenceLine1: true,
+                      referenceLine1Position: categoryBudget,
+                      referenceLine1Config: {
+                        color: '#FF3B30',
+                        thickness: 1.5,
+                        dashWidth: 4,
+                        dashGap: 4,
+                      },
+                    }
+                  : {})}
+                pointerConfig={{
+                  pointerStripUptoDataPoint: true,
+                  pointerStripColor: activeColor,
+                  pointerStripWidth: 2,
+                  strokeDashArray: [4, 4],
+                  pointerColor: activeColor,
+                  radius: 6,
+                  activatePointersOnLongPress: false,
+                  pointerVanishDelay: 0,
+                  persistPointer: false,
+                  pointerLabelComponent: (items: any[]) => {
+                    const item = items[0];
+                    if (!item) return null;
+                
+                    requestAnimationFrame(() => {
+                      handleScrubUpdate(item.monthKey, item.value);
+                    });
+                    return null;
+                  },
+                }}
+              />
+            </View>
+          )}
+
+          {selectedMonthKey && selectedAmount !== null && (
+            <View style={styles.bannerGridContainer}>
+              <View style={styles.bannerGridRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.gridCard,
+                    { backgroundColor: colors.background, borderColor: colors.border, borderLeftColor: activeColor },
+                  ]}
+                  activeOpacity={0.8}
+                  onPress={() => handleOpenMonthDetails(selectedMonthKey)}
+                >
+                  <View style={styles.gridCardHeader}>
+                    <Text style={[styles.gridCardTitle, { color: colors.textSecondary }]} numberOfLines={1}>
+                      {formatShortMonth(selectedMonthKey)} Spent
+                    </Text>
+                    <Ionicons name="chevron-forward" size={14} color={colors.accent} />
+                  </View>
+                  <Text style={[styles.gridCardHeroValue, { color: colors.text }]}>
+                    €{selectedAmount.toLocaleString()}
+                  </Text>
+                  <Text style={[styles.gridCardSubtext, { color: colors.accent }]}>Inspect Items</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.gridCard,
+                    { backgroundColor: colors.background, borderColor: colors.border, borderLeftColor: activeColor },
+                  ]}
+                  activeOpacity={isEditingInline ? 1 : 0.8}
+                  onPress={() => {
+                    if (!isEditingInline) {
+                      setInlineInputVal(categoryBudget > 0 ? categoryBudget.toString() : '');
+                      setIsEditingInline(true);
+                    }
+                  }}
+                >
+                  <View style={styles.gridCardHeader}>
+                    <Text style={[styles.gridCardTitle, { color: colors.textSecondary }]} numberOfLines={1}>
+                      Goal Target
+                    </Text>
+                    {!isEditingInline && (
+                      <Ionicons name="pencil-outline" size={13} color={colors.accent} />
+                    )}
+                  </View>
+
+                  {isEditingInline ? (
+                    <View style={styles.inlineInputRow}>
+                      <TextInput
+                        style={[
+                          styles.inlineInput,
+                          {
+                            backgroundColor: colors.card,
+                            color: colors.text,
+                            borderColor: colors.border,
+                          },
+                        ]}
+                        placeholder="Goal"
+                        placeholderTextColor={colors.textSecondary}
+                        keyboardType="numeric"
+                        value={inlineInputVal}
+                        onChangeText={setInlineInputVal}
+                        autoFocus
+                      />
+                      <TouchableOpacity
+                        style={[styles.inlineSaveBtn, { backgroundColor: colors.accent }]}
+                        onPress={handleSaveInlineBudget}
+                      >
+                        <Text style={styles.inlineSaveText}>Save</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <>
+                      <Text style={[styles.gridCardHeroValue, { color: colors.text }]}>
+                        {categoryBudget > 0 ? `€${categoryBudget.toFixed(0)}` : 'Set Goal'}
+                      </Text>
+                      <Text style={[styles.gridCardSubtext, { color: colors.textSecondary }]}>
+                        {categoryBudget > 0 ? 'Monthly Limit' : 'Tap to add limit'}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+
               <TouchableOpacity
-                activeOpacity={0.6}
+                style={[styles.dismissBtn, { backgroundColor: colors.background, borderColor: colors.border }]}
                 onPress={() => {
-                  if (selectedMonthKey) {
-                    setSelectedMonthKey(null);
-                    setSelectedAmount(null);
-                  }
+                  setSelectedMonthKey(null);
+                  setSelectedAmount(null);
+                  activeScrubKey.current = null;
+                  activeScrubVal.current = null;
                 }}
               >
-                <Text style={[styles.chartHintText, { color: colors.textSecondary }]}>
-                  {selectedMonthKey
-                    ? `${MONTH_NAMES[selectedMonthKey] || selectedMonthKey} (Tap to clear)`
-                    : 'Drag across line to select month'}
+                <Ionicons name="close-circle-outline" size={14} color={colors.textSecondary} />
+                <Text style={[styles.dismissBtnText, { color: colors.textSecondary }]}>
+                  Deselect {MONTH_NAMES[selectedMonthKey] || selectedMonthKey}
                 </Text>
               </TouchableOpacity>
             </View>
+          )}
+        </View>
+      </ScrollView>
 
-            {loading && !refreshing ? (
-              <ActivityIndicator size="small" color={activeColor} style={{ paddingVertical: 40 }} />
-            ) : (
-              <View style={styles.chartWrapper} onTouchEnd={handleScrubDrop}>
-                <LineChart
-                  key={`${selectedCategory}-${categoryBudget}-${selectedYear}`}
-                  data={chartData}
-                  maxValue={maxChartValue}
-                  noOfSections={3}
-                  color={activeColor}
-                  thickness={2.5}
-                  startFillColor={`${activeColor}33`}
-                  endFillColor={`${activeColor}00`}
-                  startOpacity={0.3}
-                  endOpacity={0.0}
-                  areaChart
-                  curved
-                  height={140}
-                  spacing={24}
-                  xAxisThickness={1}
-                  yAxisThickness={0}
-                  xAxisColor={colors.border}
-                  yAxisTextStyle={{ color: colors.textSecondary, fontSize: 10 }}
-                  xAxisLabelTextStyle={{ color: colors.textSecondary, fontSize: 10 }}
-                  {...(categoryBudget > 0
-                    ? {
-                        showReferenceLine1: true,
-                        referenceLine1Position: categoryBudget,
-                        referenceLine1Config: {
-                          color: '#FF3B30',
-                          thickness: 1.5,
-                          dashWidth: 4,
-                          dashGap: 4,
-                        },
-                      }
-                    : {})}
-                  pointerConfig={{
-                    pointerStripUptoDataPoint: true,
-                    pointerStripColor: activeColor,
-                    pointerStripWidth: 2,
-                    strokeDashArray: [4, 4],
-                    pointerColor: activeColor,
-                    radius: 6,
-                    activatePointersOnLongPress: false,
-                    pointerVanishDelay: 0,
-                    persistPointer: false,
-                    pointerLabelComponent: (items: any[]) => {
-                      const item = items[0];
-                      if (!item) return null;
-                  
-                      requestAnimationFrame(() => {
-                        handleScrubUpdate(item.monthKey, item.value);
-                      });
-                      return null;
-                    },
-                  }}
-                />
+      {/* Profile Switcher Modal */}
+      <ProfileSwitcherModal
+        visible={profileModalVisible}
+        onClose={() => setProfileModalVisible(false)}
+      />
+
+      {/* Year Picker Modal Sheet */}
+      <Modal visible={yearPickerVisible} transparent animationType="slide">
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setYearPickerVisible(false)}
+        >
+          <TouchableWithoutFeedback>
+            <View style={[styles.sheetContainer, { backgroundColor: colors.card }]}>
+              <View style={styles.sheetHeader}>
+                <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
+                <Text style={[styles.sheetTitle, { color: colors.text }]}>Select Year</Text>
               </View>
-            )}
-
-            {/* Grid Layout Banners */}
-            {selectedMonthKey && selectedAmount !== null && (
-              <View style={styles.bannerGridContainer}>
-                <View style={styles.bannerGridRow}>
-                  {/* Inspect Card */}
-                  <TouchableOpacity
-                    style={[
-                      styles.gridCard,
-                      { backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7', borderLeftColor: activeColor },
-                    ]}
-                    activeOpacity={0.8}
-                    onPress={() => handleOpenMonthDetails(selectedMonthKey)}
-                  >
-                    <View style={styles.gridCardHeader}>
-                      <Text style={[styles.gridCardTitle, { color: colors.textSecondary }]} numberOfLines={1}>
-                        {formatShortMonth(selectedMonthKey)} Spent
-                      </Text>
-                      <Ionicons name="chevron-forward" size={14} color={colors.accent} />
-                    </View>
-                    <Text style={[styles.gridCardHeroValue, { color: colors.text }]}>
-                      €{selectedAmount.toLocaleString()}
-                    </Text>
-                    <Text style={[styles.gridCardSubtext, { color: colors.accent }]}>Inspect Items</Text>
-                  </TouchableOpacity>
-
-                  {/* Goal Target Card (Fully Clickable) */}
-                  <TouchableOpacity
-                    style={[
-                      styles.gridCard,
-                      { backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7', borderLeftColor: activeColor },
-                    ]}
-                    activeOpacity={isEditingInline ? 1 : 0.8}
-                    onPress={() => {
-                      if (!isEditingInline) {
-                        setInlineInputVal(categoryBudget > 0 ? categoryBudget.toString() : '');
-                        setIsEditingInline(true);
-                      }
-                    }}
-                  >
-                    <View style={styles.gridCardHeader}>
-                      <Text style={[styles.gridCardTitle, { color: colors.textSecondary }]} numberOfLines={1}>
-                        Goal Target
-                      </Text>
-                      {!isEditingInline && (
-                        <Ionicons name="pencil-outline" size={13} color={colors.accent} />
-                      )}
-                    </View>
-
-                    {isEditingInline ? (
-                      <View style={styles.inlineInputRow}>
-                        <TextInput
-                          style={[
-                            styles.inlineInput,
-                            {
-                              backgroundColor: isDark ? '#1C1C1E' : '#FFFFFF',
-                              color: colors.text,
-                              borderColor: colors.border,
-                            },
-                          ]}
-                          placeholder="Goal"
-                          placeholderTextColor={colors.textSecondary}
-                          keyboardType="numeric"
-                          value={inlineInputVal}
-                          onChangeText={setInlineInputVal}
-                          autoFocus
-                        />
-                        <TouchableOpacity
-                          style={[styles.inlineSaveBtn, { backgroundColor: colors.accent }]}
-                          onPress={handleSaveInlineBudget}
-                        >
-                          <Text style={styles.inlineSaveText}>Save</Text>
-                        </TouchableOpacity>
-                      </View>
-                    ) : (
-                      <>
-                        <Text style={[styles.gridCardHeroValue, { color: colors.text }]}>
-                          {categoryBudget > 0 ? `€${categoryBudget.toFixed(0)}` : 'Set Goal'}
-                        </Text>
-                        <Text style={[styles.gridCardSubtext, { color: colors.textSecondary }]}>
-                          {categoryBudget > 0 ? 'Monthly Limit' : 'Tap to add limit'}
-                        </Text>
-                      </>
-                    )}
-                  </TouchableOpacity>
-                </View>
-
-                {/* Dismiss Button */}
-                <TouchableOpacity
-                  style={[styles.dismissBtn, { backgroundColor: isDark ? '#1C1C1E' : '#E5E5EA' }]}
-                  onPress={() => {
-                    setSelectedMonthKey(null);
-                    setSelectedAmount(null);
-                    activeScrubKey.current = null;
-                    activeScrubVal.current = null;
-                  }}
-                >
-                  <Ionicons name="close-circle-outline" size={14} color={colors.textSecondary} />
-                  <Text style={[styles.dismissBtnText, { color: colors.textSecondary }]}>
-                    Deselect {MONTH_NAMES[selectedMonthKey] || selectedMonthKey}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        </ScrollView>
-
-        {/* Year Picker Modal Sheet */}
-        <Modal visible={yearPickerVisible} transparent animationType="slide">
-          <TouchableOpacity
-            style={styles.modalOverlay}
-            activeOpacity={1}
-            onPress={() => setYearPickerVisible(false)}
-          >
-            <TouchableWithoutFeedback>
-              <View style={[styles.sheetContainer, { backgroundColor: colors.card }]}>
-                <View style={styles.sheetHeader}>
-                  <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
-                  <Text style={[styles.sheetTitle, { color: colors.text }]}>Select Year</Text>
-                </View>
-                <ScrollView style={{ maxHeight: 240 }}>
-                  {availableYears.map((yr) => {
-                    const isSelected = selectedYear === yr;
-                    return (
-                      <TouchableOpacity
-                        key={yr}
+              <ScrollView style={{ maxHeight: 240 }}>
+                {availableYears.map((yr) => {
+                  const isSelected = selectedYear === yr;
+                  return (
+                    <TouchableOpacity
+                      key={yr}
+                      style={[
+                        styles.sheetItem,
+                        { borderBottomColor: colors.border },
+                        isSelected && [
+                          styles.sheetItemActive,
+                          { backgroundColor: colors.tintBackground },
+                        ],
+                      ]}
+                      onPress={() => {
+                        setSelectedYear(yr);
+                        setSelectedMonthKey(null);
+                        setSelectedAmount(null);
+                        setYearPickerVisible(false);
+                      }}
+                    >
+                      <Text
                         style={[
-                          styles.sheetItem,
-                          { borderBottomColor: colors.border },
-                          isSelected && [
-                            styles.sheetItemActive,
-                            { backgroundColor: colors.tintBackground },
-                          ],
+                          styles.sheetItemText,
+                          { color: colors.text },
+                          isSelected && [styles.sheetItemTextActive, { color: colors.accent }],
                         ]}
-                        onPress={() => {
-                          setSelectedYear(yr);
-                          setSelectedMonthKey(null);
-                          setSelectedAmount(null);
-                          setYearPickerVisible(false);
-                        }}
                       >
-                        <Text
-                          style={[
-                            styles.sheetItemText,
-                            { color: colors.text },
-                            isSelected && [styles.sheetItemTextActive, { color: colors.accent }],
-                          ]}
-                        >
-                          {yr}
-                        </Text>
-                        {isSelected && <Ionicons name="checkmark-circle" size={20} color={colors.accent} />}
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-              </View>
-            </TouchableWithoutFeedback>
-          </TouchableOpacity>
-        </Modal>
+                        {yr}
+                      </Text>
+                      {isSelected && <Ionicons name="checkmark-circle" size={20} color={colors.accent} />}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          </TouchableWithoutFeedback>
+        </TouchableOpacity>
+      </Modal>
 
-        {/* Modals */}
-        <TransactionListModal
-          visible={listModalVisible}
-          listType="EXPENSE"
-          selectedMonth={selectedMonthForModal}
-          monthNames={MONTH_NAMES}
-          transactions={modalTransactions}
-          fixedSummary={modalFixedSummary}
-          loading={loadingModalTrx}
-          onClose={() => setListModalVisible(false)}
-          onSelectTransaction={handleSelectTransactionFromModal}
-        />
+      {/* Modals */}
+      <TransactionListModal
+        visible={listModalVisible}
+        listType="EXPENSE"
+        selectedMonth={selectedMonthForModal}
+        monthNames={MONTH_NAMES}
+        transactions={modalTransactions}
+        fixedSummary={modalFixedSummary}
+        loading={loadingModalTrx}
+        onClose={() => setListModalVisible(false)}
+        onSelectTransaction={handleSelectTransactionFromModal}
+      />
 
-        <TransactionDetailModal
-          visible={selectedTransaction !== null}
-          transaction={selectedTransaction}
-          fixedState={currentFixedState}
-          parentTitle={selectedCategory === 'All' ? 'Expenses' : selectedCategory}
-          onClose={handleCloseDetailModal}
-          onDismiss={() => setSelectedTransaction(null)}
-          onSelectFixedState={handleSelectFixedStateInDetail}
-        />
-      </View>
-    </ContainerWrapper>
+      <TransactionDetailModal
+        visible={selectedTransaction !== null}
+        transaction={selectedTransaction}
+        fixedState={currentFixedState}
+        parentTitle={selectedCategory === 'All' ? 'Expenses' : selectedCategory}
+        onClose={handleCloseDetailModal}
+        onDismiss={() => setSelectedTransaction(null)}
+        onSelectFixedState={handleSelectFixedStateInDetail}
+      />
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1 },
   container: { flex: 1 },
-  content: { padding: 16 },
+  content: { padding: 20, paddingBottom: 40 },
   headerRow: {
     marginTop: 8,
-    marginBottom: 8,
+    marginBottom: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -876,10 +889,40 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: -0.5,
   },
+  headerRightGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  profilePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+    gap: 6,
+  },
+  miniAvatar: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  miniAvatarText: {
+    color: '#FFF',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  profilePillText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
   settingsHeaderBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: StyleSheet.hairlineWidth,
@@ -890,31 +933,29 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
 
-  // MonthSelector Matching Styles
   stepperContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderRadius: 12,
-    padding: 4,
-    marginBottom: 8,
+    borderRadius: 16,
+    padding: 6,
+    marginBottom: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 3,
+    elevation: 1,
   },
   arrowButton: {
     width: 36,
     height: 36,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
   },
   disabledButton: {
-    backgroundColor: 'transparent',
-    shadowOpacity: 0,
-    elevation: 0,
+    opacity: 0.4,
   },
   arrowText: {
     fontSize: 22,
@@ -933,31 +974,38 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // Separate Coverage Badge Styles
   badgeWrapper: {
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   coverageBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 12,
+    gap: 6,
+  },
+  coverageDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   coverageText: {
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.2,
   },
 
-  pillScrollView: { marginBottom: 12, marginTop: 4 },
+  pillScrollView: { marginBottom: 16, marginTop: 4 },
   pillContainer: { gap: 8, paddingRight: 10 },
   chipPill: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 18,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   miniDot: {
     width: 6,
@@ -974,8 +1022,8 @@ const styles = StyleSheet.create({
   },
 
   metricsContainer: {
-    marginBottom: 12,
-    gap: 10,
+    marginBottom: 16,
+    gap: 12,
   },
   heroCard: {
     borderRadius: 16,
@@ -1017,12 +1065,12 @@ const styles = StyleSheet.create({
 
   subRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 10,
   },
   subCard: {
     flex: 1,
-    borderRadius: 12,
-    padding: 10,
+    borderRadius: 16,
+    padding: 12,
     borderWidth: StyleSheet.hairlineWidth,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -1057,23 +1105,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
-  chartTitle: { fontSize: 14, fontWeight: '600' },
+  chartTitle: { fontSize: 15, fontWeight: '600' },
   chartHintText: { fontSize: 11 },
   chartWrapper: { alignItems: 'center', paddingTop: 8 },
 
   bannerGridContainer: {
-    marginTop: 14,
-    gap: 10,
+    marginTop: 16,
+    gap: 12,
   },
   bannerGridRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 12,
   },
   gridCard: {
     flex: 1,
     borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
     borderLeftWidth: 4,
     padding: 12,
     justifyContent: 'space-between',
@@ -1107,30 +1156,30 @@ const styles = StyleSheet.create({
   },
   inlineInput: {
     flex: 1,
-    height: 28,
+    height: 30,
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 6,
+    borderRadius: 8,
     paddingHorizontal: 8,
     fontSize: 12,
     fontWeight: '700',
   },
   inlineSaveBtn: {
     paddingHorizontal: 10,
-    height: 28,
-    borderRadius: 6,
+    height: 30,
+    borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
   inlineSaveText: { color: '#FFF', fontSize: 11, fontWeight: '700' },
-  quickEditText: { fontSize: 11, fontWeight: '700' },
 
   dismissBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
   },
   dismissBtnText: {
     fontSize: 11,

@@ -128,15 +128,7 @@ export async function initDatabase(db: SQLiteDatabase): Promise<void> {
       is_fixed INTEGER
     );
 
-    -- 1. Deduplicate existing rows before creating the index
-    DELETE FROM transactions 
-    WHERE id NOT IN (
-      SELECT MIN(id) 
-      FROM transactions 
-      GROUP BY date, amount, rawDescription, profileId
-    );
-
-    -- 2. Safely create the composite unique index
+    -- Composite unique index for transaction deduplication
     CREATE UNIQUE INDEX IF NOT EXISTS idx_transactions_dedup 
     ON transactions(date, amount, rawDescription, profileId);
 
@@ -164,7 +156,8 @@ export async function initDatabase(db: SQLiteDatabase): Promise<void> {
       UNIQUE(keyword, profileId)
     );
   `);
-   
+  
+  // Non-destructive column migrations
   try {
     await db.execAsync(`ALTER TABLE transactions ADD COLUMN profileId INTEGER NOT NULL DEFAULT 1;`);
   } catch (e) {}
@@ -189,13 +182,11 @@ export async function initDatabase(db: SQLiteDatabase): Promise<void> {
     await db.execAsync(`ALTER TABLE fixed_cost_rules ADD COLUMN overrideState TEXT NOT NULL DEFAULT 'FIXED';`);
   } catch (e) {}
 
+  // Ensure EXACTLY one single default profile exists on fresh initial run
   const existingProfiles = await db.getAllAsync<{ id: number }>(`SELECT id FROM profiles;`);
   if (existingProfiles.length === 0) {
     await db.runAsync(
-      `INSERT INTO profiles (name, avatarColor, isDefault) VALUES ('Profile 1', '#007AFF', 1);`
-    );
-    await db.runAsync(
-      `INSERT INTO profiles (name, avatarColor, isDefault) VALUES ('Profile 2', '#34C759', 0);`
+      `INSERT INTO profiles (name, avatarColor, isDefault) VALUES ('Personal', '#007AFF', 1);`
     );
   }
 }
@@ -219,6 +210,31 @@ export async function createProfile(db: SQLiteDatabase, name: string, avatarColo
   }
 }
 
+export async function updateProfile(
+  db: SQLiteDatabase,
+  id: number,
+  name: string,
+  avatarColor: string
+): Promise<void> {
+  await db.runAsync(
+    `UPDATE profiles SET name = ?, avatarColor = ? WHERE id = ?;`,
+    [name.trim(), avatarColor, id]
+  );
+}
+
+export async function deleteProfile(
+  db: SQLiteDatabase,
+  id: number
+): Promise<void> {
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(`DELETE FROM transactions WHERE profileId = ?;`, [id]);
+    await db.runAsync(`DELETE FROM category_goals WHERE profileId = ?;`, [id]);
+    await db.runAsync(`DELETE FROM category_rules WHERE profileId = ?;`, [id]);
+    await db.runAsync(`DELETE FROM fixed_cost_rules WHERE profileId = ?;`, [id]);
+    await db.runAsync(`DELETE FROM profiles WHERE id = ?;`, [id]);
+  });
+}
+
 export async function getFixedVsFlexibleSummary(
   db: SQLiteDatabase,
   monthName: string,
@@ -229,7 +245,6 @@ export async function getFixedVsFlexibleSummary(
     [monthName, profileId]
   );
 
-  // Pre-fetch custom fixed rules once for O(1) synchronous matching
   const customRules = await db.getAllAsync<{ keyword: string; overrideState: string }>(
     `SELECT keyword, overrideState FROM fixed_cost_rules WHERE profileId = ?;`,
     [profileId]
@@ -420,7 +435,6 @@ export async function getFixedOrFlexibleTransactions(
       }
     }
 
-    // Attach resolved status onto transaction object for downstream list filters
     tx.is_fixed = isFixed ? 1 : 0;
 
     if (isFixedTarget === isFixed) {
@@ -646,7 +660,6 @@ export async function getFilteredTransactions(
   query += ` ORDER BY date DESC, id DESC;`;
   const transactions = await db.getAllAsync<Transaction>(query, params);
 
-  // Pre-fetch custom rules O(1) once per request
   const customRules = await db.getAllAsync<{ keyword: string; overrideState: string }>(
     `SELECT keyword, overrideState FROM fixed_cost_rules WHERE profileId = ?;`,
     [profileId]
@@ -661,7 +674,6 @@ export async function getFilteredTransactions(
     ...detectedKeywords,
   ]);
 
-  // Tag every transaction (both Income and Expense) with an explicit 1 or 0 for is_fixed
   return transactions.map((tx) => {
     let isFixed = false;
 
@@ -688,6 +700,7 @@ export async function getFilteredTransactions(
     };
   });
 }
+
 export async function getTransactionsByMonth(
   db: SQLiteDatabase,
   monthName: string,
@@ -847,23 +860,28 @@ export async function getFullYearTrendData(
 
 export async function clearAllData(
   db: SQLiteDatabase,
-  profileId: number = 1
+  profileId?: number
 ): Promise<void> {
   if (!db) return;
 
-  await db.withTransactionAsync(async () => {
-    // 1. Delete transactions for this profile
-    await db.runAsync(`DELETE FROM transactions WHERE profileId = ?;`, [profileId]);
-
-    // 2. Clear category budget goals for this profile
-    await db.runAsync(`DELETE FROM category_goals WHERE profileId = ?;`, [profileId]);
-
-    // 3. Clear custom categorization rules for this profile
-    await db.runAsync(`DELETE FROM category_rules WHERE profileId = ?;`, [profileId]);
-
-    // 4. Clear fixed/flexible cost override rules for this profile
-    await db.runAsync(`DELETE FROM fixed_cost_rules WHERE profileId = ?;`, [profileId]);
-  });
+  if (profileId !== undefined) {
+    // Soft reset: Delete only records for a specific profile
+    await db.withTransactionAsync(async () => {
+      await db.runAsync(`DELETE FROM transactions WHERE profileId = ?;`, [profileId]);
+      await db.runAsync(`DELETE FROM category_goals WHERE profileId = ?;`, [profileId]);
+      await db.runAsync(`DELETE FROM category_rules WHERE profileId = ?;`, [profileId]);
+      await db.runAsync(`DELETE FROM fixed_cost_rules WHERE profileId = ?;`, [profileId]);
+    });
+  } else {
+    // Hard Factory Reset: Completely wipe schemas to guarantee a 100% clean slate
+    await db.execAsync(`
+      DROP TABLE IF EXISTS transactions;
+      DROP TABLE IF EXISTS category_goals;
+      DROP TABLE IF EXISTS category_rules;
+      DROP TABLE IF EXISTS fixed_cost_rules;
+      DROP TABLE IF EXISTS profiles;
+    `);
+  }
 }
 
 export async function detectRecurringPatterns(
@@ -1068,8 +1086,6 @@ export async function toggleFixedCostRule(
   return newState === 'FIXED';
 }
 
-
-
 export interface RecurringCandidate {
   merchant: string;
   category: string;
@@ -1126,8 +1142,6 @@ export async function getAnnualTrendWithBudget(
   category: string = 'All',
   profileId: number = 1
 ): Promise<AnnualTrendPointWithBudget[]> {
-  const yearlyData = await getFullYearTrendData(db, year, profileId);
-  
   let query = `
     SELECT monthName, TOTAL(ABS(amount)) as totalAmount
     FROM transactions
@@ -1150,11 +1164,10 @@ export async function getAnnualTrendWithBudget(
 
   const budgetLimit = await getCategoryGoal(db, category, profileId);
 
-  const months = [
-    '2026-01', '2026-02', '2026-03', '2026-04',
-    '2026-05', '2026-06', '2026-07', '2026-08',
-    '2026-09', '2026-10', '2026-11', '2026-12'
-  ];
+  const months = Array.from({ length: 12 }, (_, i) => {
+    const m = String(i + 1).padStart(2, '0');
+    return `${year}-${m}`;
+  });
 
   return months.map((m) => ({
     monthName: m,
@@ -1233,15 +1246,10 @@ export async function getIncomeFixedVsFlexibleSummary(
 
 export async function clearDemoWorkspace(db: SQLiteDatabase, demoProfileId: number = 1): Promise<void> {
   await db.withTransactionAsync(async () => {
-    // 1. Remove all transactions under demo profile
-    await db.runAsync('DELETE FROM transactions WHERE profile_id = ?;', [demoProfileId]);
-    
-    // 2. Remove category goals & merchant overrides for demo profile
-    await db.runAsync('DELETE FROM category_goals WHERE profile_id = ?;', [demoProfileId]);
-    await db.runAsync('DELETE FROM merchant_fixed_overrides WHERE profile_id = ?;', [demoProfileId]);
-
-    // 3. Mark demo mode flag or delete demo profile if applicable
-    await db.runAsync('UPDATE profiles SET is_demo = 0 WHERE id = ?;', [demoProfileId]);
+    await db.runAsync('DELETE FROM transactions WHERE profileId = ?;', [demoProfileId]);
+    await db.runAsync('DELETE FROM category_goals WHERE profileId = ?;', [demoProfileId]);
+    await db.runAsync('DELETE FROM category_rules WHERE profileId = ?;', [demoProfileId]);
+    await db.runAsync('DELETE FROM fixed_cost_rules WHERE profileId = ?;', [demoProfileId]);
   });
 }
 
@@ -1280,27 +1288,33 @@ export async function getYearCoverageStatus(
       [year, profileId]
     );
 
+    const currentYear = String(new Date().getFullYear());
+    const isCurrentYear = year === currentYear;
+
     if (!res || !res.minDate) {
       return { status: 'EMPTY', label: 'Statement Pending' };
     }
 
-    const currentYear = String(new Date().getFullYear());
-    const isCurrentYear = year === currentYear;
+    const maxMonth = parseInt(res.maxDate.slice(5, 7), 10);
     const maxDay = parseInt(res.maxDate.slice(-2), 10);
 
     if (isCurrentYear) {
+      const startMonthStr = formatMonthName(res.minDate);
+      const endMonthStr = formatMonthName(res.maxDate);
       return {
         status: 'IN_PROGRESS',
         minDate: res.minDate,
         maxDate: res.maxDate,
-        label: `In Progress (${res.minDate.slice(5)} – ${res.maxDate.slice(5)})`,
+        label: `In Progress (${startMonthStr} – ${endMonthStr})`,
       };
-    } else if (maxDay < 25) {
+    } else if (maxMonth < 12 || maxDay < 25) {
+      const startMonthStr = formatMonthName(res.minDate);
+      const endMonthStr = formatMonthName(res.maxDate);
       return {
         status: 'PARTIAL',
         minDate: res.minDate,
         maxDate: res.maxDate,
-        label: `Partial Statement (${res.minDate.slice(5)} – ${res.maxDate.slice(5)})`,
+        label: `Partial Year (${startMonthStr} – ${endMonthStr})`,
       };
     } else {
       return {
@@ -1315,3 +1329,11 @@ export async function getYearCoverageStatus(
     return { status: 'EMPTY', label: 'Statement Pending' };
   }
 }
+
+const formatMonthName = (dateStr: string): string => {
+  if (!dateStr || dateStr.length < 7) return dateStr;
+  const [, month] = dateStr.split('-');
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const monthIdx = parseInt(month, 10) - 1;
+  return monthNames[monthIdx] || month;
+};
