@@ -178,6 +178,48 @@ export default function TrendsScreen() {
     try {
       setLoading(true);
 
+      // Safely ensure all required tables exist before firing queries
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS profiles (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          avatarColor TEXT NOT NULL,
+          isDefault INTEGER DEFAULT 0,
+          currency TEXT NOT NULL DEFAULT 'EUR'
+        );
+
+        CREATE TABLE IF NOT EXISTS transactions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          profileId INTEGER NOT NULL DEFAULT 1,
+          date TEXT NOT NULL,
+          amount REAL NOT NULL,
+          rawDescription TEXT NOT NULL,
+          merchant TEXT NOT NULL,
+          category TEXT NOT NULL,
+          monthName TEXT NOT NULL,
+          userOverridden INTEGER DEFAULT 0,
+          isZeroFlagged INTEGER DEFAULT 0,
+          dateAmbiguous INTEGER DEFAULT 0,
+          is_fixed INTEGER
+        );
+
+        CREATE TABLE IF NOT EXISTS category_goals (
+          category TEXT NOT NULL,
+          profileId INTEGER NOT NULL DEFAULT 1,
+          monthly_limit REAL NOT NULL,
+          PRIMARY KEY (category, profileId)
+        );
+
+        CREATE TABLE IF NOT EXISTS fixed_cost_rules (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          profileId INTEGER NOT NULL DEFAULT 1,
+          keyword TEXT NOT NULL,
+          category TEXT NOT NULL,
+          overrideState TEXT NOT NULL DEFAULT 'FIXED',
+          UNIQUE(keyword, profileId)
+        );
+      `);
+
       const dbYears = await getAvailableYears(db, activeProfileId);
       if (dbYears && dbYears.length > 0) {
         setAvailableYears(dbYears);
