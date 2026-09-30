@@ -1,29 +1,23 @@
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { clearAllData } from '@/db/database';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { useSQLiteContext } from 'expo-sqlite';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export function DemoBanner() {
-  const { isDemoMode, setIsDemoMode, activeProfile, refreshProfiles } = useProfile();
-  const { colors, isDark } = useTheme();
-  const db = useSQLiteContext();
-  const activeProfileId = activeProfile?.id ?? 1;
+  const { isDemoMode, setIsDemoMode } = useProfile();
+  const { isDark } = useTheme();
 
   if (!isDemoMode) return null;
 
   const handleEndDemo = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
-      if (db) {
-        await clearAllData(db, activeProfileId);
-      }
-      setIsDemoMode(false);
-      await refreshProfiles();
+      // ProfileContext.setIsDemoMode(false) executes clearAllData(db) 
+      // to purge all tables and reset to a clean Personal profile.
+      await setIsDemoMode(false);
       router.replace('/welcome');
     } catch (err) {
       console.error('Failed to end demo mode:', err);

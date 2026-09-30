@@ -1,4 +1,6 @@
-import { SQLiteDatabase } from 'expo-sqlite';
+import { type SQLiteDatabase } from 'expo-sqlite';
+
+export { type SQLiteDatabase };
 
 export interface Profile {
   id: number;
@@ -158,12 +160,9 @@ export async function initDatabase(db: SQLiteDatabase): Promise<void> {
     );
   `);
 
-  // Column migrations executed safely one-by-one via runAsync
   try {
     await db.runAsync(`ALTER TABLE profiles ADD COLUMN currency TEXT NOT NULL DEFAULT 'EUR';`);
-  } catch (e) {
-    // Column already exists
-  }
+  } catch (e) {}
 
   try {
     await db.runAsync(`ALTER TABLE transactions ADD COLUMN profileId INTEGER NOT NULL DEFAULT 1;`);
@@ -189,7 +188,6 @@ export async function initDatabase(db: SQLiteDatabase): Promise<void> {
     await db.runAsync(`ALTER TABLE fixed_cost_rules ADD COLUMN overrideState TEXT NOT NULL DEFAULT 'FIXED';`);
   } catch (e) {}
 
-  // Initial single default profile seed
   const existingProfiles = await db.getAllAsync<{ id: number }>(`SELECT id FROM profiles;`);
   if (existingProfiles.length === 0) {
     await db.runAsync(
@@ -241,6 +239,58 @@ export async function deleteProfile(
   db: SQLiteDatabase,
   id: number
 ): Promise<void> {
+  if (!db) return;
+
+  // Safely guarantee all linked tables exist before running DELETE queries
+  await db.execAsync(`
+    CREATE TABLE IF NOT EXISTS profiles (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      avatarColor TEXT NOT NULL,
+      isDefault INTEGER DEFAULT 0,
+      currency TEXT NOT NULL DEFAULT 'EUR'
+    );
+
+    CREATE TABLE IF NOT EXISTS transactions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      profileId INTEGER NOT NULL DEFAULT 1,
+      date TEXT NOT NULL,
+      amount REAL NOT NULL,
+      rawDescription TEXT NOT NULL,
+      merchant TEXT NOT NULL,
+      category TEXT NOT NULL,
+      monthName TEXT NOT NULL,
+      userOverridden INTEGER DEFAULT 0,
+      isZeroFlagged INTEGER DEFAULT 0,
+      dateAmbiguous INTEGER DEFAULT 0,
+      is_fixed INTEGER
+    );
+
+    CREATE TABLE IF NOT EXISTS category_goals (
+      category TEXT NOT NULL,
+      profileId INTEGER NOT NULL DEFAULT 1,
+      monthly_limit REAL NOT NULL,
+      PRIMARY KEY (category, profileId)
+    );
+
+    CREATE TABLE IF NOT EXISTS category_rules (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      profileId INTEGER NOT NULL DEFAULT 1,
+      keyword TEXT NOT NULL,
+      category TEXT NOT NULL,
+      UNIQUE(keyword, profileId)
+    );
+
+    CREATE TABLE IF NOT EXISTS fixed_cost_rules (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      profileId INTEGER NOT NULL DEFAULT 1,
+      keyword TEXT NOT NULL,
+      category TEXT NOT NULL,
+      overrideState TEXT NOT NULL DEFAULT 'FIXED',
+      UNIQUE(keyword, profileId)
+    );
+  `);
+
   await db.withTransactionAsync(async () => {
     await db.runAsync(`DELETE FROM transactions WHERE profileId = ?;`, [id]);
     await db.runAsync(`DELETE FROM category_goals WHERE profileId = ?;`, [id]);
@@ -1258,6 +1308,49 @@ export async function getIncomeFixedVsFlexibleSummary(
 }
 
 export async function clearDemoWorkspace(db: SQLiteDatabase, demoProfileId: number = 1): Promise<void> {
+  if (!db) return;
+
+  await db.execAsync(`
+    CREATE TABLE IF NOT EXISTS transactions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      profileId INTEGER NOT NULL DEFAULT 1,
+      date TEXT NOT NULL,
+      amount REAL NOT NULL,
+      rawDescription TEXT NOT NULL,
+      merchant TEXT NOT NULL,
+      category TEXT NOT NULL,
+      monthName TEXT NOT NULL,
+      userOverridden INTEGER DEFAULT 0,
+      isZeroFlagged INTEGER DEFAULT 0,
+      dateAmbiguous INTEGER DEFAULT 0,
+      is_fixed INTEGER
+    );
+
+    CREATE TABLE IF NOT EXISTS category_goals (
+      category TEXT NOT NULL,
+      profileId INTEGER NOT NULL DEFAULT 1,
+      monthly_limit REAL NOT NULL,
+      PRIMARY KEY (category, profileId)
+    );
+
+    CREATE TABLE IF NOT EXISTS category_rules (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      profileId INTEGER NOT NULL DEFAULT 1,
+      keyword TEXT NOT NULL,
+      category TEXT NOT NULL,
+      UNIQUE(keyword, profileId)
+    );
+
+    CREATE TABLE IF NOT EXISTS fixed_cost_rules (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      profileId INTEGER NOT NULL DEFAULT 1,
+      keyword TEXT NOT NULL,
+      category TEXT NOT NULL,
+      overrideState TEXT NOT NULL DEFAULT 'FIXED',
+      UNIQUE(keyword, profileId)
+    );
+  `);
+
   await db.withTransactionAsync(async () => {
     await db.runAsync('DELETE FROM transactions WHERE profileId = ?;', [demoProfileId]);
     await db.runAsync('DELETE FROM category_goals WHERE profileId = ?;', [demoProfileId]);

@@ -37,6 +37,7 @@ export function ProfileSwitcherModal({ visible, onClose }: ProfileSwitcherModalP
 
   const handleSave = async () => {
     if (!nameInput.trim()) return;
+
     if (selectedForEdit) {
       await editProfile(selectedForEdit.id, nameInput, selectedColor);
       resetForm();
@@ -44,11 +45,10 @@ export function ProfileSwitcherModal({ visible, onClose }: ProfileSwitcherModalP
       const newProf = await addNewProfile(nameInput, selectedColor);
       resetForm();
       if (newProf) {
-        switchProfile(newProf);
+        await switchProfile(newProf);
       }
       onClose();
     }
-    await refreshProfiles();
   };
 
   const handleDelete = (profile: Profile) => {
@@ -69,7 +69,7 @@ export function ProfileSwitcherModal({ visible, onClose }: ProfileSwitcherModalP
             await refreshProfiles();
             if (activeProfile?.id === profile.id) {
               const remaining = profiles.filter((p) => p.id !== profile.id);
-              if (remaining.length > 0) switchProfile(remaining[0]);
+              if (remaining.length > 0) await switchProfile(remaining[0]);
             }
           },
         },
@@ -158,8 +158,8 @@ export function ProfileSwitcherModal({ visible, onClose }: ProfileSwitcherModalP
                       >
                         <TouchableOpacity
                           style={styles.profileInfoArea}
-                          onPress={() => {
-                            switchProfile(p);
+                          onPress={async () => {
+                            await switchProfile(p);
                             onClose();
                           }}
                         >

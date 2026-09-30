@@ -1,4 +1,11 @@
-import { createProfile, getProfiles, Profile, updateProfileCurrency } from '@/db/database';
+import {
+  clearAllData,
+  createProfile,
+  getProfiles,
+  Profile,
+  updateProfileCurrency
+} from '@/db/database';
+import { seedExpandedDemoData } from '@/db/demoSeeder';
 import { useSQLiteContext } from 'expo-sqlite';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
@@ -30,7 +37,7 @@ interface ProfileContextType {
   loadingProfiles: boolean;
   dataVersion: number;
   currencySymbol: string;
-  setIsDemoMode: (isDemo: boolean) => void;
+  setIsDemoMode: (isDemo: boolean) => Promise<void>;
   switchProfile: (profile: Profile) => Promise<void>;
   addNewProfile: (name: string, color?: string) => Promise<Profile | null>;
   editProfile: (id: number, name: string, color: string) => Promise<void>;
@@ -47,7 +54,7 @@ const ProfileContext = createContext<ProfileContextType>({
   loadingProfiles: true,
   dataVersion: 0,
   currencySymbol: '€',
-  setIsDemoMode: () => {},
+  setIsDemoMode: async () => {},
   switchProfile: async () => {},
   addNewProfile: async () => null,
   editProfile: async () => {},
@@ -73,6 +80,55 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     if (!profileIdToQuery) return false;
 
     try {
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS profiles (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          avatarColor TEXT NOT NULL,
+          isDefault INTEGER DEFAULT 0,
+          currency TEXT NOT NULL DEFAULT 'EUR'
+        );
+
+        CREATE TABLE IF NOT EXISTS transactions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          profileId INTEGER NOT NULL DEFAULT 1,
+          date TEXT NOT NULL,
+          amount REAL NOT NULL,
+          rawDescription TEXT NOT NULL,
+          merchant TEXT NOT NULL,
+          category TEXT NOT NULL,
+          monthName TEXT NOT NULL,
+          userOverridden INTEGER DEFAULT 0,
+          isZeroFlagged INTEGER DEFAULT 0,
+          dateAmbiguous INTEGER DEFAULT 0,
+          is_fixed INTEGER
+        );
+
+        CREATE TABLE IF NOT EXISTS category_goals (
+          category TEXT NOT NULL,
+          profileId INTEGER NOT NULL DEFAULT 1,
+          monthly_limit REAL NOT NULL,
+          PRIMARY KEY (category, profileId)
+        );
+
+        CREATE TABLE IF NOT EXISTS category_rules (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          profileId INTEGER NOT NULL DEFAULT 1,
+          keyword TEXT NOT NULL,
+          category TEXT NOT NULL,
+          UNIQUE(keyword, profileId)
+        );
+
+        CREATE TABLE IF NOT EXISTS fixed_cost_rules (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          profileId INTEGER NOT NULL DEFAULT 1,
+          keyword TEXT NOT NULL,
+          category TEXT NOT NULL,
+          overrideState TEXT NOT NULL DEFAULT 'FIXED',
+          UNIQUE(keyword, profileId)
+        );
+      `);
+
       const result = await db.getFirstAsync<{ count: number }>(
         'SELECT COUNT(*) as count FROM transactions WHERE profileId = ?;',
         [profileIdToQuery]
@@ -90,8 +146,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     if (!db) return;
     try {
       setLoadingProfiles(true);
-      
-      // Ensure profiles table structure exists safely without triggering full schema lock
+
       await db.execAsync(`
         CREATE TABLE IF NOT EXISTS profiles (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -104,7 +159,6 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
       let list = await getProfiles(db);
 
-      // Seed fallback single default profile if table is empty
       if (list.length === 0) {
         await db.runAsync(
           `INSERT INTO profiles (name, avatarColor, isDefault, currency) VALUES ('Personal', '#007AFF', 1, 'EUR');`
@@ -138,6 +192,47 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     refreshProfiles();
   }, [db]);
+
+  const setDemoModeWithCleanup = async (isDemo: boolean): Promise<void> => {
+    setIsDemoMode(isDemo);
+    if (!db) return;
+
+    try {
+      setLoadingProfiles(true);
+
+      if (!isDemo) {
+        // 🚀 Nuclear purge: Drops ALL tables to guarantee zero residual demo records
+        await clearAllData(db);
+
+        // Re-initialize fresh schema and single default profile
+        await refreshProfiles();
+      } else {
+        // Entering Demo Mode
+        let list = await getProfiles(db);
+        let demoProfile: Profile | null | undefined = list.find((p) => p.name.toLowerCase().includes('demo'));
+
+        if (!demoProfile) {
+          demoProfile = await createProfile(db, 'Demo Workspace', '#5856D6');
+          if (demoProfile) {
+            list = await getProfiles(db);
+            setProfiles(list);
+          }
+        }
+
+        if (demoProfile) {
+          setActiveProfile(demoProfile);
+          await seedExpandedDemoData(db, demoProfile.id);
+          await checkDataState(demoProfile.id);
+        }
+      }
+
+      setDataVersion((prev) => prev + 1);
+    } catch (error) {
+      console.error('Error setting demo mode:', error);
+    } finally {
+      setLoadingProfiles(false);
+    }
+  };
 
   const switchProfile = async (profile: Profile) => {
     setActiveProfile(profile);
@@ -197,12 +292,12 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       }
 
       await updateProfileCurrency(db, activeProfile.id, newCurrencyCode);
-      
+
       setActiveProfile((prev) => (prev ? { ...prev, currency: newCurrencyCode } : null));
       setProfiles((prev) =>
         prev.map((p) => (p.id === activeProfile.id ? { ...p, currency: newCurrencyCode } : p))
       );
-      
+
       setDataVersion((prev) => prev + 1);
     } catch (error) {
       console.error('Error updating currency:', error);
@@ -219,7 +314,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         loadingProfiles,
         dataVersion,
         currencySymbol,
-        setIsDemoMode,
+        setIsDemoMode: setDemoModeWithCleanup,
         switchProfile,
         addNewProfile,
         editProfile,
