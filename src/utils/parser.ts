@@ -2,15 +2,45 @@ import { CategoryRule, Transaction } from '@/db/database';
 import Papa from 'papaparse';
 import XLSX from 'xlsx';
 
-export function classifyTransaction(description: string, customRules: CategoryRule[] = []): string {
-  const desc = description.toUpperCase();
+/**
+ * Normalizes merchant names by stripping noisy transaction codes, dates,
+ * card IDs, and common Dutch payment processor prefixes.
+ */
+export function normalizeMerchantName(rawDescription: string): string {
+  if (!rawDescription) return '';
+  return rawDescription
+    .toUpperCase()
+    // Remove common payment processors & prefixes
+    .replace(/(SUMUP|IZETTLE|PAYPAL|MOLLIE|STRIPE|CHECKOUT\.COM|TICKETING|\*)/g, '')
+    // Remove NL bank reference codes / card IDs (e.g., NLAB..., Pas123, BSK...)
+    .replace(/(NL\d{2}[A-Z]{4}\d{10}|PAS\d+|NR\d+|BSK\d+)/g, '')
+    // Remove dates embedded in raw text (e.g., 20/09/26, 2026-09-30)
+    .replace(/\b\d{2}[/-]\d{2}[/-]\d{2,4}\b/g, '')
+    .replace(/\b\d{4}[/-]\d{2}[/-]\d{2}\b/g, '')
+    // Collapse extra whitespaces
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
+/**
+ * Multi-Tiered Classification Engine:
+ * 1. Custom User Rules (category_rules)
+ * 2. Keyword Heuristics
+ * 3. Fallback ('Shopping & Retail')
+ */
+export function classifyTransaction(description: string, customRules: CategoryRule[] = []): string {
+  if (!description) return 'Shopping & Retail';
+  const desc = normalizeMerchantName(description);
+
+  // Tier 1: User-Defined Custom Category Rules
   for (const rule of customRules) {
-    if (desc.includes(rule.keyword)) {
+    const cleanRuleKw = rule.keyword.toUpperCase().trim();
+    if (cleanRuleKw && desc.includes(cleanRuleKw)) {
       return rule.category;
     }
   }
 
+  // Tier 2: Built-in Keyword Heuristics
   if (/BABYPARK|BABY|PAMPERS|KINDEROPVANG|KOREIN|NURSERY/i.test(desc)) return 'Childcare';
   if (/RENT|MORTGAGE|HOA|HYPOTHEEK|VESTEDA|TULPENHUIS/i.test(desc)) return 'Housing';
   if (/CREDIT CARD|ICS|WISE|REMITLY/i.test(desc)) return 'Credit Card Payments';
@@ -23,6 +53,7 @@ export function classifyTransaction(description: string, customRules: CategoryRu
   if (/NS|SHELL|EV|QWELLO|TANGO|CHARGE|PARKING|NS-REIZEN/i.test(desc)) return 'Transportation';
   if (/TAX|GEMEENTE|BELASTING|WATERSCHAP/i.test(desc)) return 'Taxes & Municipal Fees';
 
+  // Tier 3: Fallback Default Category
   return 'Shopping & Retail';
 }
 
@@ -279,7 +310,7 @@ function parseMatrixData(
     transactions.push({
       date: dateResult.iso,
       amount: Number(signedAmount.toFixed(2)),
-      rawDescription: originalDesc, // Preserves identical raw description for exact hashing
+      rawDescription: originalDesc,
       merchant,
       category,
       monthName,

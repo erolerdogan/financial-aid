@@ -1,3 +1,4 @@
+import { classifyTransaction, normalizeMerchantName } from '@/utils/parser';
 import { type SQLiteDatabase } from 'expo-sqlite';
 
 export { type SQLiteDatabase };
@@ -241,7 +242,6 @@ export async function deleteProfile(
 ): Promise<void> {
   if (!db) return;
 
-  // Safely guarantee all linked tables exist before running DELETE queries
   await db.execAsync(`
     CREATE TABLE IF NOT EXISTS profiles (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -297,6 +297,40 @@ export async function deleteProfile(
     await db.runAsync(`DELETE FROM category_rules WHERE profileId = ?;`, [id]);
     await db.runAsync(`DELETE FROM fixed_cost_rules WHERE profileId = ?;`, [id]);
     await db.runAsync(`DELETE FROM profiles WHERE id = ?;`, [id]);
+  });
+}
+
+/**
+ * Dynamic Feedback Loop: Saves a category rule and updates ALL historical 
+ * non-overridden transactions matching the clean merchant keyword.
+ */
+export async function updateMerchantCategoryAndApplyGlobally(
+  db: SQLiteDatabase,
+  merchantName: string,
+  newCategory: string,
+  profileId: number = 1
+): Promise<void> {
+  if (!db || !merchantName) return;
+  const cleanKeyword = normalizeMerchantName(merchantName);
+  if (!cleanKeyword) return;
+
+  const searchPattern = `%${cleanKeyword}%`;
+
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(
+      `INSERT INTO category_rules (profileId, keyword, category) 
+       VALUES (?, ?, ?)
+       ON CONFLICT(keyword, profileId) DO UPDATE SET category = excluded.category;`,
+      [profileId, cleanKeyword, newCategory]
+    );
+
+    await db.runAsync(
+      `UPDATE transactions 
+       SET category = ?, userOverridden = 1 
+       WHERE profileId = ? 
+         AND (UPPER(merchant) LIKE ? OR UPPER(rawDescription) LIKE ?);`,
+      [newCategory, profileId, searchPattern, searchPattern]
+    );
   });
 }
 
@@ -1443,3 +1477,38 @@ const formatMonthName = (dateStr: string): string => {
   const monthIdx = parseInt(month, 10) - 1;
   return monthNames[monthIdx] || month;
 };
+
+export async function reclassifyAllUnoverriddenTransactions(
+  db: SQLiteDatabase,
+  profileId: number = 1
+): Promise<number> {
+  if (!db) return 0;
+
+  // 1. Fetch user rules & non-overridden transactions
+  const rules = await db.getAllAsync<CategoryRule>(
+    `SELECT * FROM category_rules WHERE profileId = ?;`,
+    [profileId]
+  );
+  
+  const transactions = await db.getAllAsync<{ id: number; rawDescription: string; merchant: string }>(
+    `SELECT id, rawDescription, merchant FROM transactions WHERE profileId = ? AND userOverridden = 0;`,
+    [profileId]
+  );
+
+  let updatedCount = 0;
+
+  await db.withTransactionAsync(async () => {
+    for (const tx of transactions) {
+      // Run the new classification logic against the clean text
+      const newCategory = classifyTransaction(tx.rawDescription || tx.merchant, rules);
+
+      const res = await db.runAsync(
+        `UPDATE transactions SET category = ? WHERE id = ? AND category != ?;`,
+        [newCategory, tx.id, newCategory]
+      );
+      if (res.changes > 0) updatedCount++;
+    }
+  });
+
+  return updatedCount;
+}

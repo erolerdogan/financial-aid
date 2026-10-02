@@ -95,7 +95,7 @@ export default function TrendsScreen() {
   const router = useRouter();
   const db = useSQLiteContext();
   const { colors } = useTheme();
-  const { activeProfile, currencySymbol } = useProfile();
+  const { activeProfile, currencySymbol, dataVersion } = useProfile();
   const activeProfileId = activeProfile?.id ?? 1;
 
   const [loading, setLoading] = useState(true);
@@ -178,7 +178,6 @@ export default function TrendsScreen() {
     try {
       setLoading(true);
 
-      // Safely ensure all required tables exist before firing queries
       await db.execAsync(`
         CREATE TABLE IF NOT EXISTS profiles (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -329,8 +328,10 @@ export default function TrendsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      loadAnalyticsData();
-    }, [loadAnalyticsData])
+      if (activeProfile?.id) {
+        loadAnalyticsData();
+      }
+    }, [activeProfile?.id, dataVersion, loadAnalyticsData])
   );
   
   const currentYearIndex = availableYears.indexOf(selectedYear);
@@ -565,42 +566,77 @@ export default function TrendsScreen() {
           </View>
         ) : null}
 
-        {/* Horizontal Filter Pills */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.pillScrollView}
-          contentContainerStyle={styles.pillContainer}
-        >
-          {sortedCategories.map((cat) => {
-            const isActive = selectedCategory === cat;
-            const color = cat === 'All' ? colors.accent : getCategoryColor(cat);
+        {/* Sticky Anchor Filter Bar */}
+        <View style={styles.stickyBarContainer}>
+          {/* Pinned 'All' Category Pill */}
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={[
+              styles.chipPill,
+              styles.pinnedPill,
+              { backgroundColor: colors.card, borderColor: colors.border },
+              selectedCategory === 'All' && { backgroundColor: colors.accent, borderColor: colors.accent },
+            ]}
+            onPress={() => handleSelectCategory('All')}
+          >
+            <View
+              style={[
+                styles.miniDot,
+                { backgroundColor: selectedCategory === 'All' ? '#FFF' : colors.accent },
+              ]}
+            />
+            <Text
+              style={[
+                styles.chipText,
+                { color: colors.text },
+                selectedCategory === 'All' && styles.chipTextActive,
+              ]}
+            >
+              All
+            </Text>
+          </TouchableOpacity>
 
-            return (
-              <TouchableOpacity
-                key={cat}
-                activeOpacity={0.7}
-                style={[
-                  styles.chipPill,
-                  { backgroundColor: colors.card, borderColor: colors.border },
-                  isActive && { backgroundColor: color, borderColor: color },
-                ]}
-                onPress={() => handleSelectCategory(cat)}
-              >
-                <View style={[styles.miniDot, { backgroundColor: isActive ? '#FFF' : color }]} />
-                <Text
-                  style={[
-                    styles.chipText,
-                    { color: colors.text },
-                    isActive && styles.chipTextActive,
-                  ]}
-                >
-                  {cat}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+          <View style={[styles.verticalDivider, { backgroundColor: colors.border }]} />
+
+          {/* Scrollable Specific Categories */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.pillScrollView}
+            contentContainerStyle={styles.pillContainer}
+          >
+            {sortedCategories
+              .filter((cat) => cat !== 'All')
+              .map((cat) => {
+                const isActive = selectedCategory === cat;
+                const color = getCategoryColor(cat);
+
+                return (
+                  <TouchableOpacity
+                    key={cat}
+                    activeOpacity={0.7}
+                    style={[
+                      styles.chipPill,
+                      { backgroundColor: colors.card, borderColor: colors.border },
+                      isActive && { backgroundColor: color, borderColor: color },
+                    ]}
+                    onPress={() => handleSelectCategory(cat)}
+                  >
+                    <View style={[styles.miniDot, { backgroundColor: isActive ? '#FFF' : color }]} />
+                    <Text
+                      style={[
+                        styles.chipText,
+                        { color: colors.text },
+                        isActive && styles.chipTextActive,
+                      ]}
+                    >
+                      {cat}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+          </ScrollView>
+        </View>
 
         {/* Metric Summary Layout */}
         <View style={styles.metricsContainer}>
@@ -1039,7 +1075,22 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
 
-  pillScrollView: { marginBottom: 16, marginTop: 4 },
+  /* Sticky Anchor Layout */
+  stickyBarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    marginTop: 4,
+  },
+  pinnedPill: {
+    marginRight: 8,
+  },
+  verticalDivider: {
+    width: 1,
+    height: 20,
+    marginRight: 8,
+  },
+  pillScrollView: { flex: 1 },
   pillContainer: { gap: 8, paddingRight: 10 },
   chipPill: {
     flexDirection: 'row',

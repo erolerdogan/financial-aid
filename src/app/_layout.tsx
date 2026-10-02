@@ -1,48 +1,52 @@
-import { ProfileProvider } from '@/contexts/ProfileContext';
+import { ProfileProvider, useProfile } from '@/contexts/ProfileContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { initDatabase } from '@/db/database';
 import { requestAndScheduleImportReminders } from '@/utils/notifications';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { SQLiteProvider, useSQLiteContext } from 'expo-sqlite';
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import React, { Suspense, useEffect, useRef, useState } from 'react';
+
+SplashScreen.preventAutoHideAsync().catch(() => {
+  /* ignore error if called multiple times in fast-refresh */
+});
 
 function AppInitializer() {
   const db = useSQLiteContext();
+  const router = useRouter();
+  const { loadingProfiles, hasData } = useProfile();
   const [isReady, setIsReady] = useState(false);
+  const routedRef = useRef(false);
 
   useEffect(() => {
-    async function init() {
-      if (db) {
-        try {
-          // 1. Create tables
-          await initDatabase(db);
-          
-          // 2. Schedule 3x/month import notifications (1st, 15th, 28th)
-          await requestAndScheduleImportReminders();
-        } catch (error) {
-          console.error('Initialization failed:', error);
-        } finally {
-          setIsReady(true);
-        }
-      }
-    }
-    init();
+    if (!db) return;
+    requestAndScheduleImportReminders().catch((err) =>
+      console.warn('Background notifications schedule warning:', err)
+    );
   }, [db]);
 
-  if (!isReady) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F2F2F7' }}>
-        <ActivityIndicator size="large" color="#007AFF" />
-      </View>
-    );
-  }
+  useEffect(() => {
+    if (loadingProfiles || routedRef.current) return;
+    routedRef.current = true;
+
+    if (!hasData) {
+      router.replace('/welcome');
+    }
+    setIsReady(true);
+  }, [loadingProfiles, hasData, router]);
+
+  useEffect(() => {
+    if (!isReady) return;
+    const frame = requestAnimationFrame(() => {
+      SplashScreen.hideAsync().catch(() => {});
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [isReady]);
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen name="welcome" options={{ headerShown: false, gestureEnabled: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="welcome" options={{ headerShown: false, gestureEnabled: false }} />
       <Stack.Screen
         name="settings"
         options={{
@@ -63,12 +67,14 @@ function AppInitializer() {
 
 export default function RootLayout() {
   return (
-    <SQLiteProvider databaseName="financial_aid.db" onInit={initDatabase}>
-      <ThemeProvider>
-        <ProfileProvider>
-          <AppInitializer />
-        </ProfileProvider>
-      </ThemeProvider>
-    </SQLiteProvider>
+    <Suspense fallback={null}>
+      <SQLiteProvider databaseName="financial_aid.db" onInit={initDatabase} useSuspense>
+        <ThemeProvider>
+          <ProfileProvider>
+            <AppInitializer />
+          </ProfileProvider>
+        </ThemeProvider>
+      </SQLiteProvider>
+    </Suspense>
   );
 }

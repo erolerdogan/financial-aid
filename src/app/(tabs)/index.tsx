@@ -217,6 +217,7 @@ export default function DashboardScreen() {
     }
   }, [db, selectedMonth, activeProfileId, currentMonthKey]);
 
+  // Execute directly on screen mount/focus without checking activeProfile?.id
   useFocusEffect(
     useCallback(() => {
       loadDashboardData();
@@ -606,8 +607,8 @@ export default function DashboardScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: 20, paddingBottom: 40 },
-  headerRow: {
+  content: { padding: 20, paddingBottom: 100 },
+    headerRow: {
     marginTop: 8,
     marginBottom: 12,
     flexDirection: 'row',

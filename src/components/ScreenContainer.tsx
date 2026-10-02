@@ -1,4 +1,3 @@
-import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import React from 'react';
 import {
@@ -8,7 +7,7 @@ import {
     View,
     ViewStyle
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface ScreenContainerProps {
   children: React.ReactNode;
@@ -17,26 +16,33 @@ interface ScreenContainerProps {
 
 export function ScreenContainer({ children, style }: ScreenContainerProps) {
   const { colors } = useTheme();
-  const { isDemoMode } = useProfile();
-
-  const ContainerWrapper = isDemoMode ? View : SafeAreaView;
-  const containerProps = isDemoMode ? {} : { edges: ['top', 'bottom'] as const };
+  const insets = useSafeAreaInsets();
 
   return (
-    <ContainerWrapper style={[styles.safeArea, { backgroundColor: colors.background }, style]} {...containerProps}>
+    <View
+      style={[
+        styles.safeArea,
+        {
+          backgroundColor: colors.background,
+          paddingTop: insets.top, // Strictly handle top inset only
+        },
+        style,
+      ]}
+    >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-        style={{ flex: 1 }}
+        style={styles.flexOne}
       >
-        <View style={{ flex: 1, backgroundColor: colors.background }}>
+        <View style={[styles.flexOne, { backgroundColor: colors.background }]}>
           {children}
         </View>
       </KeyboardAvoidingView>
-    </ContainerWrapper>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
+  flexOne: { flex: 1 },
 });

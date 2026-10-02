@@ -7,7 +7,7 @@ import {
 } from '@/db/database';
 import { seedExpandedDemoData } from '@/db/demoSeeder';
 import { useSQLiteContext } from 'expo-sqlite';
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 
 export const CURRENCY_SYMBOLS: Record<string, string> = {
   EUR: '€',
@@ -72,6 +72,8 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const [hasData, setHasData] = useState<boolean>(false);
   const [dataVersion, setDataVersion] = useState<number>(0);
 
+  const hasInitializedRef = useRef(false);
+
   const currencySymbol = CURRENCY_SYMBOLS[activeProfile?.currency || 'EUR'] || '€';
 
   const checkDataState = async (targetProfileId?: number): Promise<boolean> => {
@@ -79,6 +81,22 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     const profileIdToQuery = targetProfileId ?? activeProfile?.id;
     if (!profileIdToQuery) return false;
 
+    try {
+      const result = await db.getFirstAsync<{ count: number }>(
+        'SELECT COUNT(*) as count FROM transactions WHERE profileId = ?;',
+        [profileIdToQuery]
+      );
+      const exists = (result?.count ?? 0) > 0;
+      setHasData(exists);
+      return exists;
+    } catch (error) {
+      console.error('Error checking transaction count:', error);
+      return false;
+    }
+  };
+
+  const refreshProfiles = async () => {
+    if (!db) return;
     try {
       await db.execAsync(`
         CREATE TABLE IF NOT EXISTS profiles (
@@ -129,34 +147,6 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         );
       `);
 
-      const result = await db.getFirstAsync<{ count: number }>(
-        'SELECT COUNT(*) as count FROM transactions WHERE profileId = ?;',
-        [profileIdToQuery]
-      );
-      const exists = (result?.count ?? 0) > 0;
-      setHasData(exists);
-      return exists;
-    } catch (error) {
-      console.error('Error checking transaction count:', error);
-      return false;
-    }
-  };
-
-  const refreshProfiles = async () => {
-    if (!db) return;
-    try {
-      setLoadingProfiles(true);
-
-      await db.execAsync(`
-        CREATE TABLE IF NOT EXISTS profiles (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          name TEXT NOT NULL,
-          avatarColor TEXT NOT NULL,
-          isDefault INTEGER DEFAULT 0,
-          currency TEXT NOT NULL DEFAULT 'EUR'
-        );
-      `);
-
       let list = await getProfiles(db);
 
       if (list.length === 0) {
@@ -182,15 +172,37 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       }
 
       setDataVersion((prev) => prev + 1);
-    } catch (error) {
-      console.error('Error loading profiles:', error);
+    } catch (error: any) {
+      if (!error?.message?.includes('Access closed resource')) {
+        console.error('Error loading profiles:', error);
+      }
     } finally {
       setLoadingProfiles(false);
     }
   };
 
   useEffect(() => {
-    refreshProfiles();
+    let isMounted = true;
+
+    const initContext = async () => {
+      if (db && !hasInitializedRef.current) {
+        hasInitializedRef.current = true;
+        setLoadingProfiles(true);
+        
+        // Load profile and verify data BEFORE unblocking loading state
+        await refreshProfiles();
+        
+        if (isMounted) {
+          setLoadingProfiles(false);
+        }
+      }
+    };
+
+    initContext();
+
+    return () => {
+      isMounted = false;
+    };
   }, [db]);
 
   const setDemoModeWithCleanup = async (isDemo: boolean): Promise<void> => {
@@ -201,13 +213,10 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       setLoadingProfiles(true);
 
       if (!isDemo) {
-        // 🚀 Nuclear purge: Drops ALL tables to guarantee zero residual demo records
         await clearAllData(db);
-
-        // Re-initialize fresh schema and single default profile
+        hasInitializedRef.current = false;
         await refreshProfiles();
       } else {
-        // Entering Demo Mode
         let list = await getProfiles(db);
         let demoProfile: Profile | null | undefined = list.find((p) => p.name.toLowerCase().includes('demo'));
 
