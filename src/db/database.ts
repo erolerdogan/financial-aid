@@ -1,6 +1,6 @@
+import { CATEGORY_COLORS, setCustomCategoryColors } from '@/constants/colors';
 import { classifyTransaction, normalizeMerchantName } from '@/utils/parser';
 import { type SQLiteDatabase } from 'expo-sqlite';
-
 export { type SQLiteDatabase };
 
 export interface Profile {
@@ -159,6 +159,14 @@ export async function initDatabase(db: SQLiteDatabase): Promise<void> {
       category TEXT NOT NULL,
       overrideState TEXT NOT NULL,
       UNIQUE(keyword, profileId)
+    );
+    CREATE TABLE IF NOT EXISTS categories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      profileId INTEGER NOT NULL DEFAULT 1,
+      name TEXT NOT NULL,
+      color TEXT NOT NULL,
+      isBuiltIn INTEGER NOT NULL DEFAULT 0,
+      UNIQUE(name, profileId)
     );
   `);
 
@@ -1073,6 +1081,7 @@ export async function clearAllData(
       await db.runAsync(`DELETE FROM category_goals WHERE profileId = ?;`, [profileId]);
       await db.runAsync(`DELETE FROM category_rules WHERE profileId = ?;`, [profileId]);
       await db.runAsync(`DELETE FROM fixed_cost_rules WHERE profileId = ?;`, [profileId]);
+      await db.runAsync(`DELETE FROM categories WHERE profileId = ?;`, [profileId]);
     });
   } else {
     await db.execAsync(`
@@ -1080,8 +1089,10 @@ export async function clearAllData(
       DROP TABLE IF EXISTS category_goals;
       DROP TABLE IF EXISTS category_rules;
       DROP TABLE IF EXISTS fixed_cost_rules;
+      DROP TABLE IF EXISTS categories;
       DROP TABLE IF EXISTS profiles;
     `);
+    await initDatabase(db);
   }
 }
 
@@ -1636,4 +1647,242 @@ export async function safeExecuteQuery<T>(
     }
     throw error;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Category management
+// ---------------------------------------------------------------------------
+
+export const BUILT_IN_CATEGORY_NAMES = [
+  'Housing',
+  'Childcare',
+  'Credit Card Payments',
+  'Groceries',
+  'Dining Out',
+  'Health & Care',
+  'Financial Transfers',
+  'Utilities & Telecom',
+  'Loan & Insurance',
+  'Transportation',
+  'Taxes & Municipal Fees',
+  'Shopping & Retail',
+];
+
+export interface CategoryRow {
+  id: number;
+  profileId: number;
+  name: string;
+  color: string;
+  isBuiltIn: number;
+}
+
+export interface CategoryInfo extends CategoryRow {
+  transactionCount: number;
+  totalSpent: number;
+  monthlyLimit: number;
+}
+
+export async function ensureCategoriesSeeded(
+  db: SQLiteDatabase,
+  profileId: number = 1
+): Promise<void> {
+  for (const name of BUILT_IN_CATEGORY_NAMES) {
+    await db.runAsync(
+      `INSERT OR IGNORE INTO categories (profileId, name, color, isBuiltIn) VALUES (?, ?, ?, 1);`,
+      [profileId, name, CATEGORY_COLORS[name] ?? '#8E8E93']
+    );
+  }
+
+  await db.runAsync(
+    `INSERT OR IGNORE INTO categories (profileId, name, color, isBuiltIn)
+     SELECT DISTINCT ?, category, '#8E8E93', 0
+     FROM transactions
+     WHERE profileId = ? AND category IS NOT NULL AND TRIM(category) != '';`,
+    [profileId, profileId]
+  );
+}
+
+export async function syncCategoryColors(
+  db: SQLiteDatabase,
+  profileId: number = 1
+): Promise<void> {
+  if (!db) return;
+  try {
+    await ensureCategoriesSeeded(db, profileId);
+    const rows = await db.getAllAsync<{ name: string; color: string }>(
+      `SELECT name, color FROM categories WHERE profileId = ?;`,
+      [profileId]
+    );
+    const map: Record<string, string> = {};
+    rows.forEach((r) => {
+      map[r.name] = r.color;
+    });
+    setCustomCategoryColors(map);
+  } catch (error) {
+    console.warn('Failed to sync category colors:', error);
+  }
+}
+
+export async function getCategoriesWithStats(
+  db: SQLiteDatabase,
+  profileId: number = 1
+): Promise<CategoryInfo[]> {
+  await ensureCategoriesSeeded(db, profileId);
+
+  return await db.getAllAsync<CategoryInfo>(
+    `SELECT
+       c.id AS id,
+       c.profileId AS profileId,
+       c.name AS name,
+       c.color AS color,
+       c.isBuiltIn AS isBuiltIn,
+       COALESCE(t.cnt, 0) AS transactionCount,
+       COALESCE(t.spent, 0) AS totalSpent,
+       COALESCE(g.monthly_limit, 0) AS monthlyLimit
+     FROM categories c
+     LEFT JOIN (
+       SELECT category,
+              COUNT(*) AS cnt,
+              SUM(CASE WHEN amount < 0 THEN -amount ELSE 0 END) AS spent
+       FROM transactions
+       WHERE profileId = ?
+       GROUP BY category
+     ) t ON t.category = c.name
+     LEFT JOIN category_goals g ON g.category = c.name AND g.profileId = ?
+     WHERE c.profileId = ?
+     ORDER BY transactionCount DESC, c.name ASC;`,
+    [profileId, profileId, profileId]
+  );
+}
+
+export async function findCategoryByName(
+  db: SQLiteDatabase,
+  profileId: number,
+  name: string,
+  excludeId?: number
+): Promise<CategoryRow | null> {
+  const row = await db.getFirstAsync<CategoryRow>(
+    `SELECT * FROM categories
+     WHERE profileId = ? AND LOWER(name) = LOWER(?) AND id != ?
+     LIMIT 1;`,
+    [profileId, name.trim(), excludeId ?? -1]
+  );
+  return row ?? null;
+}
+
+export async function getCategoryKeywords(
+  db: SQLiteDatabase,
+  profileId: number,
+  category: string
+): Promise<CategoryRule[]> {
+  return await db.getAllAsync<CategoryRule>(
+    `SELECT * FROM category_rules WHERE profileId = ? AND category = ? ORDER BY keyword ASC;`,
+    [profileId, category]
+  );
+}
+
+export async function createCategory(
+  db: SQLiteDatabase,
+  profileId: number,
+  name: string,
+  color: string,
+  keywords: string[] = []
+): Promise<void> {
+  const trimmed = name.trim();
+  await db.runAsync(
+    `INSERT INTO categories (profileId, name, color, isBuiltIn) VALUES (?, ?, ?, 0);`,
+    [profileId, trimmed, color]
+  );
+  for (const keyword of keywords) {
+    const cleaned = keyword.trim();
+    if (cleaned) await addCustomRule(db, cleaned, trimmed, profileId);
+  }
+}
+
+export async function updateCategoryColor(
+  db: SQLiteDatabase,
+  profileId: number,
+  id: number,
+  color: string
+): Promise<void> {
+  await db.runAsync(`UPDATE categories SET color = ? WHERE id = ? AND profileId = ?;`, [
+    color,
+    id,
+    profileId,
+  ]);
+}
+
+export async function renameCategory(
+  db: SQLiteDatabase,
+  profileId: number,
+  id: number,
+  newName: string
+): Promise<void> {
+  const trimmed = newName.trim();
+  const row = await db.getFirstAsync<CategoryRow>(
+    `SELECT * FROM categories WHERE id = ? AND profileId = ?;`,
+    [id, profileId]
+  );
+  if (!row) throw new Error('Category not found.');
+  if (row.isBuiltIn === 1) throw new Error('Built-in categories cannot be renamed.');
+  if (row.name === trimmed) return;
+
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(`UPDATE categories SET name = ? WHERE id = ?;`, [trimmed, id]);
+    await db.runAsync(
+      `UPDATE transactions SET category = ? WHERE category = ? AND profileId = ?;`,
+      [trimmed, row.name, profileId]
+    );
+    await db.runAsync(
+      `UPDATE category_rules SET category = ? WHERE category = ? AND profileId = ?;`,
+      [trimmed, row.name, profileId]
+    );
+    await db.runAsync(
+      `UPDATE fixed_cost_rules SET category = ? WHERE category = ? AND profileId = ?;`,
+      [trimmed, row.name, profileId]
+    );
+    await db.runAsync(`DELETE FROM category_goals WHERE category = ? AND profileId = ?;`, [
+      trimmed,
+      profileId,
+    ]);
+    await db.runAsync(
+      `UPDATE category_goals SET category = ? WHERE category = ? AND profileId = ?;`,
+      [trimmed, row.name, profileId]
+    );
+  });
+}
+
+export async function deleteCategory(
+  db: SQLiteDatabase,
+  profileId: number,
+  id: number,
+  reassignTo: string
+): Promise<void> {
+  const row = await db.getFirstAsync<CategoryRow>(
+    `SELECT * FROM categories WHERE id = ? AND profileId = ?;`,
+    [id, profileId]
+  );
+  if (!row) throw new Error('Category not found.');
+  if (row.isBuiltIn === 1) throw new Error('Built-in categories cannot be deleted.');
+  if (row.name === reassignTo) throw new Error('Choose a different category to move items to.');
+
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(
+      `UPDATE transactions SET category = ? WHERE category = ? AND profileId = ?;`,
+      [reassignTo, row.name, profileId]
+    );
+    await db.runAsync(
+      `UPDATE category_rules SET category = ? WHERE category = ? AND profileId = ?;`,
+      [reassignTo, row.name, profileId]
+    );
+    await db.runAsync(
+      `UPDATE fixed_cost_rules SET category = ? WHERE category = ? AND profileId = ?;`,
+      [reassignTo, row.name, profileId]
+    );
+    await db.runAsync(`DELETE FROM category_goals WHERE category = ? AND profileId = ?;`, [
+      row.name,
+      profileId,
+    ]);
+    await db.runAsync(`DELETE FROM categories WHERE id = ?;`, [id]);
+  });
 }

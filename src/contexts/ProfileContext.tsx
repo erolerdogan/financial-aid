@@ -3,6 +3,7 @@ import {
   createProfile,
   getProfiles,
   Profile,
+  syncCategoryColors,
   updateProfileCurrency
 } from '@/db/database';
 import { seedExpandedDemoData } from '@/db/demoSeeder';
@@ -120,6 +121,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
       if (currentActive) {
         await checkDataState(currentActive.id);
+        await syncCategoryColors(db, currentActive.id);
       }
 
       setDataVersion((prev) => prev + 1);
@@ -196,6 +198,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
   const switchProfile = async (profile: Profile) => {
     setActiveProfile(profile);
+    if (db) await syncCategoryColors(db, profile.id);
     await checkDataState(profile.id);
     setDataVersion((prev) => prev + 1);
   };

@@ -234,6 +234,26 @@ export default function SettingsScreen() {
 
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
+          {/* CATEGORIES ROW */}
+          <TouchableOpacity
+            style={styles.rowItem}
+            activeOpacity={0.7}
+            onPress={() => {
+              router.back();
+              setTimeout(() => router.push('/categories'), 200);
+            }}
+          >
+            <View style={styles.rowLeft}>
+              <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
+                <Ionicons name="pricetags-outline" size={18} color={colors.accent} />
+              </View>
+              <Text style={[styles.rowTitle, { color: colors.text }]}>Categories</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+          </TouchableOpacity>
+
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
           <TouchableOpacity
             style={styles.rowItem}
             activeOpacity={0.7}

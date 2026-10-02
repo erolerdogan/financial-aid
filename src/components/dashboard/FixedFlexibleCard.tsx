@@ -1,3 +1,4 @@
+import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { FixedCostSummary } from '@/db/database';
 import React from 'react';
@@ -10,6 +11,7 @@ interface FixedFlexibleCardProps {
 
 export function FixedFlexibleCard({ summary, onPress }: FixedFlexibleCardProps) {
   const { colors, isDark } = useTheme();
+  const { currencySymbol } = useProfile();
   const { fixedTotal, flexibleTotal, fixedPercentage, flexiblePercentage, fixedItemsCount } = summary;
 
   const displayFixedPct = Math.round(fixedPercentage);
@@ -60,7 +62,7 @@ export function FixedFlexibleCard({ summary, onPress }: FixedFlexibleCardProps) 
             <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Fixed</Text>
           </View>
           <Text style={[styles.statAmount, { color: colors.text }]}>
-            €{fixedTotal.toFixed(0)}{' '}
+            {currencySymbol}{fixedTotal.toFixed(0)}{' '}
             <Text style={[styles.statPercent, { color: colors.textSecondary }]}>
               ({displayFixedPct}%)
             </Text>
@@ -81,7 +83,7 @@ export function FixedFlexibleCard({ summary, onPress }: FixedFlexibleCardProps) 
             <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Flexible</Text>
           </View>
           <Text style={[styles.statAmount, { color: colors.text }]}>
-            €{flexibleTotal.toFixed(0)}{' '}
+            {currencySymbol}{flexibleTotal.toFixed(0)}{' '}
             <Text style={[styles.statPercent, { color: colors.textSecondary }]}>
               ({displayFlexiblePct}%)
             </Text>
