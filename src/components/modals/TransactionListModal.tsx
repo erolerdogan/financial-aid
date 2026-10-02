@@ -1,3 +1,4 @@
+import { CategoryFilterBar } from '@/components/CategoryFilterBar';
 import { FixedFlexibleCard } from '@/components/dashboard/FixedFlexibleCard';
 import { getCategoryColor } from '@/constants/colors';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -56,6 +57,7 @@ export function TransactionListModal({
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filterMode, setFilterMode] = useState<ExpenseFilterMode>('ALL');
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [isReady, setIsReady] = useState(false);
 
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
@@ -106,6 +108,7 @@ export function TransactionListModal({
   useEffect(() => {
     if (visible) {
       setSearchQuery('');
+      setSelectedCategory('All');
       setFilterMode(listType === 'FIXED' ? 'FIXED' : listType === 'FLEXIBLE' ? 'FLEXIBLE' : 'ALL');
       setIsReady(false);
 
@@ -139,7 +142,7 @@ export function TransactionListModal({
   const isExpenseModal = listType === 'EXPENSE' || listType === 'FIXED' || listType === 'FLEXIBLE';
   const modalTitle = isExpenseModal ? 'Expenses' : 'Income Items';
 
-  const displayedTransactions = transactions.filter((tx) => {
+  const scopedTransactions = transactions.filter((tx) => {
     if (searchQuery.trim().length > 0) {
       const query = searchQuery.toLowerCase().trim();
       const merchant = (tx.merchant || '').toLowerCase();
@@ -155,6 +158,22 @@ export function TransactionListModal({
     if (filterMode === 'FLEXIBLE') return !isFixed;
     return true;
   });
+
+  const categoryTotals = new Map<string, number>();
+  scopedTransactions.forEach((tx) => {
+    const key = tx.category || 'Other';
+    categoryTotals.set(key, (categoryTotals.get(key) ?? 0) + Math.abs(tx.amount));
+  });
+  const categoryOptions = Array.from(categoryTotals.entries())
+    .sort((a, b) => b[1] - a[1])
+    .map(([name]) => name);
+
+  const activeCategory = categoryOptions.includes(selectedCategory) ? selectedCategory : 'All';
+
+  const displayedTransactions =
+    activeCategory === 'All'
+      ? scopedTransactions
+      : scopedTransactions.filter((tx) => (tx.category || 'Other') === activeCategory);
 
   const totalAmount = displayedTransactions.reduce((acc, tx) => acc + Math.abs(tx.amount), 0);
 
@@ -369,6 +388,15 @@ export function TransactionListModal({
                         </Text>
                       </TouchableOpacity>
                     </View>
+                    {categoryOptions.length > 1 && (
+                      <View style={styles.categoryBarWrapper}>
+                        <CategoryFilterBar
+                          categories={categoryOptions}
+                          selected={activeCategory}
+                          onSelect={setSelectedCategory}
+                        />
+                      </View>
+                    )}
                   </>
                 }
                 ListEmptyComponent={
@@ -401,6 +429,10 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
+  },
+  categoryBarWrapper: {
+    marginHorizontal: -20,
+    marginBottom: 12,
   },
   keyboardContainer: {
     width: '100%',

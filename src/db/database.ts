@@ -109,7 +109,7 @@ const DEFAULT_FIXED_KEYWORDS = [
 export async function initDatabase(db: SQLiteDatabase): Promise<void> {
   await db.execAsync(`
     PRAGMA journal_mode = WAL;
-
+    PRAGMA busy_timeout = 5000;
     CREATE TABLE IF NOT EXISTS profiles (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -135,7 +135,8 @@ export async function initDatabase(db: SQLiteDatabase): Promise<void> {
 
     CREATE UNIQUE INDEX IF NOT EXISTS idx_transactions_dedup 
     ON transactions(date, amount, rawDescription, profileId);
-
+    CREATE INDEX IF NOT EXISTS idx_transactions_profile_date
+    ON transactions(profileId, date DESC);
     CREATE TABLE IF NOT EXISTS category_rules (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       profileId INTEGER NOT NULL DEFAULT 1,
@@ -845,9 +846,112 @@ export async function getTransactionsByMonthAndCategory(
     ? [profileId, monthName]
     : [profileId, monthName, category];
 
-  return await db.getAllAsync<Transaction>(query, queryParams);
+  const rows = await db.getAllAsync<Transaction>(query, queryParams);
+
+  const needsResolution = rows.some(
+    (tx) => tx.amount < 0 && tx.is_fixed !== 1 && tx.is_fixed !== 0
+  );
+  if (!needsResolution) return rows;
+
+  const customRules = await db.getAllAsync<{ keyword: string; overrideState: string }>(
+    `SELECT keyword, overrideState FROM fixed_cost_rules WHERE profileId = ?;`,
+    [profileId]
+  );
+
+  const customRuleMap = new Map<string, string>();
+  customRules.forEach((r) => customRuleMap.set(r.keyword.toUpperCase().trim(), r.overrideState));
+
+  const detectedPatterns = await detectRecurringPatterns(db, 2, profileId);
+  const detectedKeywords = detectedPatterns.map((p) => p.merchant.toUpperCase().trim());
+
+  const allFixedKeywords = new Set([
+    ...DEFAULT_FIXED_KEYWORDS.map((k) => k.toUpperCase().trim()),
+    ...detectedKeywords,
+  ]);
+
+  return rows.map((tx) => {
+    if (tx.amount >= 0 || tx.is_fixed === 1 || tx.is_fixed === 0) return tx;
+
+    const keyword = (tx.merchant && tx.merchant !== 'Unknown' ? tx.merchant : tx.rawDescription)
+      .toUpperCase()
+      .trim();
+
+    const matchedRule = Array.from(customRuleMap.entries()).find(([kw]) => keyword.includes(kw));
+    const isFixed = matchedRule
+      ? matchedRule[1] === 'FIXED'
+      : Array.from(allFixedKeywords).some((kw) => keyword.includes(kw));
+
+    return { ...tx, is_fixed: isFixed ? 1 : 0 };
+  });
 }
 
+export async function getAllTransactionsByDate(
+  db: SQLiteDatabase,
+  profileId: number = 1,
+  searchQuery: string = '',
+  limit: number = 100,
+  offset: number = 0,
+  dateFrom?: string,
+  dateTo?: string,
+  category?: string
+): Promise<Transaction[]> {
+  const params: (string | number)[] = [profileId];
+  let sql = `SELECT * FROM transactions WHERE profileId = ?`;
+
+  if (dateFrom && dateTo) {
+    sql += ` AND date >= ? AND date < ?`;
+    params.push(dateFrom, dateTo);
+  }
+
+  if (category && category !== 'All') {
+    sql += ` AND category = ?`;
+    params.push(category);
+  }
+
+  const term = searchQuery.trim();
+  if (term.length > 0) {
+    sql += ` AND (rawDescription LIKE ? OR merchant LIKE ? OR category LIKE ?)`;
+    const pattern = `%${term}%`;
+    params.push(pattern, pattern, pattern);
+  }
+
+  sql += ` ORDER BY date DESC, id DESC LIMIT ? OFFSET ?;`;
+  params.push(limit, offset);
+
+  return await db.getAllAsync<Transaction>(sql, params);
+}
+
+export async function getTransactionCategories(
+  db: SQLiteDatabase,
+  profileId: number = 1,
+  dateFrom?: string,
+  dateTo?: string
+): Promise<string[]> {
+  const params: (string | number)[] = [profileId];
+  let sql = `SELECT category FROM transactions WHERE profileId = ?`;
+
+  if (dateFrom && dateTo) {
+    sql += ` AND date >= ? AND date < ?`;
+    params.push(dateFrom, dateTo);
+  }
+
+  sql += ` GROUP BY category ORDER BY SUM(ABS(amount)) DESC;`;
+
+  const rows = await db.getAllAsync<{ category: string }>(sql, params);
+  return rows.map((r) => r.category).filter(Boolean);
+}
+
+export async function getTransactionDateBounds(
+  db: SQLiteDatabase,
+  profileId: number = 1
+): Promise<{ minDate: string; maxDate: string } | null> {
+  const row = await db.getFirstAsync<{ minDate: string | null; maxDate: string | null }>(
+    `SELECT MIN(date) AS minDate, MAX(date) AS maxDate FROM transactions WHERE profileId = ?;`,
+    [profileId]
+  );
+  if (!row?.minDate || !row?.maxDate) return null;
+  return { minDate: row.minDate.slice(0, 10), maxDate: row.maxDate.slice(0, 10) };
+}
 export async function searchTransactions(
   db: SQLiteDatabase,
   searchQuery: string = '',
@@ -1511,4 +1615,25 @@ export async function reclassifyAllUnoverriddenTransactions(
   });
 
   return updatedCount;
+}
+
+// Inside db/database.ts
+
+export async function safeExecuteQuery<T>(
+  db: SQLiteDatabase,
+  queryFn: () => Promise<T>
+): Promise<T | null> {
+  if (!db) return null;
+  try {
+    return await queryFn();
+  } catch (error: any) {
+    if (
+      error?.message?.includes('Access closed resource') ||
+      error?.message?.includes('AccessClosedResourceException')
+    ) {
+      console.warn('SQLite handle closed during async operation. Execution skipped.');
+      return null;
+    }
+    throw error;
+  }
 }
