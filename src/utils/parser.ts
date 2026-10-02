@@ -6,18 +6,15 @@ import XLSX from 'xlsx';
  * Normalizes merchant names by stripping noisy transaction codes, dates,
  * card IDs, and common Dutch payment processor prefixes.
  */
-export function normalizeMerchantName(rawDescription: string): string {
+ export function normalizeMerchantName(rawDescription: string): string {
   if (!rawDescription) return '';
   return rawDescription
     .toUpperCase()
-    // Remove common payment processors & prefixes
-    .replace(/(SUMUP|IZETTLE|PAYPAL|MOLLIE|STRIPE|CHECKOUT\.COM|TICKETING|\*)/g, '')
-    // Remove NL bank reference codes / card IDs (e.g., NLAB..., Pas123, BSK...)
+    // Strips third-party Dutch/EU payment aggregators
+    .replace(/(STG\s+MOLLIE\s+PAYMENTS|MOLLIE|PAY\.NL|MTA\*|CCV\*|SUMUP|IZETTLE|PAYPAL|STRIPE|\*)/g, '')
     .replace(/(NL\d{2}[A-Z]{4}\d{10}|PAS\d+|NR\d+|BSK\d+)/g, '')
-    // Remove dates embedded in raw text (e.g., 20/09/26, 2026-09-30)
     .replace(/\b\d{2}[/-]\d{2}[/-]\d{2,4}\b/g, '')
     .replace(/\b\d{4}[/-]\d{2}[/-]\d{2}\b/g, '')
-    // Collapse extra whitespaces
     .replace(/\s+/g, ' ')
     .trim();
 }

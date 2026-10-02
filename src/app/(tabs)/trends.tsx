@@ -336,32 +336,33 @@ export default function TrendsScreen() {
     await loadAnalyticsData();
   };
 
-  const handleOpenMonthDetails = async (monthKey: string) => {
-    if (!db) return;
-    setSelectedMonthForModal(monthKey);
-    setListModalVisible(true);
-    try {
-      setLoadingModalTrx(true);
+const handleOpenMonthDetails = async (monthKey: string) => {
+  if (!db) return;
+  setSelectedMonthForModal(monthKey);
+  setListModalVisible(true);
+  try {
+    setLoadingModalTrx(true);
       const items = await getTransactionsByMonthAndCategory(
-        db,
-        monthKey,
-        selectedCategory,
-        activeProfileId
-      );
-      setModalTransactions(items || []);
+      db,
+      monthKey,
+      selectedCategory,
+      activeProfileId,
+      true
+    );
+    setModalTransactions(items || []);
 
-      const fixedSummaryData = await getFixedVsFlexibleSummary(
-        db,
-        monthKey,
-        activeProfileId
-      );
-      setModalFixedSummary(fixedSummaryData);
-    } catch (err) {
-      console.error('Failed to query month transactions:', err);
-    } finally {
-      setLoadingModalTrx(false);
-    }
-  };
+    const fixedSummaryData = await getFixedVsFlexibleSummary(
+      db,
+      monthKey,
+      activeProfileId
+    );
+    setModalFixedSummary(fixedSummaryData);
+  } catch (err) {
+    console.error('Failed to query month transactions:', err);
+  } finally {
+    setLoadingModalTrx(false);
+  }
+};
 
   const handleSelectTransactionFromModal = async (trx: Transaction) => {
     setListModalVisible(false);

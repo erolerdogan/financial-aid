@@ -839,14 +839,16 @@ export async function getTransactionsByMonthAndCategory(
   db: SQLiteDatabase,
   monthName: string,
   category: string,
-  profileId: number
+  profileId: number,
+  expensesOnly: boolean = false
 ): Promise<Transaction[]> {
   const isAll = category === 'All';
   const categoryFilter = isAll ? '' : 'AND category = ?';
+  const expenseFilter = expensesOnly ? 'AND amount < 0' : '';
 
   const query = `
     SELECT * FROM transactions
-    WHERE profileId = ? AND monthName = ? ${categoryFilter}
+    WHERE profileId = ? AND monthName = ? ${categoryFilter} ${expenseFilter}
     ORDER BY ABS(amount) DESC;
   `;
 
