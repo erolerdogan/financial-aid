@@ -1,3 +1,4 @@
+import { ImportResultProvider } from '@/contexts/ImportResultContext';
 import { ProfileProvider, useProfile } from '@/contexts/ProfileContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { initDatabase } from '@/db/database';
@@ -68,6 +69,13 @@ function AppInitializer() {
           presentation: 'modal',
         }}
       />
+      <Stack.Screen
+        name="review"
+        options={{
+          headerShown: false,
+          presentation: 'modal',
+        }}
+      />
     </Stack>
     
   );
@@ -79,7 +87,9 @@ export default function RootLayout() {
       <SQLiteProvider databaseName="financial_aid.db" onInit={initDatabase} useSuspense>
         <ThemeProvider>
           <ProfileProvider>
-            <AppInitializer />
+            <ImportResultProvider>
+              <AppInitializer />
+            </ImportResultProvider>
           </ProfileProvider>
         </ThemeProvider>
       </SQLiteProvider>

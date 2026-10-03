@@ -16,7 +16,7 @@ import {
   getFixedVsFlexibleSummary,
   getRangeTrendWithBudget,
   getTransactionDateBounds,
-  getTransactionFixedState,
+  getTransactionFixedExplanation,
   getTransactionsByMonthAndCategory,
   getYearCoverageStatus,
   makeRangeKey,
@@ -198,6 +198,7 @@ export default function TrendsScreen() {
 
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [currentFixedState, setCurrentFixedState] = useState<FixedOverrideState>('AUTO');
+  const [fixedAuto, setFixedAuto] = useState({ autoIsFixed: false, reason: '' });
 
   const [summary, setSummary] = useState({
     total: 0,
@@ -494,8 +495,9 @@ export default function TrendsScreen() {
     setTimeout(async () => {
       setSelectedTransaction(trx);
       if (db) {
-        const fixedState = await getTransactionFixedState(db, trx, activeProfileId);
-        setCurrentFixedState(fixedState);
+        const explanation = await getTransactionFixedExplanation(db, trx, activeProfileId);
+        setCurrentFixedState(explanation.state);
+        setFixedAuto(explanation);
       }
     }, 250);
   };
@@ -1113,6 +1115,8 @@ export default function TrendsScreen() {
         visible={selectedTransaction !== null}
         transaction={selectedTransaction}
         fixedState={currentFixedState}
+        autoIsFixed={fixedAuto.autoIsFixed}
+        autoReason={fixedAuto.reason}
         parentTitle={selectedCategory === 'All' ? 'Expenses' : selectedCategory}
         onClose={handleCloseDetailModal}
         onDismiss={() => setSelectedTransaction(null)}
@@ -1124,7 +1128,7 @@ export default function TrendsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: 20, paddingBottom: 40 },
+  content: { padding: 20, paddingTop: 0, paddingBottom: 40 },
   headerRow: {
     marginTop: 8,
     marginBottom: 12,

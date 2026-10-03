@@ -1,5 +1,6 @@
+import { useImportResult } from '@/contexts/ImportResultContext';
 import { useProfile } from '@/contexts/ProfileContext';
-import { getProfiles } from '@/db/database';
+import { getCustomRules, getProfiles } from '@/db/database';
 import { parseFileToTransactions, processBatchImport } from '@/services/importService';
 import { cancelCurrentMonthReminders } from '@/utils/notifications';
 import * as DocumentPicker from 'expo-document-picker';
@@ -9,13 +10,13 @@ import { useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
 interface UseStatementImporterOptions {
-  onSuccess?: () => void;
-  showAlert?: boolean;
+  onSuccess?: () => void | Promise<void>;
 }
 
 export function useStatementImporter(options?: UseStatementImporterOptions) {
   const db = useSQLiteContext();
-  const { activeProfile, profiles, refreshProfiles, switchProfile } = useProfile();
+  const { activeProfile, refreshProfiles, switchProfile } = useProfile();
+  const { showImportResult } = useImportResult();
   const [importing, setImporting] = useState(false);
   const isPickingRef = useRef(false);
 
@@ -61,7 +62,8 @@ export function useStatementImporter(options?: UseStatementImporterOptions) {
       setImporting(true);
 
       const asset = result.assets[0];
-      const parsedTransactions = await parseFileToTransactions(asset.uri, asset.name || '');
+      const customRules = await getCustomRules(db, targetProfileId);
+      const parsedTransactions = await parseFileToTransactions(asset.uri, asset.name || '', customRules);
 
       if (!parsedTransactions || parsedTransactions.length === 0) {
         Alert.alert('Import Warning', 'No valid transactions found in file.');
@@ -76,18 +78,11 @@ export function useStatementImporter(options?: UseStatementImporterOptions) {
       await refreshProfiles();
       await cancelCurrentMonthReminders();
 
-      if (options?.showAlert) {
-        Alert.alert(
-          'Import Completed',
-          `Processed ${summary.totalProcessed} transactions for ${targetProfile.name}.\n\n` +
-            `• Added: ${summary.insertedCount}\n` +
-            `• Skipped duplicates: ${summary.skippedCount}`
-        );
+      if (options?.onSuccess) {
+        await options.onSuccess();
       }
 
-      if (options?.onSuccess) {
-        options.onSuccess();
-      }
+      showImportResult(summary, targetProfile.name);
     } catch (error: any) {
       console.error('Import Error:', error);
       Alert.alert('Import Failed', error?.message || 'An error occurred during import.');

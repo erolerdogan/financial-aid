@@ -16,7 +16,6 @@ export default function WelcomeScreen() {
   const { colors, isDark } = useTheme();
 
   const { importStatement, importing } = useStatementImporter({
-    showAlert: false,
     onSuccess: async () => {
       await refreshProfiles();
       const targetProfile = activeProfile ?? profiles[0];

@@ -11,6 +11,7 @@ export const CATEGORY_COLORS: Record<string, string> = {
   'Credit Card Payments': '#30B0C7',
   'Financial Transfers': '#00C7BE',
   'Loan & Insurance': '#A2845E',
+  Uncategorised: '#8E8E93',
 };
 
 export const CATEGORY_COLOR_PALETTE: string[] = [

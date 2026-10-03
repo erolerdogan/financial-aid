@@ -1,4 +1,5 @@
 import { ProfileSwitcherModal } from '@/components/ProfileSwitcherModal';
+import { ImportSummaryHost } from '@/contexts/ImportResultContext';
 import { CURRENCY_SYMBOLS, useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { clearAllData } from '@/db/database';
@@ -46,9 +47,7 @@ export default function SettingsScreen() {
   const [currencyModalVisible, setCurrencyModalVisible] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
-  const { importStatement, importing } = useStatementImporter({
-    showAlert: true,
-  });
+  const { importStatement, importing } = useStatementImporter();
 
   const activeCurrencyCode = activeProfile?.currency || 'EUR';
   const activeCurrencySymbol = CURRENCY_SYMBOLS[activeCurrencyCode] || '€';
@@ -319,6 +318,8 @@ export default function SettingsScreen() {
       </ScrollView>
 
       {/* Profile Switcher Modal */}
+      <ImportSummaryHost />
+
       <ProfileSwitcherModal
         visible={profileModalVisible}
         onClose={() => setProfileModalVisible(false)}

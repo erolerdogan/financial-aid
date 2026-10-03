@@ -6,6 +6,7 @@ import { TransactionDetailModal } from '@/components/modals/TransactionDetailMod
 import { TransactionListModal } from '@/components/modals/TransactionListModal';
 import { ProfileSwitcherModal } from '@/components/ProfileSwitcherModal';
 import { ScreenContainer } from '@/components/ScreenContainer';
+import { ImportSummaryHost } from '@/contexts/ImportResultContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import {
   CategoryTotal,
@@ -19,7 +20,8 @@ import {
   getMonthlyCategoryTotals,
   getMonthlySummary,
   getTransactionDateBounds,
-  getTransactionFixedState,
+  getTransactionFixedExplanation,
+  getUncategorisedCount,
   getTransactionsByMonthAndCategory,
   makeRangeKey,
   MonthlySummary,
@@ -28,6 +30,7 @@ import {
 } from '@/db/database';
 import { useStatementImporter } from '@/hooks/useStatementImporter';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import React, { useCallback, useMemo, useState } from 'react';
@@ -100,7 +103,7 @@ export default function DashboardScreen() {
   const { activeProfile, dataVersion, refreshProfiles } = useProfile();
   const activeProfileId = activeProfile?.id ?? 1;
 
-  const { importStatement, importing } = useStatementImporter({ showAlert: true });
+  const { importStatement, importing } = useStatementImporter();
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -111,6 +114,8 @@ export default function DashboardScreen() {
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [currentFixedState, setCurrentFixedState] = useState<FixedOverrideState>('AUTO');
+  const [fixedAuto, setFixedAuto] = useState({ autoIsFixed: false, reason: '' });
+  const [uncategorisedCount, setUncategorisedCount] = useState(0);
   const [detailParentTitle, setDetailParentTitle] = useState<string>('Back');
   const [wasOpenedFromList, setWasOpenedFromList] = useState(false);
 
@@ -228,6 +233,7 @@ export default function DashboardScreen() {
       setCategoryData(categoryRes || []);
       setFixedSummary(fixedRes);
       setIncomeSummary(incomeFixedRes);
+      setUncategorisedCount(await getUncategorisedCount(db, activeProfileId));
 
       if (rangeFilter) {
         setCoverageStatus({ status: 'EMPTY', label: '' });
@@ -334,8 +340,9 @@ export default function DashboardScreen() {
     }
 
     if (db && trx) {
-      const overrideState = await getTransactionFixedState(db, trx, activeProfileId);
-      setCurrentFixedState(overrideState);
+      const explanation = await getTransactionFixedExplanation(db, trx, activeProfileId);
+      setCurrentFixedState(explanation.state);
+      setFixedAuto(explanation);
     }
   };
 
@@ -390,7 +397,8 @@ export default function DashboardScreen() {
         activeProfileId
       );
   
-      let updatedIsFixedVal: number | null = null;
+      // Back to automatic: list badges show what detection decides.
+      let updatedIsFixedVal: number | null = fixedAuto.autoIsFixed ? 1 : 0;
       if (newState === 'FIXED') updatedIsFixedVal = 1;
       if (newState === 'FLEXIBLE') updatedIsFixedVal = 0;
   
@@ -499,7 +507,7 @@ export default function DashboardScreen() {
       >
         {/* Top Header Bar */}
         <View style={styles.headerRow}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>Overview</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Home</Text>
 
           <View style={styles.headerRightGroup}>
             <TouchableOpacity
@@ -574,6 +582,24 @@ export default function DashboardScreen() {
               onOpenMonthPicker={() => setMonthPickerVisible(true)}
             />
 
+            {uncategorisedCount > 0 && (
+              <TouchableOpacity
+                style={[styles.reviewRow, { backgroundColor: colors.card }]}
+                activeOpacity={0.7}
+                onPress={() => {
+                  Haptics.selectionAsync().catch(() => {});
+                  router.push('/review');
+                }}
+              >
+                <Ionicons name="pricetags-outline" size={18} color={colors.accent} />
+                <Text style={[styles.reviewRowText, { color: colors.text }]}>
+                  {uncategorisedCount} uncategorised transaction{uncategorisedCount === 1 ? '' : 's'}
+                </Text>
+                <Text style={[styles.reviewRowAction, { color: colors.accent }]}>Review</Text>
+                <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+              </TouchableOpacity>
+            )}
+
             <SummaryCards
               summary={summary}
               totalTransactions={totalTransactions}
@@ -612,11 +638,15 @@ export default function DashboardScreen() {
         visible={selectedTransaction !== null}
         transaction={selectedTransaction}
         fixedState={currentFixedState}
+        autoIsFixed={fixedAuto.autoIsFixed}
+        autoReason={fixedAuto.reason}
         parentTitle={detailParentTitle}
         onClose={handleGoBackFromDetail}
         onDismiss={handleDismissDetailDirectly}
         onSelectFixedState={handleSelectFixedState}
       />
+
+      <ImportSummaryHost />
 
       <ProfileSwitcherModal
         visible={profileModalVisible}
@@ -714,8 +744,19 @@ export default function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
+  reviewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  reviewRowText: { flex: 1, fontSize: 14, fontWeight: '600' },
+  reviewRowAction: { fontSize: 14, fontWeight: '600' },
   container: { flex: 1 },
-  content: { padding: 20, paddingBottom: 100 },
+  content: { padding: 20, paddingTop: 0, paddingBottom: 100 },
   headerRow: {
     marginTop: 8,
     marginBottom: 12,

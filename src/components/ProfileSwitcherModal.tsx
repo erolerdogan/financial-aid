@@ -2,6 +2,7 @@ import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { deleteProfile, Profile } from '@/db/database';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import React, { useState } from 'react';
 import {
@@ -48,6 +49,10 @@ export function ProfileSwitcherModal({ visible, onClose }: ProfileSwitcherModalP
         await switchProfile(newProf);
       }
       onClose();
+      if (newProf) {
+        if (router.canDismiss()) router.dismissAll();
+        router.navigate('/(tabs)');
+      }
     }
   };
 

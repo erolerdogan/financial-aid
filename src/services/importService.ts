@@ -1,4 +1,4 @@
-import { insertTransactions, Transaction } from '@/db/database';
+import { CategoryRule, insertTransactions, syncDebtPayments, Transaction } from '@/db/database';
 import { parseCSVContent, parseExcelContent } from '@/utils/parser';
 import * as FileSystem from 'expo-file-system/legacy';
 import { SQLiteDatabase } from 'expo-sqlite';
@@ -7,18 +7,42 @@ export interface ImportTransactionPayload {
   date: string;
   amount: number;
   rawDescription: string;
+  /** The single cell older versions stored as rawDescription; only used to detect duplicates. */
+  legacyRawDescription?: string;
   merchant: string;
   category: string;
   monthName?: string;
   isZeroFlagged?: number;
   dateAmbiguous?: number;
+  counterpartyIban?: string | null;
+  txType?: string | null;
 }
 
 export interface ImportResultSummary {
   totalProcessed: number;
   insertedCount: number;
   skippedCount: number;
+  isFirstImport: boolean;
+  dateFrom: string | null;
+  dateTo: string | null;
+  incomeTotal: number;
+  expenseTotal: number;
+  ambiguousDateCount: number;
+  linkedDebtPayments: number;
 }
+
+const EMPTY_SUMMARY: ImportResultSummary = {
+  totalProcessed: 0,
+  insertedCount: 0,
+  skippedCount: 0,
+  isFirstImport: false,
+  dateFrom: null,
+  dateTo: null,
+  incomeTotal: 0,
+  expenseTotal: 0,
+  ambiguousDateCount: 0,
+  linkedDebtPayments: 0,
+};
 
 export function generateTransactionHash(date: string, amount: number, rawDescription: string): string {
   const cleanDate = (date || '').split('T')[0].trim();
@@ -45,7 +69,11 @@ function base64ToArrayBuffer(base64: string): ArrayBuffer {
   return bytes.buffer;
 }
 
-export async function parseFileToTransactions(fileUri: string, fileName: string) {
+export async function parseFileToTransactions(
+  fileUri: string,
+  fileName: string,
+  customRules: CategoryRule[] = []
+) {
   const cleanName = (fileName || '').toLowerCase();
 
   const cacheDir = FileSystem.cacheDirectory;
@@ -63,12 +91,12 @@ export async function parseFileToTransactions(fileUri: string, fileName: string)
       });
       
       const arrayBuffer = base64ToArrayBuffer(base64Data);
-      return parseExcelContent(arrayBuffer);
+      return parseExcelContent(arrayBuffer, customRules);
     } else {
       const csvText = await FileSystem.readAsStringAsync(tempDestination, {
         encoding: FileSystem.EncodingType.UTF8,
       });
-      return parseCSVContent(csvText);
+      return parseCSVContent(csvText, customRules);
     }
   } finally {
     await FileSystem.deleteAsync(tempDestination, { idempotent: true });
@@ -81,7 +109,7 @@ export async function processBatchImport(
   profileId: number
 ): Promise<ImportResultSummary> {
   if (!items || items.length === 0 || !profileId) {
-    return { totalProcessed: 0, insertedCount: 0, skippedCount: 0 };
+    return { ...EMPTY_SUMMARY };
   }
 
   // Safely guarantee all core tables exist in SQLite before issuing query statements
@@ -106,7 +134,9 @@ export async function processBatchImport(
       userOverridden INTEGER DEFAULT 0,
       isZeroFlagged INTEGER DEFAULT 0,
       dateAmbiguous INTEGER DEFAULT 0,
-      is_fixed INTEGER
+      is_fixed INTEGER,
+      counterpartyIban TEXT,
+      txType TEXT
     );
 
     CREATE TABLE IF NOT EXISTS fixed_cost_rules (
@@ -133,8 +163,13 @@ export async function processBatchImport(
 
   for (const item of items) {
     const hash = generateTransactionHash(item.date, item.amount, item.rawDescription);
+    // Rows imported before name and memo columns were merged are stored under the legacy text.
+    const legacyHash =
+      item.legacyRawDescription !== undefined && item.legacyRawDescription !== item.rawDescription
+        ? generateTransactionHash(item.date, item.amount, item.legacyRawDescription)
+        : hash;
 
-    if (existingHashSet.has(hash)) {
+    if (existingHashSet.has(hash) || existingHashSet.has(legacyHash)) {
       skippedCount++;
     } else {
       existingHashSet.add(hash);
@@ -149,6 +184,8 @@ export async function processBatchImport(
         monthName: item.monthName || cleanDate.slice(0, 7),
         isZeroFlagged: item.isZeroFlagged ?? 0,
         dateAmbiguous: item.dateAmbiguous ?? 0,
+        counterpartyIban: item.counterpartyIban ?? null,
+        txType: item.txType ?? null,
       });
     }
   }
@@ -159,9 +196,41 @@ export async function processBatchImport(
     profileId
   );
 
+  let linkedDebtPayments = 0;
+  if (insertedCount > 0) {
+    try {
+      linkedDebtPayments = await syncDebtPayments(db, profileId);
+    } catch (error) {
+      console.error('Failed to link debt payments after import:', error);
+    }
+  }
+
+  let dateFrom: string | null = null;
+  let dateTo: string | null = null;
+  let incomeTotal = 0;
+  let expenseTotal = 0;
+  let ambiguousDateCount = 0;
+
+  if (insertedCount > 0) {
+    for (const tx of cleanTransactionsToInsert) {
+      if (!dateFrom || tx.date < dateFrom) dateFrom = tx.date;
+      if (!dateTo || tx.date > dateTo) dateTo = tx.date;
+      if (tx.amount >= 0) incomeTotal += tx.amount;
+      else expenseTotal += Math.abs(tx.amount);
+      if (tx.dateAmbiguous) ambiguousDateCount++;
+    }
+  }
+
   return {
     totalProcessed: items.length,
     insertedCount,
     skippedCount: skippedCount + dbSkipped,
+    isFirstImport: existingRows.length === 0,
+    dateFrom,
+    dateTo,
+    incomeTotal,
+    expenseTotal,
+    ambiguousDateCount,
+    linkedDebtPayments,
   };
 }

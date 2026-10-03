@@ -22,6 +22,8 @@ interface TransactionDetailModalProps {
   visible: boolean;
   transaction: Transaction | null;
   fixedState: FixedOverrideState;
+  autoIsFixed?: boolean;
+  autoReason?: string;
   parentTitle?: string;
   onClose: () => void;
   onDismiss?: () => void;
@@ -32,6 +34,8 @@ export function TransactionDetailModal({
   visible,
   transaction,
   fixedState,
+  autoIsFixed = false,
+  autoReason,
   parentTitle = 'Back',
   onClose,
   onDismiss,
@@ -109,6 +113,8 @@ export function TransactionDetailModal({
   if (!transaction) return null;
 
   const isIncome = transaction.amount > 0;
+  const isAuto = fixedState === 'AUTO';
+  const effectiveState = isAuto ? (autoIsFixed ? 'FIXED' : 'FLEXIBLE') : fixedState;
   const formattedAmount = `${isIncome ? '+' : '-'}${currencySymbol}${Math.abs(transaction.amount).toFixed(2)}`;
 
   return (
@@ -187,23 +193,11 @@ export function TransactionDetailModal({
               <TouchableOpacity
                 style={[
                   styles.overrideOption,
-                  fixedState === 'AUTO' && [styles.overrideOptionActive, { backgroundColor: isDark ? '#3A3A3C' : '#FFFFFF' }],
-                ]}
-                onPress={() => onSelectFixedState('AUTO')}
-              >
-                <Text style={[styles.optionText, { color: colors.textSecondary }, fixedState === 'AUTO' && { color: colors.accent, fontWeight: '700' }]}>
-                  Auto
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.overrideOption,
-                  fixedState === 'FIXED' && [styles.overrideOptionActive, { backgroundColor: isDark ? '#3A3A3C' : '#FFFFFF' }],
+                  effectiveState === 'FIXED' && [styles.overrideOptionActive, { backgroundColor: isDark ? '#3A3A3C' : '#FFFFFF' }],
                 ]}
                 onPress={() => onSelectFixedState('FIXED')}
               >
-                <Text style={[styles.optionText, { color: colors.textSecondary }, fixedState === 'FIXED' && { color: '#5856D6', fontWeight: '700' }]}>
+                <Text style={[styles.optionText, { color: colors.textSecondary }, effectiveState === 'FIXED' && { color: '#5856D6', fontWeight: '700' }]}>
                   Fixed
                 </Text>
               </TouchableOpacity>
@@ -211,15 +205,27 @@ export function TransactionDetailModal({
               <TouchableOpacity
                 style={[
                   styles.overrideOption,
-                  fixedState === 'FLEXIBLE' && [styles.overrideOptionActive, { backgroundColor: isDark ? '#3A3A3C' : '#FFFFFF' }],
+                  effectiveState === 'FLEXIBLE' && [styles.overrideOptionActive, { backgroundColor: isDark ? '#3A3A3C' : '#FFFFFF' }],
                 ]}
                 onPress={() => onSelectFixedState('FLEXIBLE')}
               >
-                <Text style={[styles.optionText, { color: colors.textSecondary }, fixedState === 'FLEXIBLE' && { color: '#FF9500', fontWeight: '700' }]}>
+                <Text style={[styles.optionText, { color: colors.textSecondary }, effectiveState === 'FLEXIBLE' && { color: '#FF9500', fontWeight: '700' }]}>
                   Flexible
                 </Text>
               </TouchableOpacity>
             </View>
+
+            {isAuto ? (
+              <Text style={[styles.autoHint, { color: colors.textSecondary }]}>
+                {autoReason ? `Detected automatically · ${autoReason}` : 'Detected automatically'}
+              </Text>
+            ) : (
+              <TouchableOpacity onPress={() => onSelectFixedState('AUTO')} hitSlop={8}>
+                <Text style={[styles.autoHint, { color: colors.textSecondary }]}>
+                  Set by you · <Text style={{ color: colors.accent }}>Reset to automatic</Text>
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Raw Description Info */}
@@ -234,6 +240,11 @@ export function TransactionDetailModal({
 }
 
 const styles = StyleSheet.create({
+  autoHint: {
+    fontSize: 12,
+    marginTop: 10,
+    textAlign: 'center',
+  },
   modalOverlay: {
     flex: 1,
     justifyContent: 'flex-end',

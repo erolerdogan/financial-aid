@@ -1,4 +1,5 @@
 import { DebtProgressBar } from '@/components/debts/DebtProgressBar';
+import { HeaderActions } from '@/components/HeaderActions';
 import { DebtDetailModal } from '@/components/modals/DebtDetailModal';
 import { DebtFormModal } from '@/components/modals/DebtFormModal';
 import { ScreenContainer } from '@/components/ScreenContainer';
@@ -78,13 +79,15 @@ export default function DebtsScreen() {
     <ScreenContainer>
       <View style={styles.headerRow}>
         <Text style={[styles.headerTitle, { color: colors.text }]}>Debts</Text>
-        <TouchableOpacity
-          style={[styles.addBtn, { backgroundColor: colors.accent }]}
-          onPress={openCreate}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="add" size={20} color="#FFFFFF" />
-        </TouchableOpacity>
+        <HeaderActions>
+          <TouchableOpacity
+            style={[styles.addBtn, { backgroundColor: colors.accent }]}
+            onPress={openCreate}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="add" size={20} color="#FFFFFF" />
+          </TouchableOpacity>
+        </HeaderActions>
       </View>
 
       {loading ? (

@@ -282,7 +282,17 @@ export function DebtDetailModal({ visible, debt, onClose, onEdit, onChanged }: D
                     ]}
                   >
                     <View style={styles.paymentLeft}>
-                      <Text style={[styles.paymentDate, { color: colors.text }]}>{payment.date}</Text>
+                      <Text style={[styles.paymentDate, { color: colors.text }]} numberOfLines={1}>
+                        {payment.source === 'MANUAL'
+                          ? 'Manual payment'
+                          : (payment.merchant && payment.merchant !== 'Unknown'
+                              ? payment.merchant
+                              : payment.rawDescription) || 'Statement payment'}
+                      </Text>
+                      <Text style={[styles.paymentSplit, { color: colors.textSecondary }]} numberOfLines={1}>
+                        {payment.date}
+                        {payment.source === 'AUTO' && payment.keyword ? ` • via ${payment.keyword}` : ''}
+                      </Text>
                       <Text style={[styles.paymentSplit, { color: colors.textSecondary }]}>
                         {fmt(payment.principal, 2)} principal
                         {payment.interest > 0 ? ` • ${fmt(payment.interest, 2)} interest` : ''}
@@ -397,7 +407,7 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: 13, lineHeight: 19 },
   listCard: { borderRadius: 14, overflow: 'hidden' },
   paymentRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14 },
-  paymentLeft: { flex: 1 },
+  paymentLeft: { flex: 1, marginRight: 10 },
   paymentDate: { fontSize: 14, fontWeight: '600' },
   paymentSplit: { fontSize: 11, marginTop: 2 },
   paymentRight: { alignItems: 'flex-end', marginRight: 8 },

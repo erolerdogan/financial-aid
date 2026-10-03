@@ -14,6 +14,7 @@ import {
     renameCategory,
     updateCategoryColor
 } from '@/db/database';
+import { UNCATEGORISED } from '@/utils/parser';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSQLiteContext } from 'expo-sqlite';
@@ -41,7 +42,7 @@ interface CategoryFormModalProps {
   onChanged: () => void;
 }
 
-const DEFAULT_REASSIGN = 'Shopping & Retail';
+const DEFAULT_REASSIGN = UNCATEGORISED;
 
 export function CategoryFormModal({
   visible,

@@ -38,16 +38,20 @@ On first launch the welcome screen offers two paths: import a statement, or open
 ### Statement import
 
 - Imports CSV (`.csv`) and Excel (`.xlsx`, `.xls`) bank statements.
-- Detects the date, amount and description columns automatically.
+- Detects the date, amount, counterparty name and memo columns automatically, including layouts with a debit/credit indicator (ING "Af Bij") or separate debit and credit columns.
 - Parses amounts in different locale formats and flags dates that could be read two ways.
 - Skips duplicates, so importing overlapping statements is safe.
-- Cleans up merchant names by removing payment processor prefixes, IBANs and dates.
+- Shows a summary sheet after each import: transactions added, date range covered, income and spending totals, duplicates skipped, dates that need checking and debt payments linked.
+- Builds a readable merchant name per transaction: prefers the counterparty name, strips payment processor prefixes, card and terminal codes, reference numbers, IBANs and dates, and shows well-known shops under one name (for example "Albert Heijn" for every store). A row with nothing readable gets its payment type as title instead of a code.
 - Tags every imported row with the active profile.
 
 ### Automatic categorisation
 
-- Each transaction is categorised on import in three steps: your own keyword rules first, then built-in keyword matching, then a default category.
-- The built-in keywords are tuned for Dutch banks and merchants.
+- Each transaction is categorised on import in three steps: your own rules first, then built-in keyword matching. If nothing matches, money coming in becomes "Income" and spending becomes "Uncategorised".
+- Review screen: the dashboard shows how many transactions are uncategorised. The review list groups them per merchant, largest first; picking a category once applies it to all of that merchant's transactions and to future imports.
+- Reads the counterparty IBAN and payment type (direct debit, card, online, transfer) from the bank's columns or from the description text. A merchant is recognised by its IBAN when it has one of its own (not for card payments, iDEAL or payment processors).
+- The built-in keywords are tuned for Dutch banks and merchants, with some English and Turkish terms. The most specific (longest) keyword wins, and short names such as NS or AH only match as whole words.
+- When the built-in keywords change in an update, existing transactions you have not categorised by hand are re-categorised once on launch.
 - Changing a transaction's category by hand is remembered and is not overwritten by later rule changes.
 
 ### Dashboard
@@ -72,8 +76,10 @@ On first launch the welcome screen offers two paths: import a statement, or open
 ### Fixed vs. flexible costs
 
 - Splits spending into fixed bills and flexible spending, with totals and percentages.
-- Recognises common fixed costs (rent, utilities, subscriptions) by keyword.
-- Mark any merchant as Fixed, Flexible or Auto from the transaction detail view. The choice applies to all of that merchant's transactions.
+- Detects fixed costs from how a merchant behaves: regular cadence (weekly, monthly, quarterly, yearly), stable amounts, a consistent day of the month, direct debit payments, its category and known bill keywords. Monthly groceries stay flexible; rent and utilities are fixed from the first import.
+- Payments linked to a debt always count as fixed.
+- The transaction detail view shows the detected result and why (for example "Detected automatically · Monthly, same amount").
+- Mark any merchant as Fixed or Flexible from the transaction detail view; "Reset to automatic" returns it to detection. The choice applies to all of that merchant's transactions.
 
 ### Trends
 
@@ -102,6 +108,11 @@ On first launch the welcome screen offers two paths: import a statement, or open
 - Track loans, mortgages, student loans and personal loans.
 - Record the original amount, interest rate, monthly payment, payment day and start date.
 - Payments are linked automatically from imported transactions by keyword, and can also be added by hand.
+- Keyword matching ignores case, accents, punctuation and spaces, and runs after every import.
+- Only whole-word matches with an amount close to the monthly payment are linked automatically; near-misses are listed as possible matches to add by hand.
+- The debt form previews the statement payments each keyword matches before saving; unwanted ones can be unlinked there or from the payment history.
+- Payment history shows the merchant and the keyword that linked each payment.
+- Removing a keyword removes the payments it linked; deleted transactions drop out of the history.
 - Each payment is split into principal and interest.
 - Shows the remaining balance, progress, interest paid so far, estimated future interest and estimated debt-free month.
 

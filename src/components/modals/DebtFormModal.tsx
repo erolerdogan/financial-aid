@@ -3,19 +3,28 @@ import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import {
     createDebt, DebtInput,
+    DebtKeywordMatch,
     DebtSummary,
-    DebtType, deleteDebt, syncDebtPayments,
+    DebtType, deleteDebt, getDebtKeywordMatches, linkDebtTransaction, syncDebtPayments,
+    unlinkDebtTransaction,
     updateDebt
 } from '@/db/database';
-import { DEBT_TYPE_OPTIONS, isValidDateKey, parseNumber } from '@/utils/debt';
+import {
+    DEBT_TYPE_OPTIONS,
+    debtKeywordLength,
+    isValidDateKey,
+    MIN_DEBT_KEYWORD_LENGTH,
+    suggestDebtTerms,
+    normalizeMatchText,
+    parseNumber
+} from '@/utils/debt';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSQLiteContext } from 'expo-sqlite';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
-    KeyboardAvoidingView,
     Modal,
     Platform,
     ScrollView,
@@ -50,12 +59,39 @@ export function DebtFormModal({ visible, debt, onClose, onSaved }: DebtFormModal
   const [color, setColor] = useState(CATEGORY_COLOR_PALETTE[0]);
   const [keywords, setKeywords] = useState<string[]>([]);
   const [keywordInput, setKeywordInput] = useState('');
+  const [editingKeyword, setEditingKeyword] = useState<string | null>(null);
+  const keywordInputRef = useRef<TextInput>(null);
+  const scrollRef = useRef<ScrollView>(null);
+  const keywordSectionY = useRef(0);
+
+  // Bring the keyword section above the keyboard once it has finished opening.
+  const scrollToKeywords = () => {
+    setTimeout(() => {
+      scrollRef.current?.scrollTo({ y: Math.max(0, keywordSectionY.current - 8), animated: true });
+    }, 300);
+  };
   const [saving, setSaving] = useState(false);
+  const [loadedMatches, setLoadedMatches] = useState<DebtKeywordMatch[]>([]);
+  const [addedIds, setAddedIds] = useState<number[]>([]);
+  const [excludedIds, setExcludedIds] = useState<number[]>([]);
+  const [showAllMatches, setShowAllMatches] = useState(false);
+  const [autoFilledFrom, setAutoFilledFrom] = useState(0);
+  // Last values filled in from statements; a field still holding one counts as untouched.
+  const autoFill = useRef({ payment: '', payDay: '', startDate: '' });
+  // Keyword set the fields were last filled for, so clearing a field does not refill it.
+  const autoFillKey = useRef('');
 
   useEffect(() => {
     if (!visible) return;
     setSaving(false);
     setKeywordInput('');
+    setEditingKeyword(null);
+    setAddedIds([]);
+    setExcludedIds([]);
+    setShowAllMatches(false);
+    setAutoFilledFrom(0);
+    autoFill.current = { payment: '', payDay: '', startDate: '' };
+    autoFillKey.current = debt ? debt.keywords.map((k) => k.toUpperCase()).join('|') : '';
     if (debt) {
       setName(debt.name);
       setType(debt.type);
@@ -79,16 +115,145 @@ export function DebtFormModal({ visible, debt, onClose, onSaved }: DebtFormModal
     }
   }, [visible, debt]);
 
+  const debtId = debt?.id ?? null;
+
+  useEffect(() => {
+    if (!visible || keywords.length === 0) return;
+    const startValue = startDate.trim();
+    if (startValue !== '' && !isValidDateKey(startValue)) return;
+
+    const paymentValue = parseNumber(payment);
+
+    let cancelled = false;
+    getDebtKeywordMatches(
+      db,
+      profileId,
+      keywords,
+      startValue === '' ? null : startValue,
+      isNaN(paymentValue) ? 0 : paymentValue,
+      debtId
+    )
+      .then((rows) => {
+        if (cancelled) return;
+        setLoadedMatches(rows);
+
+        const key = keywords.join('|');
+        if (key === autoFillKey.current) return;
+        autoFillKey.current = key;
+
+        const suggestion = suggestDebtTerms(
+          rows.filter((m) => m.strength === 'EXACT' && m.status !== 'OTHER_DEBT' && m.status !== 'IGNORED')
+        );
+        if (!suggestion) return;
+        const last = autoFill.current;
+        const isCreate = debtId === null;
+        let filled = false;
+        const fill = (prev: string, lastValue: string, next: string, emptyValue = '') => {
+          if (prev !== emptyValue && prev !== '' && prev !== lastValue) return prev;
+          filled = true;
+          return next;
+        };
+        const nextPayment = fill(payment, last.payment, suggestion.payment);
+        const nextPayDay = fill(payDay, last.payDay, suggestion.payDay, isCreate ? '1' : '');
+        const nextStartDate = fill(startDate, last.startDate, suggestion.startDate);
+        if (!filled) return;
+
+        autoFill.current = {
+          payment: nextPayment === suggestion.payment ? suggestion.payment : last.payment,
+          payDay: nextPayDay === suggestion.payDay ? suggestion.payDay : last.payDay,
+          startDate: nextStartDate === suggestion.startDate ? suggestion.startDate : last.startDate,
+        };
+        if (nextPayment !== payment) setPayment(nextPayment);
+        if (nextPayDay !== payDay) setPayDay(nextPayDay);
+        if (nextStartDate !== startDate) setStartDate(nextStartDate);
+        setAutoFilledFrom(suggestion.count);
+      })
+      .catch((error) => console.error('Failed to preview debt payments:', error));
+    return () => {
+      cancelled = true;
+    };
+  }, [visible, db, profileId, keywords, startDate, payment, payDay, debtId]);
+
   const fieldBg = isDark ? '#2C2C2E' : '#FFFFFF';
+
+  const matches = loadedMatches.filter((m) => keywords.includes(m.keyword));
+
+  const fmt = (value: number) =>
+    `${currencySymbol}${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+  const countByStatus = (status: DebtKeywordMatch['status']) =>
+    matches.filter((m) => m.status === status).length;
+
+  const payable = matches.filter((m) => m.status === 'NEW' || m.status === 'LINKED');
+  const possible = matches.filter((m) => m.status === 'POSSIBLE');
+  const toggleAdded = (id: number) => {
+    Haptics.selectionAsync().catch(() => {});
+    setAddedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+  const included = payable.filter((m) => !excludedIds.includes(m.id));
+  const payableTotal = included.reduce((sum, m) => sum + m.amount, 0);
+  const shownPayable = showAllMatches ? payable : payable.slice(0, 5);
+  const toggleExcluded = (id: number) => {
+    Haptics.selectionAsync().catch(() => {});
+    setExcludedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+  const beforeStartCount = countByStatus('BEFORE_START');
+  const otherDebtCount = countByStatus('OTHER_DEBT');
+  const ignoredCount = countByStatus('IGNORED');
+  const unmatchedKeywords = keywords.filter((k) => !matches.some((m) => m.keyword === k));
+  const previewHints = [
+    beforeStartCount > 0 ? `${beforeStartCount} before the start date` : null,
+    otherDebtCount > 0 ? `${otherDebtCount} already linked to another debt` : null,
+    ignoredCount > 0 ? `${ignoredCount} unlinked by you` : null,
+  ].filter((hint): hint is string => hint !== null);
 
   const handleAddKeyword = () => {
     const keyword = keywordInput.trim().toUpperCase();
     if (!keyword) return;
-    if (!keywords.includes(keyword)) {
+    const normalized = normalizeMatchText(keyword);
+    if (debtKeywordLength(keyword) < MIN_DEBT_KEYWORD_LENGTH) {
+      Alert.alert(
+        'Keyword too short',
+        `Use at least ${MIN_DEBT_KEYWORD_LENGTH} letters or digits so unrelated transactions are not linked.`
+      );
+      return;
+    }
+    const isDuplicate = keywords.some(
+      (k) => k !== editingKeyword && normalizeMatchText(k) === normalized
+    );
+    if (editingKeyword !== null) {
+      Haptics.selectionAsync().catch(() => {});
+      setKeywords((prev) =>
+        isDuplicate
+          ? prev.filter((k) => k !== editingKeyword)
+          : prev.map((k) => (k === editingKeyword ? keyword : k))
+      );
+    } else if (!isDuplicate) {
       Haptics.selectionAsync().catch(() => {});
       setKeywords((prev) => [...prev, keyword]);
     }
+    setEditingKeyword(null);
     setKeywordInput('');
+  };
+
+  const handleEditKeyword = (keyword: string) => {
+    Haptics.selectionAsync().catch(() => {});
+    if (editingKeyword === keyword) {
+      setEditingKeyword(null);
+      setKeywordInput('');
+      return;
+    }
+    setEditingKeyword(keyword);
+    setKeywordInput(keyword);
+    keywordInputRef.current?.focus();
+  };
+
+  const handleRemoveKeyword = (keyword: string) => {
+    if (editingKeyword === keyword) {
+      setEditingKeyword(null);
+      setKeywordInput('');
+    }
+    setKeywords((prev) => prev.filter((k) => k !== keyword));
   };
 
   const handleSave = async () => {
@@ -125,23 +290,23 @@ export function DebtFormModal({ visible, debt, onClose, onSaved }: DebtFormModal
 
     setSaving(true);
     try {
+      let savedId: number;
       if (debt) {
         await updateDebt(db, debt.id, input);
+        savedId = debt.id;
       } else {
-        await createDebt(db, profileId, input);
+        savedId = await createDebt(db, profileId, input);
       }
-      const linked = await syncDebtPayments(db, profileId);
+      await syncDebtPayments(db, profileId);
+      for (const match of possible.filter((m) => addedIds.includes(m.id))) {
+        await linkDebtTransaction(db, profileId, savedId, match.id, match.keyword);
+      }
+      for (const match of payable.filter((m) => excludedIds.includes(m.id))) {
+        await unlinkDebtTransaction(db, savedId, match.id);
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       onSaved();
       onClose();
-      if (linked > 0) {
-        setTimeout(() => {
-          Alert.alert(
-            'Payments linked',
-            `${linked} payment${linked === 1 ? '' : 's'} found in your statements and added automatically.`
-          );
-        }, 350);
-      }
     } catch (error) {
       console.error('Failed to save debt:', error);
       Alert.alert('Error', 'Failed to save this debt.');
@@ -217,10 +382,7 @@ export function DebtFormModal({ visible, debt, onClose, onSaved }: DebtFormModal
         style={[styles.root, { backgroundColor: colors.background }]}
         edges={Platform.OS === 'ios' ? [] : ['top']}
       >
-        <KeyboardAvoidingView
-          style={styles.flex}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
+        <View style={styles.flex}>
           <View style={[styles.header, { borderBottomColor: colors.border }]}>
             <TouchableOpacity onPress={onClose} hitSlop={8}>
               <Text style={[styles.headerAction, { color: colors.accent }]}>Cancel</Text>
@@ -238,11 +400,269 @@ export function DebtFormModal({ visible, debt, onClose, onSaved }: DebtFormModal
           </View>
 
           <ScrollView
+            ref={scrollRef}
             contentContainerStyle={styles.content}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
+            automaticallyAdjustKeyboardInsets
           >
             {renderField('NAME', name, setName, 'e.g. Car loan', { maxLength: 40 })}
+
+            <Text
+              style={[styles.sectionLabel, { color: colors.textSecondary }]}
+              onLayout={(event) => {
+                keywordSectionY.current = event.nativeEvent.layout.y;
+              }}
+            >
+              AUTO-LINK KEYWORDS
+            </Text>
+            <Text style={[styles.footnote, styles.footnoteTop, { color: colors.textSecondary }]}>
+              Statement transactions whose merchant or description contains a keyword are added as payments
+              automatically.
+            </Text>
+            <View style={styles.keywordInputRow}>
+              <View
+                style={[
+                  styles.inputWrap,
+                  styles.keywordInputWrap,
+                  { backgroundColor: fieldBg, borderColor: colors.border },
+                ]}
+              >
+                <TextInput
+                  ref={keywordInputRef}
+                  style={[styles.input, { color: colors.text }]}
+                  value={keywordInput}
+                  onChangeText={setKeywordInput}
+                  placeholder="e.g. DUO"
+                  placeholderTextColor={colors.textSecondary}
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                  returnKeyType="done"
+                  onFocus={scrollToKeywords}
+                  onSubmitEditing={handleAddKeyword}
+                />
+              </View>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={handleAddKeyword}
+                disabled={keywordInput.trim().length === 0}
+                style={[
+                  styles.addKeywordBtn,
+                  { backgroundColor: colors.accent },
+                  keywordInput.trim().length === 0 && styles.disabled,
+                ]}
+              >
+                <Text style={styles.addKeywordText}>{editingKeyword !== null ? 'Update' : 'Add'}</Text>
+              </TouchableOpacity>
+            </View>
+
+            {keywords.length > 0 && (
+              <View style={styles.chipWrap}>
+                {keywords.map((keyword) => (
+                  <View
+                    key={keyword}
+                    style={[
+                      styles.chip,
+                      { backgroundColor: fieldBg, borderColor: colors.border },
+                      editingKeyword === keyword && { borderColor: colors.accent, borderWidth: 1 },
+                    ]}
+                  >
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      onPress={() => handleEditKeyword(keyword)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8 }}
+                      style={styles.chipLabel}
+                      accessibilityLabel={`Edit keyword ${keyword}`}
+                    >
+                      <Text
+                        style={[
+                          styles.chipText,
+                          { color: editingKeyword === keyword ? colors.accent : colors.text },
+                        ]}
+                      >
+                        {keyword}
+                      </Text>
+                      <Text style={[styles.chipCount, { color: colors.textSecondary }]}>
+                        {matches.filter((m) => m.keyword === keyword).length}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => handleRemoveKeyword(keyword)} hitSlop={8}>
+                      <Ionicons name="close-circle" size={16} color={colors.textSecondary} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {keywords.length > 0 && (
+              <>
+                <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
+                  MATCHING PAYMENTS ({included.length})
+                </Text>
+                {payable.length === 0 ? (
+                  <Text style={[styles.footnote, styles.footnoteTop, { color: colors.textSecondary }]}>
+                    No statement transactions match yet. New imports are checked automatically.
+                  </Text>
+                ) : (
+                  <View style={[styles.previewCard, { backgroundColor: colors.card }]}>
+                    {shownPayable.map((match, index) => {
+                      const isExcluded = excludedIds.includes(match.id);
+                      return (
+                        <View
+                          key={match.id}
+                          style={[
+                            styles.previewRow,
+                            index > 0 && {
+                              borderTopWidth: StyleSheet.hairlineWidth,
+                              borderTopColor: colors.border,
+                            },
+                          ]}
+                        >
+                          <View style={[styles.previewLeft, isExcluded && styles.disabled]}>
+                            <Text
+                              style={[
+                                styles.previewMerchant,
+                                { color: colors.text },
+                                isExcluded && styles.strike,
+                              ]}
+                              numberOfLines={1}
+                            >
+                              {match.merchant && match.merchant !== 'Unknown'
+                                ? match.merchant
+                                : match.rawDescription}
+                            </Text>
+                            <Text style={[styles.previewDate, { color: colors.textSecondary }]}>
+                              {match.date}
+                              {isExcluded ? ' • will be unlinked' : ''}
+                            </Text>
+                          </View>
+                          <Text
+                            style={[
+                              styles.previewAmount,
+                              { color: colors.text },
+                              isExcluded && styles.disabled,
+                              isExcluded && styles.strike,
+                            ]}
+                          >
+                            {fmt(match.amount)}
+                          </Text>
+                          <TouchableOpacity
+                            onPress={() => toggleExcluded(match.id)}
+                            hitSlop={10}
+                            accessibilityLabel={isExcluded ? 'Keep this payment' : 'Unlink this payment'}
+                          >
+                            <Ionicons
+                              name={isExcluded ? 'arrow-undo-circle-outline' : 'close-circle-outline'}
+                              size={20}
+                              color={isExcluded ? colors.accent : colors.textSecondary}
+                            />
+                          </TouchableOpacity>
+                        </View>
+                      );
+                    })}
+                    {payable.length > 5 && (
+                      <TouchableOpacity
+                        activeOpacity={0.7}
+                        onPress={() => setShowAllMatches((prev) => !prev)}
+                        style={[
+                          styles.previewRow,
+                          { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+                        ]}
+                      >
+                        <Text style={[styles.showAllText, { color: colors.accent }]}>
+                          {showAllMatches ? 'Show fewer' : `Show all ${payable.length}`}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                    <View
+                      style={[
+                        styles.previewRow,
+                        { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
+                      ]}
+                    >
+                      <Text style={[styles.previewDate, styles.previewLeft, { color: colors.textSecondary }]}>
+                        Total
+                      </Text>
+                      <Text style={[styles.previewAmount, { color: colors.text }]}>{fmt(payableTotal)}</Text>
+                    </View>
+                  </View>
+                )}
+                {payable.length > 0 && (
+                  <Text style={[styles.footnote, { color: colors.textSecondary }]}>
+                    Tap the cross to unlink a payment that does not belong to this debt. It will not be linked
+                    again.
+                  </Text>
+                )}
+                {possible.length > 0 && (
+                  <>
+                    <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
+                      POSSIBLE MATCHES ({possible.length})
+                    </Text>
+                    <Text style={[styles.footnote, styles.footnoteTop, { color: colors.textSecondary }]}>
+                      Similar, but not linked automatically. Tap Add to include a payment when you save.
+                    </Text>
+                    <View style={[styles.previewCard, { backgroundColor: colors.card }]}>
+                      {possible.slice(0, 8).map((match, index) => {
+                        const isAdded = addedIds.includes(match.id);
+                        return (
+                          <View
+                            key={match.id}
+                            style={[
+                              styles.previewRow,
+                              index > 0 && {
+                                borderTopWidth: StyleSheet.hairlineWidth,
+                                borderTopColor: colors.border,
+                              },
+                            ]}
+                          >
+                            <View style={styles.previewLeft}>
+                              <Text style={[styles.previewMerchant, { color: colors.text }]} numberOfLines={1}>
+                                {match.merchant && match.merchant !== 'Unknown'
+                                  ? match.merchant
+                                  : match.rawDescription}
+                              </Text>
+                              <Text style={[styles.previewDate, { color: colors.textSecondary }]} numberOfLines={1}>
+                                {match.date} • {fmt(match.amount)} •{' '}
+                                {match.strength === 'EXACT' ? 'unusual amount' : `similar to ${match.keyword}`}
+                              </Text>
+                            </View>
+                            <TouchableOpacity
+                              activeOpacity={0.8}
+                              onPress={() => toggleAdded(match.id)}
+                              hitSlop={8}
+                              style={[
+                                styles.possibleBtn,
+                                { borderColor: colors.accent },
+                                isAdded && { backgroundColor: colors.accent },
+                              ]}
+                            >
+                              <Text style={[styles.possibleBtnText, { color: isAdded ? '#FFFFFF' : colors.accent }]}>
+                                {isAdded ? 'Added' : 'Add'}
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
+                        );
+                      })}
+                    </View>
+                    {possible.length > 8 && (
+                      <Text style={[styles.footnote, { color: colors.textSecondary }]}>
+                        +{possible.length - 8} more. Use a more specific keyword to narrow these down.
+                      </Text>
+                    )}
+                  </>
+                )}
+                {unmatchedKeywords.length > 0 && payable.length > 0 && (
+                  <Text style={[styles.footnote, { color: colors.textSecondary }]}>
+                    No statement transactions contain {unmatchedKeywords.join(', ')}.
+                  </Text>
+                )}
+                {previewHints.length > 0 && (
+                  <Text style={[styles.footnote, { color: colors.textSecondary }]}>
+                    Not counted: {previewHints.join(' • ')}.
+                  </Text>
+                )}
+              </>
+            )}
 
             <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>TYPE</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.typeRow}>
@@ -291,6 +711,12 @@ export function DebtFormModal({ visible, debt, onClose, onSaved }: DebtFormModal
               keyboard: 'numbers-and-punctuation',
               maxLength: 10,
             })}
+            {autoFilledFrom > 0 && (
+              <Text style={[styles.footnote, { color: colors.accent }]}>
+                Monthly payment, payment day and start date were filled in from {autoFilledFrom} matching payment
+                {autoFilledFrom === 1 ? '' : 's'}. Edit them if they are wrong.
+              </Text>
+            )}
             <Text style={[styles.footnote, { color: colors.textSecondary }]}>
               Interest is estimated daily from the start date. Without a start date, interest is counted from the
               first payment.
@@ -318,66 +744,6 @@ export function DebtFormModal({ visible, debt, onClose, onSaved }: DebtFormModal
               })}
             </View>
 
-            <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
-              AUTO-LINK KEYWORDS
-            </Text>
-            <Text style={[styles.footnote, styles.footnoteTop, { color: colors.textSecondary }]}>
-              Statement transactions whose merchant or description contains a keyword are added as payments
-              automatically.
-            </Text>
-            <View style={styles.keywordInputRow}>
-              <View
-                style={[
-                  styles.inputWrap,
-                  styles.keywordInputWrap,
-                  { backgroundColor: fieldBg, borderColor: colors.border },
-                ]}
-              >
-                <TextInput
-                  style={[styles.input, { color: colors.text }]}
-                  value={keywordInput}
-                  onChangeText={setKeywordInput}
-                  placeholder="e.g. DUO"
-                  placeholderTextColor={colors.textSecondary}
-                  autoCapitalize="characters"
-                  autoCorrect={false}
-                  returnKeyType="done"
-                  onSubmitEditing={handleAddKeyword}
-                />
-              </View>
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={handleAddKeyword}
-                disabled={keywordInput.trim().length === 0}
-                style={[
-                  styles.addKeywordBtn,
-                  { backgroundColor: colors.accent },
-                  keywordInput.trim().length === 0 && styles.disabled,
-                ]}
-              >
-                <Text style={styles.addKeywordText}>Add</Text>
-              </TouchableOpacity>
-            </View>
-
-            {keywords.length > 0 && (
-              <View style={styles.chipWrap}>
-                {keywords.map((keyword) => (
-                  <View
-                    key={keyword}
-                    style={[styles.chip, { backgroundColor: fieldBg, borderColor: colors.border }]}
-                  >
-                    <Text style={[styles.chipText, { color: colors.text }]}>{keyword}</Text>
-                    <TouchableOpacity
-                      onPress={() => setKeywords((prev) => prev.filter((k) => k !== keyword))}
-                      hitSlop={8}
-                    >
-                      <Ionicons name="close-circle" size={16} color={colors.textSecondary} />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </View>
-            )}
-
             {debt && (
               <TouchableOpacity
                 activeOpacity={0.8}
@@ -389,7 +755,7 @@ export function DebtFormModal({ visible, debt, onClose, onSaved }: DebtFormModal
               </TouchableOpacity>
             )}
           </ScrollView>
-        </KeyboardAvoidingView>
+        </View>
       </SafeAreaView>
     </Modal>
   );
@@ -467,7 +833,19 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
   },
+  chipLabel: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   chipText: { fontSize: 13, fontWeight: '600' },
+  chipCount: { fontSize: 12, fontWeight: '600' },
+  previewCard: { borderRadius: 14, overflow: 'hidden' },
+  previewRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 14, gap: 10 },
+  previewLeft: { flex: 1 },
+  previewMerchant: { fontSize: 14, fontWeight: '600' },
+  previewDate: { fontSize: 11, marginTop: 2 },
+  previewAmount: { fontSize: 14, fontWeight: '700' },
+  strike: { textDecorationLine: 'line-through' },
+  showAllText: { flex: 1, fontSize: 13, fontWeight: '600' },
+  possibleBtn: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 14, borderWidth: 1 },
+  possibleBtnText: { fontSize: 13, fontWeight: '700' },
   dangerRow: {
     flexDirection: 'row',
     alignItems: 'center',

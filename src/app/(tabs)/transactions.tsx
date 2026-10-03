@@ -1,5 +1,6 @@
 import { CategoryFilterBar } from '@/components/CategoryFilterBar';
 import { MonthStepper } from '@/components/dashboard/MonthStepper';
+import { HeaderActions } from '@/components/HeaderActions';
 import { DateRangeModal } from '@/components/modals/DateRangeModal';
 import { TransactionDetailModal } from '@/components/modals/TransactionDetailModal';
 import { ScreenContainer } from '@/components/ScreenContainer';
@@ -11,7 +12,7 @@ import {
     getAvailableMonths,
     getTransactionCategories,
     getTransactionDateBounds,
-    getTransactionFixedState,
+    getTransactionFixedExplanation,
     setMerchantFixedOverride,
     Transaction
 } from '@/db/database';
@@ -111,6 +112,7 @@ export default function TransactionsScreen() {
 
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [currentFixedState, setCurrentFixedState] = useState<FixedOverrideState>('AUTO');
+  const [fixedAuto, setFixedAuto] = useState({ autoIsFixed: false, reason: '' });
 
   const listRef = useRef<SectionList<Transaction, DaySection>>(null);
   const loadedCountRef = useRef(0);
@@ -319,8 +321,9 @@ export default function TransactionsScreen() {
     Haptics.selectionAsync().catch(() => {});
     setSelectedTransaction(trx);
     if (db) {
-      const state = await getTransactionFixedState(db, trx, activeProfileId);
-      setCurrentFixedState(state);
+      const explanation = await getTransactionFixedExplanation(db, trx, activeProfileId);
+      setCurrentFixedState(explanation.state);
+      setFixedAuto(explanation);
     }
   };
 
@@ -388,7 +391,10 @@ export default function TransactionsScreen() {
   return (
     <ScreenContainer>
       <View style={styles.headerWrap}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Transactions</Text>
+        <View style={styles.headerRow}>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Transactions</Text>
+          <HeaderActions />
+        </View>
 
         <View style={[styles.searchBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Ionicons name="search" size={16} color={colors.textSecondary} />
@@ -595,6 +601,8 @@ export default function TransactionsScreen() {
         visible={selectedTransaction !== null}
         transaction={selectedTransaction}
         fixedState={currentFixedState}
+        autoIsFixed={fixedAuto.autoIsFixed}
+        autoReason={fixedAuto.reason}
         parentTitle="Transactions"
         onClose={() => setSelectedTransaction(null)}
         onDismiss={() => setSelectedTransaction(null)}
@@ -606,7 +614,13 @@ export default function TransactionsScreen() {
 
 const styles = StyleSheet.create({
   headerWrap: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 4 },
-  headerTitle: { fontSize: 24, fontWeight: '700', letterSpacing: -0.5, marginBottom: 12 },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  headerTitle: { fontSize: 24, fontWeight: '700', letterSpacing: -0.5 },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',

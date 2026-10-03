@@ -1,4 +1,5 @@
-import { CategoryRule, Transaction } from '@/db/database';
+import type { CategoryRule, Transaction } from '@/db/database';
+import { classificationText, containsWord, deriveMerchant } from '@/utils/merchantName';
 import Papa from 'papaparse';
 import XLSX from 'xlsx';
 
@@ -19,39 +20,277 @@ import XLSX from 'xlsx';
     .trim();
 }
 
+export { containsWord };
+
+/** Bump when the built-in keywords change; stored rows are reclassified once on the next launch. */
+export const CLASSIFIER_VERSION = 3;
+
+/** No rule or keyword matched; these rows show up in the review list. */
+export const UNCATEGORISED = 'Uncategorised';
+/** Money coming in that no rule or keyword matched. */
+export const INCOME_CATEGORY = 'Income';
+
+export type TxType = 'DIRECT_DEBIT' | 'CARD' | 'ONLINE' | 'TRANSFER';
+
+export interface BankDetails {
+  /** Only set when the IBAN identifies the merchant (not a payment processor or iDEAL collector). */
+  counterpartyIban: string | null;
+  txType: TxType | null;
+}
+
+const PAYMENT_PROCESSORS =
+  /MOLLIE|ADYEN|BUCKAROO|DERDENGELDEN|PAY\.NL|STRIPE|PAYPAL|KLARNA|MULTISAFEPAY|SUMUP|CCV|WORLDLINE|TIKKIE/i;
+
+function detectTxType(text: string): TxType | null {
+  if (/INCASSO|DIRECT DEBIT|DOMICILIER|\/CSID\//i.test(text)) return 'DIRECT_DEBIT';
+  if (/\bIDEAL\b|\bWERO\b|ONLINE PAYMENT/i.test(text)) return 'ONLINE';
+  if (/\b(BEA|GEA)\b|BETAALAUTOMAAT|GELDAUTOMAAT|BETAALPAS|APPLE PAY|GOOGLE PAY|CARD[ _]PAYMENT/i.test(text)) {
+    return 'CARD';
+  }
+  if (/OVERBOEKING|OVERSCHRIJVING|ONLINE BANKIEREN|PERIODIEKE|TRANSFER|HAVALE|\bEFT\b/i.test(text)) {
+    return 'TRANSFER';
+  }
+  return null;
+}
+
+// Bank type-code columns (ING "Code", Rabobank "Code").
+const TX_TYPE_CODES: Record<string, TxType> = {
+  IC: 'DIRECT_DEBIT', EI: 'DIRECT_DEBIT',
+  BA: 'CARD', GM: 'CARD', BC: 'CARD', GA: 'CARD',
+  ID: 'ONLINE',
+  GT: 'TRANSFER', OV: 'TRANSFER', VZ: 'TRANSFER', CB: 'TRANSFER', TB: 'TRANSFER', SB: 'TRANSFER',
+};
+
+/** Counterparty IBAN and payment type, from dedicated columns when the bank has them, else from the text. */
+export function extractBankDetails(
+  description: string,
+  columns: { iban?: string; type?: string } = {}
+): BankDetails {
+  const text = String(description ?? '');
+  const typeCell = String(columns.type ?? '').trim();
+  const txType =
+    TX_TYPE_CODES[typeCell.toUpperCase()] ?? detectTxType(typeCell) ?? detectTxType(text);
+
+  const ibanCell = String(columns.iban ?? '').replace(/\s+/g, '').toUpperCase();
+  const fromText = text.match(/(?:\/IBAN\/|IBAN:\s*)([A-Z]{2}\d{2}[A-Z0-9]{8,30})/i);
+  const iban = /^[A-Z]{2}\d{2}[A-Z0-9]{8,30}$/.test(ibanCell)
+    ? ibanCell
+    : fromText
+      ? fromText[1].toUpperCase()
+      : null;
+
+  const identifiesMerchant = iban && txType !== 'ONLINE' && txType !== 'CARD' && !PAYMENT_PROCESSORS.test(text);
+
+  return { counterpartyIban: identifiesMerchant ? iban : null, txType };
+}
+
+/** Rule keyword for a merchant name: normalized, cut before any reference number. */
+export function merchantRuleKeyword(name: string): string {
+  const normalized = normalizeMerchantName(name);
+  const prefix = normalized.split(/\s*\d{4,}/)[0].trim();
+  return prefix.length >= 3 ? prefix : normalized;
+}
+
+/**
+ * `parts` match anywhere (Dutch compounds: KREDIET in KREDIETEN, VERZEKER in ZORGVERZEKERING).
+ * `words` must stand alone, for short or ambiguous tokens (NS, AH, BAR, GAS).
+ */
+const CATEGORY_KEYWORDS: { category: string; parts: string[]; words: string[] }[] = [
+  {
+    category: 'Childcare',
+    parts: [
+      'KINDEROPVANG', 'KINDERDAGVERBLIJF', 'GASTOUDER', 'PEUTERSPEELZAAL', 'BUITENSCHOOLSE',
+      'KOREIN', 'BABYPARK', 'PAMPERS', 'PRENATAL', 'DAYCARE', 'NURSERY',
+      'KINDERGARDEN', 'PARTOU', 'SMALLSTEPS', 'KIBEO', 'HUMANKIND', 'KINDERCENTR',
+    ],
+    words: ['BSO', 'BABY', 'CRECHE', 'KRES', 'KREŞ'],
+  },
+  {
+    category: 'Housing',
+    parts: [
+      'HYPOTHEEK', 'MORTGAGE', 'VESTEDA', 'TULPENHUIS', 'WONINGSTICHTING', 'WOONSTICHTING',
+      'WOONBEDRIJF', 'SERVICEKOSTEN',
+      'YMERE', 'VESTIA', 'WOONINC', 'WOONBRON', 'STADGENOOT', 'HAVENSTEDER', 'HOLLAND2STAY',
+      'HUURPENNINGEN', 'WOONCORPORATIE',
+    ],
+    words: ['HUUR', 'RENT', 'HOA', 'VVE', 'KIRA', 'KİRA', 'AIDAT', 'AİDAT'],
+  },
+  {
+    category: 'Credit Card Payments',
+    parts: [
+      'CREDIT CARD', 'CREDITCARD', 'INT CARD SERVICES', 'AMERICAN EXPRESS', 'REMITLY',
+      'KREDI KARTI', 'KREDİ KARTI',
+    ],
+    words: ['ICS', 'WISE'],
+  },
+  {
+    category: 'Loan & Insurance',
+    parts: [
+      'KREDIET', 'LENING', 'LENDING', 'FINANCIERING', 'FINANCE', 'AFLOSSING', 'VERZEKER',
+      'INSURANCE', 'ASSURANTIE', 'NEDASCO', 'ALLIANZ', 'AEGON', 'NATIONALE NEDERLANDEN',
+      'CENTRAAL BEHEER', 'INTERPOLIS', 'ZILVEREN KRUIS', 'MENZIS', 'SIGORTA', 'SİGORTA',
+      'KREDI', 'KREDİ',
+      'CZ GROEP', 'ANDERZORG', 'ZORG EN ZEKERHEID', 'INSHARED', 'UNIGARANT', 'MONUTA',
+      'RECHTSBIJSTAND', 'ACHMEA', 'DIENST UITVOERING ONDERWIJS', 'SANTANDER CONSUMER',
+    ],
+    words: [
+      'DSW', 'ONVZ', 'DELA', 'ARAG', 'FREO', 'DITZO', 'REAAL', 'LOAN', 'DUO', 'FBTO', 'OHRA',
+      'UNIVE', 'VGZ', 'ASR',
+    ],
+  },
+  {
+    category: 'Groceries',
+    parts: [
+      'ALBERT HEIJN', 'JUMBO', 'LIDL', 'SUPERMARKT', 'SUPERMARKET', 'EKOPLAZA', 'DEKAMARKT',
+      'HOOGVLIET', 'NETTORAMA', 'PICNIC', 'MIGROS', 'CARREFOUR',
+      'AH TO GO', 'DIRK VDBROEK', 'JAN LINDERS', 'POIESZ', 'AMAZING ORIENTAL', 'SLAGERIJ',
+      'BAKKERIJ', 'GROENTE', 'SOK MARKET', 'ŞOK MARKET', 'TESCO', 'EDEKA', 'DELHAIZE', 'COLRUYT',
+      'KAUFLAND',
+    ],
+    words: [
+      'BONI', 'MARQT', 'FLINK', 'GETIR', 'GETİR', 'REWE', 'MARKT', 'MARKET', 'BAKKER', 'AH', 'ALDI',
+      'SPAR', 'PLUS', 'COOP', 'DIRK', 'VOMAR', 'CRISP', 'BIM', 'A101',
+    ],
+  },
+  {
+    category: 'Dining Out',
+    parts: [
+      'RESTAURANT', 'UBER EATS', 'DELIVEROO', 'THUISBEZORGD', 'TAKEAWAY', 'MCDONALD', 'MC DONALD',
+      'BURGER KING', 'STARBUCKS', 'DOMINOS', 'PIZZ', 'SUSHI', 'KEBAB', 'EETCAFE', 'BRASSERIE',
+      'LUNCHROOM', 'LS DODO',
+      'CAFETARIA', 'SNACKBAR', 'SMULLERS', 'LA PLACE', 'WAGAMAMA', 'VAPIANO', 'FIVE GUYS',
+      'JUST EAT', 'YEMEKSEPETI', 'YEMEKSEPETİ', 'LOKANTA', 'RESTORAN', 'KOFFIE', 'COFFEE',
+      'ESPRESSO', 'IJSSALON', 'PANNENKOEK', 'SHOARMA', 'EETHUIS',
+    ],
+    words: [
+      'FEBO', 'DONER', 'DÖNER', 'PUB', 'CAFE', 'CAFÉ', 'BAR', 'BISTRO', 'KFC', 'SUBWAY', 'GRILL',
+    ],
+  },
+  {
+    category: 'Health & Care',
+    parts: [
+      'APOTHEEK', 'PHARMACY', 'ETOS', 'KRUIDVAT', 'HOSPITAL', 'ZIEKENHUIS', 'HUISARTS', 'TANDARTS',
+      'FYSIO', 'CATHARINA', 'DOCTOR', 'DENTIST', 'OPTICIEN', 'SPECSAVERS', 'ECZANE', 'HASTANE',
+      'DROGIST', 'HOLLAND & BARRETT', 'TANDHEELKUND', 'ORTHODONT', 'KLINIEK', 'CLINIC', 'PSYCHOLO',
+      'INFOMEDICS', 'MEDISCH', 'PEARLE', 'HANS ANDERS', 'EYE WISH', 'KAPSALON', 'BASIC-FIT',
+      'BASIC FIT', 'BASICFIT', 'FITNESS', 'SPORTSCHOOL',
+    ],
+    words: ['BENU', 'FAMED', 'KAPPER', 'BARBER', 'GYM', 'GGD'],
+  },
+  {
+    category: 'Financial Transfers',
+    parts: [
+      'TRANSFER', 'SAVINGS', 'SPAARREKENING', 'INVESTMENT', 'BELEGG', 'DEGIRO', 'MEESMAN',
+      'BRAND NEW DAY', 'TRADE REPUBLIC', 'CANON PRODUCTION', 'OVERBOEKING', 'HAVALE',
+      'SPAARGELD', 'EIGEN REKENING', 'OWN ACCOUNT', 'BITVAVO', 'COINBASE', 'BINANCE', 'ETORO',
+      'FLATEX', 'SCALABLE CAPITAL', 'BIRIKIM', 'BİRİKİM',
+    ],
+    words: ['PEAKS', 'VIRMAN', 'VİRMAN', 'TOPUP', 'TOP-UP', 'SPAREN', 'BUX', 'EFT'],
+  },
+  {
+    category: 'Utilities & Telecom',
+    parts: [
+      'ELECTRICITY', 'ENERGIE', 'ENERGY', 'ZIGGO', 'VATTENFALL', 'ESSENT', 'ENECO', 'GREENCHOICE',
+      'STEDIN', 'ENEXIS', 'LIANDER', 'BRABANT WATER', 'VITENS', 'EVIDES', 'WATERNET', 'DUNEA',
+      'VODAFONE', 'T-MOBILE', 'ODIDO', 'TELE2', 'SIMYO', 'LEBARA', 'NETFLIX', 'SPOTIFY',
+      'VIDEOLAND', 'DISNEY PLUS', 'DISNEY+', 'ICLOUD', 'YOUTUBE PREMIUM',
+      'PURE ENERGIE', 'DELTA FIBER', 'YOUFONE', 'HOLLANDSNIEUWE', 'WATERBEDRIJF', 'AMAZON PRIME',
+      'PRIME VIDEO', 'APPLE.COM/BILL', 'GOOGLE ONE', 'GOOGLE STORAGE', 'OPENAI', 'CHATGPT',
+      'VIAPLAY', 'TURKCELL', 'TURK TELEKOM', 'TÜRK TELEKOM', 'ELEKTRIK', 'ELEKTRİK', 'DOGALGAZ',
+      'DOĞALGAZ',
+    ],
+    words: [
+      'OXXIO', 'ENGIE', 'SIMPEL', 'PWN', 'WML', 'OASEN', 'DAZN', 'IGDAS', 'İGDAŞ', 'ISKI', 'İSKİ',
+      'GAS', 'WATER', 'KPN', 'HBO',
+    ],
+  },
+  {
+    category: 'Transportation',
+    parts: [
+      'SHELL', 'QWELLO', 'PARKING', 'PARKEREN', 'Q-PARK', 'NS-REIZEN', 'NS REIZIGERS', 'NS GROEP',
+      'OV-CHIPKAART', 'OV CHIPKAART', 'TANKSTATION', 'TOTALENERGIES', 'TEXACO', 'FASTNED', 'ALLEGO',
+      'ARRIVA', 'CONNEXXION', 'SWAPFIETS', 'GREENWHEELS', 'CHARGING',
+      'OV-PAY', 'OVPAY', 'TRANSAVIA', 'RYANAIR', 'EASYJET', 'SCHIPHOL', 'FLIXBUS', 'EUROSTAR',
+      'THALYS', 'TRANSLINK', 'PARKMOBILE', 'YELLOWBRICK', 'EASYPARK', 'PARKBEE', 'SHELL RECHARGE',
+      'BLABLACAR', 'EUROPCAR', 'KWIK-FIT', 'KWIK FIT', 'AUTOBEDRIJF', 'CARWASH', 'WASSTRAAT',
+      'QBUZZ', 'KEOLIS', 'PETROL OFISI', 'AKARYAKIT', 'ISTANBULKART', 'İSTANBULKART', 'OTOPARK',
+    ],
+    words: [
+      'KLM', 'ANWB', 'HTM', 'RDW', 'AVIA', 'GULF', 'SIXT', 'HERTZ', 'TAXI', 'TAKSI', 'TAKSİ',
+      'OPET', 'TAMOIL', 'TESLA', 'FELYX', 'GARAGE', 'BRENG', 'NS', 'EV', 'BP', 'ESSO', 'TINQ',
+      'TANGO', 'GVB', 'RET', 'UBER', 'BOLT', 'CHARGE',
+    ],
+  },
+  {
+    category: 'Taxes & Municipal Fees',
+    parts: ['BELASTING', 'GEMEENTE', 'WATERSCHAP', 'HOOGHEEMRAADSCHAP', 'COCENSUS', 'CJIB', 'VERGI'],
+    words: ['BSGR', 'SVHW', 'GBLT', 'TAX'],
+  },
+  {
+    category: 'Shopping & Retail',
+    parts: [
+      'BOL.COM', 'AMAZON', 'COOLBLUE', 'MEDIAMARKT', 'MEDIA MARKT', 'ZALANDO', 'DECATHLON',
+      'PRIMARK', 'WEHKAMP', 'BLOKKER', 'PRAXIS', 'KARWEI', 'HORNBACH', 'INTERTOYS', 'BIJENKORF',
+      'ALIEXPRESS', 'SHEIN', 'VINTED', 'MARKTPLAATS', 'RITUALS', 'APPLE STORE',
+      'WE FASHION', 'JACK & JONES', 'UNIQLO', 'ADIDAS', 'FOOT LOCKER', 'JD SPORTS', 'INTERSPORT',
+      'PERRY SPORT', 'KWANTUM', 'LEEN BAKKER', 'FLYING TIGER', 'SOSTRENE', 'BIG BAZAR', 'SCAPINO',
+      'VAN HAREN', 'BOEKHANDEL', 'ALLEKABELS', 'BAX MUSIC', 'ABOUT YOU', 'TRENDYOL', 'HEPSIBURADA',
+      'LC WAIKIKI', 'BOYNER', 'TEKNOSA', 'INTRATUIN', 'TUINCENTRUM', 'WELKOOP', 'PETS PLACE',
+      'BOUWMARKT', 'BERSHKA', 'PULL&BEAR', 'STRADIVARIUS',
+    ],
+    words: [
+      'C&A', 'BCC', 'EBAY', 'ETSY', 'NIKE', 'JYSK', 'ASOS', 'LEGO', 'MANGO', 'ZEEMAN', 'WIBRA',
+      'BRUNA', 'BEVER', 'SNIPES', 'N11', 'HEMA', 'ACTION', 'IKEA', 'ZARA', 'GAMMA', 'H&M', 'TEMU',
+      'XENOS', 'DOUGLAS',
+    ],
+  },
+];
+
 /**
  * Multi-Tiered Classification Engine:
- * 1. Custom User Rules (category_rules)
- * 2. Keyword Heuristics
- * 3. Fallback ('Shopping & Retail')
+ * 1. Custom User Rules (category_rules); a rule keyword can be a text fragment or a counterparty IBAN
+ * 2. Built-in keywords; the longest matching keyword wins, so "UBER EATS" beats "UBER"
+ *    and "DISNEY PLUS" beats "PLUS"
+ * 3. Fallback: 'Income' for money coming in, otherwise 'Uncategorised'
  */
-export function classifyTransaction(description: string, customRules: CategoryRule[] = []): string {
-  if (!description) return 'Shopping & Retail';
-  const desc = normalizeMerchantName(description);
+export function classifyTransaction(
+  description: string,
+  customRules: CategoryRule[] = [],
+  details: { iban?: string | null; amount?: number } = {}
+): string {
+  const fallback = (details.amount ?? 0) > 0 ? INCOME_CATEGORY : UNCATEGORISED;
+  const iban = details.iban ? details.iban.toUpperCase() : '';
+  if (!description && !iban) return fallback;
+  const desc = normalizeMerchantName(description || '');
 
   // Tier 1: User-Defined Custom Category Rules
   for (const rule of customRules) {
     const cleanRuleKw = rule.keyword.toUpperCase().trim();
-    if (cleanRuleKw && desc.includes(cleanRuleKw)) {
+    if (cleanRuleKw && (cleanRuleKw === iban || desc.includes(cleanRuleKw))) {
       return rule.category;
     }
   }
 
-  // Tier 2: Built-in Keyword Heuristics
-  if (/BABYPARK|BABY|PAMPERS|KINDEROPVANG|KOREIN|NURSERY/i.test(desc)) return 'Childcare';
-  if (/RENT|MORTGAGE|HOA|HYPOTHEEK|VESTEDA|TULPENHUIS/i.test(desc)) return 'Housing';
-  if (/CREDIT CARD|ICS|WISE|REMITLY/i.test(desc)) return 'Credit Card Payments';
-  if (/ALBERT HEIJN|\bAH\b|JUMBO|LIDL|ALDI|SUPERMARKET|SPAR|PLUS|EKOPLAZA/i.test(desc)) return 'Groceries';
-  if (/RESTAURANT|UBER EATS|DELIVEROO|TAKEAWAY|CAFE|BAR|MC DONALD|LS DODO/i.test(desc)) return 'Dining Out';
-  if (/PHARMACY|APOTHEEK|ETOS|KRUIDVAT|HOSPITAL|DOCTOR|CATHARINA/i.test(desc)) return 'Health & Care';
-  if (/TRANSFER|SAVINGS|INVESTMENT|DEGIRO|MEESMAN|CANON PRODUCTION/i.test(desc)) return 'Financial Transfers';
-  if (/ELECTRICITY|GAS|WATER|ZIGGO|KPN|ENERGY|VATTENFALL|ESSENT|BRABANT WATER/i.test(desc)) return 'Utilities & Telecom';
-  if (/LOAN|FINANCE|DUO|LENDING|NEDASCO|ALLIANZ/i.test(desc)) return 'Loan & Insurance';
-  if (/NS|SHELL|EV|QWELLO|TANGO|CHARGE|PARKING|NS-REIZEN/i.test(desc)) return 'Transportation';
-  if (/TAX|GEMEENTE|BELASTING|WATERSCHAP/i.test(desc)) return 'Taxes & Municipal Fees';
+  // Tier 2: Built-in Keywords
+  let bestCategory = fallback;
+  let bestLength = 0;
+  for (const { category, parts, words } of CATEGORY_KEYWORDS) {
+    for (const part of parts) {
+      if (part.length > bestLength && desc.includes(part)) {
+        bestCategory = category;
+        bestLength = part.length;
+      }
+    }
+    for (const word of words) {
+      if (word.length > bestLength && containsWord(desc, word)) {
+        bestCategory = category;
+        bestLength = word.length;
+      }
+    }
+  }
 
   // Tier 3: Fallback Default Category
-  return 'Shopping & Retail';
+  return bestCategory;
 }
 
 function parseLocaleAmount(raw: any): { magnitude: number; isNegative: boolean } | null {
@@ -115,7 +354,12 @@ function parseLocaleAmount(raw: any): { magnitude: number; isNegative: boolean }
 
 function resolveDate(raw: any): { iso: string; ambiguous: boolean } | null {
   if (raw === null || raw === undefined) return null;
-  const str = String(raw).replace(/\\/g, '').replace(/["']/g, '').trim();
+  const str = String(raw)
+    .replace(/\\/g, '')
+    .replace(/["']/g, '')
+    .trim()
+    // Drop a time part: "2024-02-01 10:11:12", "2024-02-01T10:11:12Z"
+    .replace(/[T ]\d{1,2}:\d{2}.*$/, '');
 
   if (/^\d{8}$/.test(str)) {
     const y = str.substring(0, 4);
@@ -161,157 +405,186 @@ function resolveDate(raw: any): { iso: string; ambiguous: boolean } | null {
   return null;
 }
 
-function extractCleanDescription(rawDescription: string): { merchant: string; cleanDescription: string } {
-  if (!rawDescription) return { merchant: 'Unknown', cleanDescription: 'Bank Transaction' };
-  let text = String(rawDescription).replace(/\\/g, '').replace(/["']/g, '').trim();
+export type ParsedTransaction = Omit<Transaction, 'id'> & {
+  /** The single cell older versions stored as rawDescription; only used to detect duplicates. */
+  legacyRawDescription?: string;
+};
 
-  // 1. ISO 20022 XML Slash Tagged SEPA / Wero Strings
-  if (text.includes('/') && (text.includes('/TRTP/') || text.includes('/NAME/') || text.includes('/CSID/') || text.includes('/REMI/'))) {
-    const slashName = text.match(/\/NAME\/([^/]+)/i);
-    if (slashName && slashName[1] && slashName[1].trim()) {
-      const name = slashName[1].trim();
-      return { merchant: name, cleanDescription: name };
-    }
+interface ColumnMap {
+  date: number;
+  amount: number;
+  debit: number;
+  credit: number;
+  sign: number;
+  iban: number;
+  type: number;
+  name: number;
+  memos: number[];
+  legacyDesc: number;
+}
 
-    const slashRemi = text.match(/\/REMI\/([^/]+)/i);
-    if (slashRemi && slashRemi[1] && slashRemi[1].trim()) {
-      const remi = slashRemi[1].trim();
-      if (!/^(NOTPROVIDED|REF-|\d+$)/i.test(remi)) {
-        return { merchant: remi, cleanDescription: remi };
-      }
-    }
+const DATE_HEADER = /transactiondate|trans_date|datum|date|tarih/i;
+const SECONDARY_DATE_HEADER = /rente|interest|valu|completed/i;
+const AMOUNT_HEADER = /amount|bedrag|tutar|miktar/i;
+const NOT_AMOUNT_HEADER = /saldo|balance|bakiye|fee|foreign|vreemde/i;
+const DEBIT_HEADER = /^(debit|debet|af|bor[çc]|withdrawals?|paid out|money out|uitgaven|debit amount|[çc][ıi]kan)$/i;
+const CREDIT_HEADER = /^(credit|bij|alacak|deposits?|paid in|money in|inkomsten|credit amount|giren)$/i;
+// ING "Af Bij": amounts are unsigned and this column says which way the money went.
+const SIGN_HEADER = /^(af ?\/? ?bij|debit ?\/ ?credit|credit ?\/ ?debit|debit credit|d\/c|dc|bor[çc] ?\/ ?alacak|b\/a)$/i;
+const DEBIT_MARK = /^(af|debit|debet|d|dr|bor[çc]|b|-)$/i;
+const IBAN_HEADER = /tegenrekening|counterparty (iban|account)|iban tegenpartij|counter account|^counterparty$/i;
+const TYPE_HEADER = /^(code|mutatiesoort|mutationcode|transaction type|type|soort)$/i;
+const NAME_HEADER = /naam|name|payee|merchant|tegenpartij|al[ıi]c[ıi]|beneficiary/i;
+const NOT_NAME_HEADER = /account|rekening|iban/i;
+const MEMO_HEADER = /omschrijving|mededeling|description|notifications|payment reference|^reference$|a[çc][ıi]klama|details|memo|^notes?$/i;
 
-    const slashTrtp = text.match(/\/TRTP\/([^/]+)/i);
-    if (slashTrtp && slashTrtp[1] && slashTrtp[1].trim()) {
-      const tag = slashTrtp[1].trim();
-      if (!/^(SEPA|OVERBOEKING|INCASSO)/i.test(tag)) {
-        return { merchant: tag, cleanDescription: tag };
-      }
-    }
-  }
+// Column choice of earlier versions, kept so re-imported statements still match stored rows.
+const LEGACY_IBAN_HEADER = /tegenrekening|counterparty (iban|account)|iban tegenpartij|counter account/i;
+const LEGACY_DESC_HEADER = /description|omschrijving|naam|details|açıklama|aciklama|memo|payee|merchant/i;
 
-  // 2. PIN / Apple Pay transactions
-  const posMatch = text.match(/(?:BEA|GEA),\s*(?:Apple Pay|Betaalpas|Google Pay|Pin)?\s+([^\d,]+)/i);
-  if (posMatch && posMatch[1]) {
-    const cleaned = posMatch[1].trim();
-    if (cleaned && !/^(BEA|GEA)/i.test(cleaned)) {
-      return { merchant: cleaned, cleanDescription: cleaned };
-    }
-  }
+const cleanCell = (value: any): string =>
+  String(value ?? '').replace(/\\/g, '').replace(/\s+/g, ' ').trim();
 
-  // 3. Standard SEPA "Omschrijving:" field
-  const omschrijving = text.match(/Omschrijving:\s*([^:\n\r\t]+?)(?=\s{2,}|IBAN:|BIC:|Kenmerk:|$)/i);
-  if (omschrijving && omschrijving[1]) {
-    const val = omschrijving[1].trim();
-    if (val && !/^(NOTPROVIDED|REF-)/i.test(val)) {
-      return { merchant: val, cleanDescription: val };
-    }
-  }
+function detectColumns(cells: string[]): ColumnMap | null {
+  let date = cells.findIndex((c) => DATE_HEADER.test(c) && !SECONDARY_DATE_HEADER.test(c));
+  if (date === -1) date = cells.findIndex((c) => DATE_HEADER.test(c));
 
-  // 4. Standard SEPA "Naam:" field
-  const sepaNaam = text.match(/Naam:\s*([^:\n\r\t]+?)(?=\s{2,}|Machtiging:|Omschrijving:|IBAN:|BIC:|Kenmerk:|$)/i);
-  if (sepaNaam && sepaNaam[1]) {
-    const val = sepaNaam[1].trim();
-    if (val) {
-      return { merchant: val, cleanDescription: val };
-    }
-  }
+  const debit = cells.findIndex((c) => DEBIT_HEADER.test(c));
+  const credit = cells.findIndex((c) => CREDIT_HEADER.test(c));
+  const split = debit !== -1 && credit !== -1;
+  const amount = split
+    ? -1
+    : cells.findIndex((c, i) => i !== date && AMOUNT_HEADER.test(c) && !NOT_AMOUNT_HEADER.test(c));
 
-  // 5. Fallback
-  let cleanedText = text
-    .replace(/\/[A-Z0-9]+\/[^/]+/gi, '')
-    .replace(/\b(SEPA|Incasso|algemeen|doorlopend|Overboeking|BEA|GEA|Apple Pay|Betaalpas|iDEAL|Wero)\b/gi, '')
-    .trim();
+  if (date === -1 || (amount === -1 && !split)) return null;
 
-  const tokens = cleanedText.split(/\s+/).filter((t) => t.length > 1 && !/^NL\d+/i.test(t));
-  const fallbackName = tokens.length > 0 ? tokens.slice(0, 3).join(' ') : 'Bank Transaction';
+  const iban = cells.findIndex((c) => IBAN_HEADER.test(c));
+  const used = new Set([date, amount, debit, credit, iban]);
+  const name = cells.findIndex((c, i) => !used.has(i) && NAME_HEADER.test(c) && !NOT_NAME_HEADER.test(c));
+  const memos = cells.flatMap((c, i) => (i !== name && !used.has(i) && MEMO_HEADER.test(c) ? [i] : []));
 
-  return { merchant: fallbackName, cleanDescription: cleanedText || fallbackName };
+  let legacyDesc = -1;
+  let legacyIban = -1;
+  cells.forEach((c, i) => {
+    if (LEGACY_IBAN_HEADER.test(c) && legacyIban === -1) legacyIban = i;
+    else if (LEGACY_DESC_HEADER.test(c) && legacyDesc === -1) legacyDesc = i;
+  });
+  if (legacyDesc === -1) legacyDesc = cells.length > 2 ? 1 : 0;
+  if (name === -1 && memos.length === 0) memos.push(legacyDesc);
+
+  return {
+    date,
+    amount,
+    debit: split ? debit : -1,
+    credit: split ? credit : -1,
+    sign: cells.findIndex((c) => SIGN_HEADER.test(c)),
+    iban,
+    type: cells.findIndex((c) => TYPE_HEADER.test(c)),
+    name,
+    memos,
+    legacyDesc,
+  };
 }
 
 function parseMatrixData(
   rows: any[][],
   customRules: CategoryRule[] = []
-): Omit<Transaction, 'id'>[] {
+): ParsedTransaction[] {
   if (!rows || rows.length === 0) return [];
 
-  let dateIdx = -1;
-  let amountIdx = -1;
-  let descIdx = -1;
+  let cols: ColumnMap | null = null;
   let startRowIndex = 0;
 
-  const dateRegex = /transactiondate|trans_date|datum|date|tarih|valuta/i;
-  const amountRegex = /amount|bedrag|tutar|miktar|debite|credite|bedrag_eur/i;
-  const descRegex = /description|omschrijving|naam|details|açıklama|aciklama|memo|payee|merchant/i;
+  for (let r = 0; r < Math.min(rows.length, 20); r++) {
+    // Header cells are short labels; long cells are data or preamble text.
+    const rowCells = Array.from(rows[r] || [], (c) => {
+      const cell = String(c ?? '').replace(/[\"\\]/g, '').toLowerCase().replace(/\u0307/g, '').trim();
+      return cell.length <= 40 ? cell : '';
+    });
 
-  for (let r = 0; r < Math.min(rows.length, 10); r++) {
-    const rowCells = (rows[r] || []).map((c) => String(c ?? '').replace(/[\"\\]/g, '').toLowerCase().trim());
-
-    for (let c = 0; c < rowCells.length; c++) {
-      const val = rowCells[c];
-      if (dateRegex.test(val) && dateIdx === -1) dateIdx = c;
-      if (amountRegex.test(val) && amountIdx === -1) amountIdx = c;
-      if (descRegex.test(val) && descIdx === -1) descIdx = c;
-    }
-
-    if (dateIdx !== -1 && amountIdx !== -1) {
+    cols = detectColumns(rowCells);
+    if (cols) {
       startRowIndex = r + 1;
-      if (descIdx === -1) descIdx = rowCells.length > 2 ? 1 : 0;
       break;
     }
   }
 
-  if (dateIdx === -1 || amountIdx === -1) {
+  if (!cols) {
     const maxCols = Math.max(...rows.slice(0, 10).map((r) => r?.length || 0));
-    if (maxCols >= 8) {
-      dateIdx = 2;
-      amountIdx = 6;
-      descIdx = 7;
-    } else {
-      dateIdx = 0;
-      amountIdx = 1;
-      descIdx = 2;
-    }
-    startRowIndex = 0;
+    const [date, amount, desc] = maxCols >= 8 ? [2, 6, 7] : [0, 1, 2];
+    cols = {
+      date, amount, debit: -1, credit: -1, sign: -1, iban: -1, type: -1, name: -1,
+      memos: [desc], legacyDesc: desc,
+    };
   }
 
-  const transactions: Omit<Transaction, 'id'>[] = [];
+  const textColumns = [cols.name, ...cols.memos].filter((idx) => idx !== -1).sort((a, b) => a - b);
+  const transactions: ParsedTransaction[] = [];
 
   for (let i = startRowIndex; i < rows.length; i++) {
     const row = rows[i];
     if (!row || row.length === 0) continue;
 
-    const rawDate = row[dateIdx];
-    const rawAmount = row[amountIdx];
-    const rawDesc = row[descIdx];
-
-    if (rawDate === undefined || rawAmount === undefined) continue;
+    const rawDate = row[cols.date];
+    if (rawDate === undefined) continue;
 
     const cleanedHeaderCheck = String(rawDate).replace(/[\"\\]/g, '').trim();
-    if (dateRegex.test(cleanedHeaderCheck) || amountRegex.test(cleanedHeaderCheck)) continue;
+    if (DATE_HEADER.test(cleanedHeaderCheck) || AMOUNT_HEADER.test(cleanedHeaderCheck)) continue;
 
-    const amountResult = parseLocaleAmount(rawAmount);
-    if (!amountResult) continue;
-
-    const isZero = amountResult.magnitude === 0;
-    const signedAmount = amountResult.isNegative ? -amountResult.magnitude : amountResult.magnitude;
+    let signedAmount: number;
+    if (cols.amount !== -1) {
+      const amountResult = parseLocaleAmount(row[cols.amount]);
+      if (!amountResult) continue;
+      const isDebit =
+        amountResult.isNegative || (cols.sign !== -1 && DEBIT_MARK.test(cleanCell(row[cols.sign])));
+      signedAmount = isDebit ? -amountResult.magnitude : amountResult.magnitude;
+    } else {
+      const debit = parseLocaleAmount(row[cols.debit]);
+      const credit = parseLocaleAmount(row[cols.credit]);
+      if (!debit && !credit) continue;
+      signedAmount = (credit?.magnitude ?? 0) - (debit?.magnitude ?? 0);
+    }
 
     const dateResult = resolveDate(rawDate);
     if (!dateResult) continue;
 
-    const originalDesc = String(rawDesc ?? '').replace(/\\/g, '').replace(/\s+/g, ' ').trim();
-    const { merchant } = extractCleanDescription(originalDesc);
+    const name = cols.name !== -1 ? cleanCell(row[cols.name]) : '';
+    const texts: string[] = [];
+    for (const idx of textColumns) {
+      const text = cleanCell(row[idx]);
+      if (text && !texts.some((t) => t.toUpperCase() === text.toUpperCase())) texts.push(text);
+    }
+    const originalDesc = texts.join(' ');
+    const legacyDesc = cleanCell(row[cols.legacyDesc]);
+
     const monthName = dateResult.iso.substring(0, 7);
-    const category = classifyTransaction(originalDesc, customRules);
+    const amount = Number(signedAmount.toFixed(2));
+    const bank = extractBankDetails(originalDesc, {
+      iban: cols.iban !== -1 ? row[cols.iban] : undefined,
+      type: cols.type !== -1 ? row[cols.type] : undefined,
+    });
+    const merchant = deriveMerchant({
+      description: originalDesc,
+      name,
+      memo: cols.memos.map((idx) => cleanCell(row[idx])).filter(Boolean).join(' '),
+      txType: bank.txType,
+    });
+    const category = classifyTransaction(classificationText(merchant, originalDesc), customRules, {
+      iban: bank.counterpartyIban,
+      amount,
+    });
 
     transactions.push({
       date: dateResult.iso,
-      amount: Number(signedAmount.toFixed(2)),
+      amount,
       rawDescription: originalDesc,
+      legacyRawDescription: legacyDesc,
       merchant,
       category,
       monthName,
-      isZeroFlagged: isZero ? 1 : 0,
+      counterpartyIban: bank.counterpartyIban,
+      txType: bank.txType,
+      isZeroFlagged: amount === 0 ? 1 : 0,
       dateAmbiguous: dateResult.ambiguous ? 1 : 0,
     });
   }
@@ -322,7 +595,7 @@ function parseMatrixData(
 export function parseExcelContent(
   fileData: ArrayBuffer | string,
   customRules: CategoryRule[] = []
-): Omit<Transaction, 'id'>[] {
+): ParsedTransaction[] {
   if (!fileData) return [];
 
   let workbook: XLSX.WorkBook | null = null;
@@ -356,7 +629,7 @@ export function parseExcelContent(
 export function parseCSVContent(
   csvText: string,
   customRules: CategoryRule[] = []
-): Omit<Transaction, 'id'>[] {
+): ParsedTransaction[] {
   if (!csvText) return [];
 
   let cleaned = csvText
@@ -372,22 +645,4 @@ export function parseCSVContent(
   });
 
   return parseMatrixData(parsed.data || [], customRules);
-}
-
-import * as FileSystem from 'expo-file-system';
-
-export async function parseStatementFile(fileUri: string, customRules = []) {
-  const extension = fileUri.split('.').pop()?.toLowerCase();
-
-  if (extension === 'xlsx' || extension === 'xls') {
-    const base64Data = await FileSystem.readAsStringAsync(fileUri, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
-    return parseExcelContent(base64Data, customRules);
-  } else {
-    const csvText = await FileSystem.readAsStringAsync(fileUri, {
-      encoding: FileSystem.EncodingType.UTF8,
-    });
-    return parseCSVContent(csvText, customRules);
-  }
 }
