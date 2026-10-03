@@ -1,6 +1,7 @@
 import { AllocationChart } from '@/components/dashboard/AllocationChart';
 import { MonthStepper } from '@/components/dashboard/MonthStepper';
 import { SummaryCards } from '@/components/dashboard/SummaryCards';
+import { DateRangeModal } from '@/components/modals/DateRangeModal';
 import { TransactionDetailModal } from '@/components/modals/TransactionDetailModal';
 import { TransactionListModal } from '@/components/modals/TransactionListModal';
 import { ProfileSwitcherModal } from '@/components/ProfileSwitcherModal';
@@ -17,8 +18,10 @@ import {
   getIncomeFixedVsFlexibleSummary,
   getMonthlyCategoryTotals,
   getMonthlySummary,
+  getTransactionDateBounds,
   getTransactionFixedState,
   getTransactionsByMonthAndCategory,
+  makeRangeKey,
   MonthlySummary,
   setMerchantFixedOverride,
   Transaction
@@ -27,7 +30,7 @@ import { useStatementImporter } from '@/hooks/useStatementImporter';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -56,6 +59,8 @@ const MONTH_NAMES: Record<string, string> = {
   '2026-12': 'December 2026',
 };
 
+const NO_MONTHS: string[] = [];
+
 const getCurrentMonthKey = (): string => {
   const now = new Date();
   const year = now.getFullYear();
@@ -63,11 +68,28 @@ const getCurrentMonthKey = (): string => {
   return `${year}-${month}`;
 };
 
+const formatRangeLabel = (from: string, to: string): string => {
+  const fmt = (key: string) => {
+    const [y, m, d] = key.split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString(undefined, {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  };
+  return from === to ? fmt(from) : `${fmt(from)} – ${fmt(to)}`;
+};
+
 interface MonthCoverageStatus {
   status: 'IN_PROGRESS' | 'PARTIAL' | 'COMPLETE' | 'EMPTY';
   minDate?: string;
   maxDate?: string;
   label: string;
+}
+
+interface DateRangeFilter {
+  from: string;
+  to: string;
 }
 
 export default function DashboardScreen() {
@@ -85,6 +107,7 @@ export default function DashboardScreen() {
 
   // Modals & Selection State
   const [monthPickerVisible, setMonthPickerVisible] = useState(false);
+  const [rangeModalVisible, setRangeModalVisible] = useState(false);
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [currentFixedState, setCurrentFixedState] = useState<FixedOverrideState>('AUTO');
@@ -100,6 +123,8 @@ export default function DashboardScreen() {
   // Filters & State
   const [availableMonths, setAvailableMonths] = useState<string[]>([]);
   const [selectedMonth, setSelectedMonth] = useState<string>('');
+  const [rangeFilter, setRangeFilter] = useState<DateRangeFilter | null>(null);
+  const [dateBounds, setDateBounds] = useState<{ minDate: string; maxDate: string } | null>(null);
   const [coverageStatus, setCoverageStatus] = useState<MonthCoverageStatus>({
     status: 'EMPTY',
     label: '',
@@ -134,13 +159,31 @@ export default function DashboardScreen() {
 
   const currentMonthKey = getCurrentMonthKey();
 
+  // A "period" is either a month key (2026-03) or a date range key (2026-03-05..2026-04-10)
+  const periodKey = rangeFilter ? makeRangeKey(rangeFilter.from, rangeFilter.to) : selectedMonth;
+
+  const periodNames = useMemo<Record<string, string>>(() => {
+    if (!rangeFilter) return MONTH_NAMES;
+    return {
+      ...MONTH_NAMES,
+      [makeRangeKey(rangeFilter.from, rangeFilter.to)]: formatRangeLabel(
+        rangeFilter.from,
+        rangeFilter.to
+      ),
+    };
+  }, [rangeFilter]);
+
   const loadDashboardData = useCallback(async () => {
     if (!db) return;
     try {
       setLoading(true);
 
-      const dbMonths = await getAvailableMonths(db, activeProfileId);
+      const [dbMonths, bounds] = await Promise.all([
+        getAvailableMonths(db, activeProfileId),
+        getTransactionDateBounds(db, activeProfileId),
+      ]);
       setAvailableMonths(dbMonths);
+      setDateBounds(bounds);
 
       if (dbMonths.length === 0) {
         setCoverageStatus({ status: 'EMPTY', label: 'Statement Pending' });
@@ -164,15 +207,21 @@ export default function DashboardScreen() {
         setSelectedMonth(activeMonth);
       }
 
+      const activePeriod = rangeFilter
+        ? makeRangeKey(rangeFilter.from, rangeFilter.to)
+        : activeMonth;
+
       const [summaryRes, categoryRes, fixedRes, incomeFixedRes, dateRangeRes] = await Promise.all([
-        getMonthlySummary(db, activeMonth, activeProfileId),
-        getMonthlyCategoryTotals(db, activeMonth, activeProfileId),
-        getFixedVsFlexibleSummary(db, activeMonth, activeProfileId),
-        getIncomeFixedVsFlexibleSummary(db, activeMonth, activeProfileId),
-        db.getFirstAsync<{ minDate: string; maxDate: string }>(
-          `SELECT MIN(date) as minDate, MAX(date) as maxDate FROM transactions WHERE monthName = ? AND profileId = ?;`,
-          [activeMonth, activeProfileId]
-        ),
+        getMonthlySummary(db, activePeriod, activeProfileId),
+        getMonthlyCategoryTotals(db, activePeriod, activeProfileId),
+        getFixedVsFlexibleSummary(db, activePeriod, activeProfileId),
+        getIncomeFixedVsFlexibleSummary(db, activePeriod, activeProfileId),
+        rangeFilter
+          ? Promise.resolve(null)
+          : db.getFirstAsync<{ minDate: string; maxDate: string }>(
+              `SELECT MIN(date) as minDate, MAX(date) as maxDate FROM transactions WHERE monthName = ? AND profileId = ?;`,
+              [activeMonth, activeProfileId]
+            ),
       ]);
       
       setSummary(summaryRes);
@@ -180,7 +229,9 @@ export default function DashboardScreen() {
       setFixedSummary(fixedRes);
       setIncomeSummary(incomeFixedRes);
 
-      if (!dateRangeRes || !dateRangeRes.minDate) {
+      if (rangeFilter) {
+        setCoverageStatus({ status: 'EMPTY', label: '' });
+      } else if (!dateRangeRes || !dateRangeRes.minDate) {
         setCoverageStatus({ status: 'EMPTY', label: 'Statement Pending' });
       } else {
         const isCurrentMonth = activeMonth === currentMonthKey;
@@ -215,7 +266,7 @@ export default function DashboardScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [db, selectedMonth, activeProfileId, currentMonthKey]);
+  }, [db, selectedMonth, rangeFilter, activeProfileId, currentMonthKey]);
 
   // Execute directly on screen mount/focus without checking activeProfile?.id
   useFocusEffect(
@@ -230,22 +281,45 @@ export default function DashboardScreen() {
     await loadDashboardData();
   };
 
+  const resetCategorySelection = () => {
+    setSelectedBarCategory(null);
+    setSelectedCategoryTransactions([]);
+  };
+
   const currentIndex = availableMonths.indexOf(selectedMonth);
 
   const handlePrevMonth = () => {
+    if (rangeFilter) return;
     if (currentIndex < availableMonths.length - 1) {
       setSelectedMonth(availableMonths[currentIndex + 1]);
-      setSelectedBarCategory(null);
-      setSelectedCategoryTransactions([]);
+      resetCategorySelection();
     }
   };
 
   const handleNextMonth = () => {
+    if (rangeFilter) return;
     if (currentIndex > 0) {
       setSelectedMonth(availableMonths[currentIndex - 1]);
-      setSelectedBarCategory(null);
-      setSelectedCategoryTransactions([]);
+      resetCategorySelection();
     }
+  };
+
+  const handlePickMonth = (month: string) => {
+    setRangeFilter(null);
+    setSelectedMonth(month);
+    resetCategorySelection();
+    setMonthPickerVisible(false);
+  };
+
+  const handleOpenRangePicker = () => {
+    setMonthPickerVisible(false);
+    setTimeout(() => setRangeModalVisible(true), 250);
+  };
+
+  const handleApplyRange = (from: string, to: string) => {
+    setRangeFilter({ from, to });
+    resetCategorySelection();
+    setRangeModalVisible(false);
   };
 
   const handleSelectTransaction = async (trx: Transaction, customParentTitle?: string) => {
@@ -348,7 +422,7 @@ export default function DashboardScreen() {
       if (selectedBarCategory) {
         const updatedItems = await getTransactionsByMonthAndCategory(
           db,
-          selectedMonth,
+          periodKey,
           selectedBarCategory,
           activeProfileId
         );
@@ -371,9 +445,9 @@ export default function DashboardScreen() {
 
       let items: Transaction[] = [];
       if (type === 'FIXED' || type === 'FLEXIBLE') {
-        items = await getFixedOrFlexibleTransactions(db, selectedMonth, type === 'FIXED', activeProfileId);
+        items = await getFixedOrFlexibleTransactions(db, periodKey, type === 'FIXED', activeProfileId);
       } else {
-        items = await getFilteredTransactions(db, selectedMonth, type, activeProfileId);
+        items = await getFilteredTransactions(db, periodKey, type, activeProfileId);
       }
 
       const sortedItems = [...(items || [])].sort(
@@ -390,14 +464,13 @@ export default function DashboardScreen() {
 
   const handleBarPress = async (categoryName: string) => {
     if (selectedBarCategory === categoryName) {
-      setSelectedBarCategory(null);
-      setSelectedCategoryTransactions([]);
+      resetCategorySelection();
     } else {
       setSelectedBarCategory(categoryName);
       if (db) {
         try {
           setLoadingTransactions(true);
-          const items = await getTransactionsByMonthAndCategory(db, selectedMonth, categoryName, activeProfileId);
+          const items = await getTransactionsByMonthAndCategory(db, periodKey, categoryName, activeProfileId);
           setSelectedCategoryTransactions(items || []);
         } catch (error) {
           console.error(`Failed to load transactions for ${categoryName}:`, error);
@@ -492,9 +565,9 @@ export default function DashboardScreen() {
         ) : (
           <>
             <MonthStepper
-              selectedMonth={selectedMonth}
-              availableMonths={availableMonths}
-              monthNames={MONTH_NAMES}
+              selectedMonth={periodKey}
+              availableMonths={rangeFilter ? NO_MONTHS : availableMonths}
+              monthNames={periodNames}
               coverageStatus={coverageStatus}
               onPrevMonth={handlePrevMonth}
               onNextMonth={handleNextMonth}
@@ -526,8 +599,8 @@ export default function DashboardScreen() {
       <TransactionListModal
         visible={listModalVisible}
         listType={listModalType}
-        selectedMonth={selectedMonth}
-        monthNames={MONTH_NAMES}
+        selectedMonth={periodKey}
+        monthNames={periodNames}
         transactions={listModalTransactions}
         loading={loadingListModal}
         fixedSummary={listModalType === 'INCOME' ? incomeSummary : fixedSummary}
@@ -550,6 +623,16 @@ export default function DashboardScreen() {
         onClose={() => setProfileModalVisible(false)}
       />
 
+      <DateRangeModal
+        visible={rangeModalVisible}
+        minDate={dateBounds?.minDate ?? null}
+        maxDate={dateBounds?.maxDate ?? null}
+        initialFrom={rangeFilter?.from ?? null}
+        initialTo={rangeFilter?.to ?? null}
+        onApply={handleApplyRange}
+        onClose={() => setRangeModalVisible(false)}
+      />
+
       <Modal visible={monthPickerVisible} transparent animationType="slide">
         <TouchableOpacity
           style={styles.modalOverlay}
@@ -560,11 +643,41 @@ export default function DashboardScreen() {
             <View style={[styles.sheetContainer, { backgroundColor: colors.card }]}>
               <View style={styles.sheetHeader}>
                 <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
-                <Text style={[styles.sheetTitle, { color: colors.text }]}>Select Month</Text>
+                <Text style={[styles.sheetTitle, { color: colors.text }]}>Select Period</Text>
               </View>
-              <ScrollView style={{ maxHeight: 320 }}>
+              <ScrollView style={{ maxHeight: 360 }}>
+                <TouchableOpacity
+                  style={[
+                    styles.sheetItem,
+                    { borderBottomColor: colors.border },
+                    rangeFilter !== null && [
+                      styles.sheetItemActive,
+                      { backgroundColor: colors.tintBackground },
+                    ],
+                  ]}
+                  onPress={handleOpenRangePicker}
+                >
+                  <View style={styles.sheetItemLeft}>
+                    <Ionicons name="calendar-outline" size={18} color={colors.accent} />
+                    <Text
+                      style={[
+                        styles.sheetItemText,
+                        { color: rangeFilter ? colors.accent : colors.text },
+                        rangeFilter !== null && styles.sheetItemTextActive,
+                      ]}
+                    >
+                      Custom Range…
+                    </Text>
+                  </View>
+                  {rangeFilter ? (
+                    <Ionicons name="checkmark-circle" size={20} color={colors.accent} />
+                  ) : (
+                    <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+                  )}
+                </TouchableOpacity>
+
                 {availableMonths.map((m) => {
-                  const isSelected = selectedMonth === m;
+                  const isSelected = !rangeFilter && selectedMonth === m;
                   return (
                     <TouchableOpacity
                       key={m}
@@ -576,12 +689,7 @@ export default function DashboardScreen() {
                           { backgroundColor: colors.tintBackground },
                         ],
                       ]}
-                      onPress={() => {
-                        setSelectedMonth(m);
-                        setSelectedBarCategory(null);
-                        setSelectedCategoryTransactions([]);
-                        setMonthPickerVisible(false);
-                      }}
+                      onPress={() => handlePickMonth(m)}
                     >
                       <Text
                         style={[
@@ -608,7 +716,7 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: 20, paddingBottom: 100 },
-    headerRow: {
+  headerRow: {
     marginTop: 8,
     marginBottom: 12,
     flexDirection: 'row',
@@ -682,6 +790,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
+  sheetItemLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   sheetItemActive: { borderRadius: 12 },
   sheetItemText: { fontSize: 16, fontWeight: '500' },
   sheetItemTextActive: { fontWeight: '700' },

@@ -342,17 +342,37 @@ export async function updateMerchantCategoryAndApplyGlobally(
     );
   });
 }
+const RANGE_KEY_PATTERN = /^(\d{4}-\d{2}-\d{2})\.\.(\d{4}-\d{2}-\d{2})$/;
+
+export function makeRangeKey(from: string, to: string): string {
+  return `${from}..${to}`;
+}
+
+export function parseRangeKey(period: string): { from: string; to: string } | null {
+  const match = period.match(RANGE_KEY_PATTERN);
+  return match ? { from: match[1], to: match[2] } : null;
+}
+
+function periodClause(period: string): { sql: string; params: string[] } {
+  const range = parseRangeKey(period);
+  if (range) {
+    return { sql: `substr(date, 1, 10) BETWEEN ? AND ?`, params: [range.from, range.to] };
+  }
+  return { sql: `monthName = ?`, params: [period] };
+}
 
 export async function getFixedVsFlexibleSummary(
   db: SQLiteDatabase,
   monthName: string,
   profileId: number
 ): Promise<FixedCostSummary> {
+  const period = periodClause(monthName);
   const transactions = await db.getAllAsync<Transaction>(
-    `SELECT * FROM transactions WHERE monthName = ? AND profileId = ? AND amount < 0;`,
-    [monthName, profileId]
+    `SELECT * FROM transactions WHERE ${period.sql} AND profileId = ? AND amount < 0;`,
+    [...period.params, profileId]
   );
 
+  
   const customRules = await db.getAllAsync<{ keyword: string; overrideState: string }>(
     `SELECT keyword, overrideState FROM fixed_cost_rules WHERE profileId = ?;`,
     [profileId]
@@ -496,13 +516,14 @@ export async function getFixedOrFlexibleTransactions(
   isFixedTarget: boolean,
   profileId: number
 ): Promise<Transaction[]> {
+  const period = periodClause(monthName);
   const allExpenses = await db.getAllAsync<Transaction>(
-    `SELECT * FROM transactions 
-     WHERE monthName = ? 
-       AND amount < 0 
+    `SELECT * FROM transactions
+     WHERE ${period.sql}
+       AND amount < 0
        AND profileId = ?
      ORDER BY ABS(amount) DESC;`,
-    [monthName, profileId]
+    [...period.params, profileId]
   );
 
   const customRules = await db.getAllAsync<{ keyword: string; overrideState: string }>(
@@ -676,51 +697,7 @@ export async function getAvailableMonths(
   return rows.map((r) => r.monthName);
 }
 
-export async function getMonthlySummary(
-  db: SQLiteDatabase,
-  monthName: string,
-  profileId: number = 1
-): Promise<MonthlySummary> {
-  const result = await db.getFirstAsync<{ totalIncome: number; totalExpenses: number }>(
-    `SELECT 
-       TOTAL(CASE WHEN amount > 0 THEN amount ELSE 0 END) AS totalIncome,
-       TOTAL(CASE WHEN amount < 0 THEN ABS(amount) ELSE 0 END) AS totalExpenses
-     FROM transactions
-     WHERE monthName = ? AND profileId = ?;`,
-    [monthName, profileId]
-  );
 
-  const totalIncome = result?.totalIncome ?? 0;
-  const totalExpenses = result?.totalExpenses ?? 0;
-
-  return {
-    totalIncome,
-    totalExpenses,
-    netSavings: totalIncome - totalExpenses,
-  };
-}
-
-export async function getMonthlyCategoryTotals(
-  db: SQLiteDatabase,
-  monthName: string,
-  profileId: number = 1
-): Promise<CategoryTotal[]> {
-  if (!db) return [];
-
-  try {
-    const query = `
-      SELECT category, TOTAL(ABS(amount)) as totalAmount, COUNT(*) as count
-      FROM transactions
-      WHERE monthName = ? AND profileId = ? AND amount < 0
-      GROUP BY category
-      ORDER BY totalAmount DESC;
-    `;
-    return await db.getAllAsync<CategoryTotal>(query, [monthName, profileId]);
-  } catch (error) {
-    console.error('Error in getMonthlyCategoryTotals:', error);
-    return [];
-  }
-}
 
 export async function getFullYearSpendingTrend(
   db: SQLiteDatabase,
@@ -750,64 +727,6 @@ export async function getFullYearSpendingTrend(
   }
 }
 
-export async function getFilteredTransactions(
-  db: SQLiteDatabase,
-  monthName: string,
-  typeFilter: 'EXPENSE' | 'INCOME' | 'ALL' = 'ALL',
-  profileId: number = 1
-): Promise<Transaction[]> {
-  let query = `SELECT * FROM transactions WHERE monthName = ? AND profileId = ?`;
-  const params: (string | number)[] = [monthName, profileId];
-
-  if (typeFilter === 'EXPENSE') {
-    query += ` AND amount < 0`;
-  } else if (typeFilter === 'INCOME') {
-    query += ` AND amount > 0`;
-  }
-
-  query += ` ORDER BY date DESC, id DESC;`;
-  const transactions = await db.getAllAsync<Transaction>(query, params);
-
-  const customRules = await db.getAllAsync<{ keyword: string; overrideState: string }>(
-    `SELECT keyword, overrideState FROM fixed_cost_rules WHERE profileId = ?;`,
-    [profileId]
-  );
-  const customRuleMap = new Map<string, string>();
-  customRules.forEach((r) => customRuleMap.set(r.keyword.toUpperCase().trim(), r.overrideState));
-
-  const detectedPatterns = await detectRecurringPatterns(db, 2, profileId);
-  const detectedKeywords = detectedPatterns.map((p) => p.merchant.toUpperCase().trim());
-  const allFixedKeywords = new Set([
-    ...DEFAULT_FIXED_KEYWORDS.map((k) => k.toUpperCase().trim()),
-    ...detectedKeywords,
-  ]);
-
-  return transactions.map((tx) => {
-    let isFixed = false;
-
-    if (tx.is_fixed === 1) {
-      isFixed = true;
-    } else if (tx.is_fixed === 0) {
-      isFixed = false;
-    } else {
-      const keyword = (tx.merchant && tx.merchant !== 'Unknown' ? tx.merchant : tx.rawDescription)
-        .toUpperCase()
-        .trim();
-
-      const matchedRule = Array.from(customRuleMap.entries()).find(([kw]) => keyword.includes(kw));
-      if (matchedRule) {
-        isFixed = matchedRule[1] === 'FIXED';
-      } else {
-        isFixed = Array.from(allFixedKeywords).some((kw) => keyword.includes(kw));
-      }
-    }
-
-    return {
-      ...tx,
-      is_fixed: isFixed ? 1 : 0,
-    };
-  });
-}
 
 export async function getTransactionsByMonth(
   db: SQLiteDatabase,
@@ -834,27 +753,94 @@ export async function getTransactionsByMonth(
 
   return await db.getAllAsync<Transaction>(query, params);
 }
+export async function getMonthlySummary(
+  db: SQLiteDatabase,
+  monthName: string,
+  profileId: number = 1
+): Promise<MonthlySummary> {
+  const period = periodClause(monthName);
+  const result = await db.getFirstAsync<{ totalIncome: number; totalExpenses: number }>(
+    `SELECT 
+       TOTAL(CASE WHEN amount > 0 THEN amount ELSE 0 END) AS totalIncome,
+       TOTAL(CASE WHEN amount < 0 THEN ABS(amount) ELSE 0 END) AS totalExpenses
+     FROM transactions
+     WHERE ${period.sql} AND profileId = ?;`,
+    [...period.params, profileId]
+  );
+
+  const totalIncome = result?.totalIncome ?? 0;
+  const totalExpenses = result?.totalExpenses ?? 0;
+
+  return {
+    totalIncome,
+    totalExpenses,
+    netSavings: totalIncome - totalExpenses,
+  };
+}
+
+export async function getMonthlyCategoryTotals(
+  db: SQLiteDatabase,
+  monthName: string,
+  profileId: number = 1
+): Promise<CategoryTotal[]> {
+  if (!db) return [];
+
+  try {
+    const period = periodClause(monthName);
+    const query = `
+      SELECT category, TOTAL(ABS(amount)) as totalAmount, COUNT(*) as count
+      FROM transactions
+      WHERE ${period.sql} AND profileId = ? AND amount < 0
+      GROUP BY category
+      ORDER BY totalAmount DESC;
+    `;
+    return await db.getAllAsync<CategoryTotal>(query, [...period.params, profileId]);
+  } catch (error) {
+    console.error('Error in getMonthlyCategoryTotals:', error);
+    return [];
+  }
+}
+
+export async function getFilteredTransactions(
+  db: SQLiteDatabase,
+  monthName: string,
+  typeFilter: 'EXPENSE' | 'INCOME' | 'ALL' = 'ALL',
+  profileId: number = 1
+): Promise<Transaction[]> {
+  const period = periodClause(monthName);
+  let query = `SELECT * FROM transactions WHERE ${period.sql} AND profileId = ?`;
+  const params: (string | number)[] = [...period.params, profileId];
+
+  if (typeFilter === 'EXPENSE') {
+    query += ` AND amount < 0`;
+  } else if (typeFilter === 'INCOME') {
+    query += ` AND amount > 0`;
+  }
+
+  query += ` ORDER BY date DESC, id DESC;`;
+  const transactions = await db.getAllAsync<Transaction>(query, params);
+
+  return transactions;
+}
 
 export async function getTransactionsByMonthAndCategory(
   db: SQLiteDatabase,
   monthName: string,
   category: string,
-  profileId: number,
-  expensesOnly: boolean = false
+  profileId: number
 ): Promise<Transaction[]> {
+  const period = periodClause(monthName);
   const isAll = category === 'All';
   const categoryFilter = isAll ? '' : 'AND category = ?';
-  const expenseFilter = expensesOnly ? 'AND amount < 0' : '';
 
   const query = `
     SELECT * FROM transactions
-    WHERE profileId = ? AND monthName = ? ${categoryFilter} ${expenseFilter}
+    WHERE profileId = ? AND ${period.sql} ${categoryFilter}
     ORDER BY ABS(amount) DESC;
   `;
 
-  const queryParams = isAll
-    ? [profileId, monthName]
-    : [profileId, monthName, category];
+  const queryParams: (string | number)[] = [profileId, ...period.params];
+  if (!isAll) queryParams.push(category);
 
   const rows = await db.getAllAsync<Transaction>(query, queryParams);
 
@@ -894,7 +880,6 @@ export async function getTransactionsByMonthAndCategory(
     return { ...tx, is_fixed: isFixed ? 1 : 0 };
   });
 }
-
 export async function getAllTransactionsByDate(
   db: SQLiteDatabase,
   profileId: number = 1,
@@ -1389,15 +1374,122 @@ export async function getAnnualTrendWithBudget(
     budgetLimit: budgetLimit,
   }));
 }
+export async function getRangeTrendWithBudget(
+  db: SQLiteDatabase,
+  from: string,
+  to: string,
+  category: string = 'All',
+  profileId: number = 1
+): Promise<AnnualTrendPointWithBudget[]> {
+  let query = `
+    SELECT SUBSTR(date, 1, 7) AS monthName, TOTAL(ABS(amount)) AS totalAmount
+    FROM transactions
+    WHERE profileId = ? AND amount < 0 AND SUBSTR(date, 1, 10) BETWEEN ? AND ?
+  `;
+  const params: (string | number)[] = [profileId, from, to];
 
+  if (category && category !== 'All') {
+    query += ` AND category = ?`;
+    params.push(category);
+  }
+
+  query += ` GROUP BY SUBSTR(date, 1, 7) ORDER BY monthName ASC;`;
+  const rows = await db.getAllAsync<{ monthName: string; totalAmount: number }>(query, params);
+
+  const spendingMap: Record<string, number> = {};
+  rows.forEach((r) => {
+    spendingMap[r.monthName] = r.totalAmount;
+  });
+
+  const monthlyGoal = await getCategoryGoal(db, category, profileId);
+
+  const [fromYear, fromMonth] = from.split('-').map(Number);
+  const [toYear, toMonth] = to.split('-').map(Number);
+
+  const result: AnnualTrendPointWithBudget[] = [];
+  let year = fromYear;
+  let month = fromMonth;
+
+  while (year < toYear || (year === toYear && month <= toMonth)) {
+    const key = `${year}-${String(month).padStart(2, '0')}`;
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const startDay = year === fromYear && month === fromMonth ? Number(from.slice(8, 10)) : 1;
+    const endDay = year === toYear && month === toMonth ? Number(to.slice(8, 10)) : daysInMonth;
+    const coveredDays = Math.max(0, endDay - startDay + 1);
+
+    result.push({
+      monthName: key,
+      totalAmount: spendingMap[key] || 0,
+      budgetLimit: (monthlyGoal * coveredDays) / daysInMonth,
+    });
+
+    month++;
+    if (month > 12) {
+      month = 1;
+      year++;
+    }
+  }
+
+  return result;
+}
+
+export async function getDailyTrend(
+  db: SQLiteDatabase,
+  from: string,
+  to: string,
+  category: string = 'All',
+  profileId: number = 1
+): Promise<AnnualTrendPointWithBudget[]> {
+  let query = `
+    SELECT SUBSTR(date, 1, 10) AS dayKey, TOTAL(ABS(amount)) AS totalAmount
+    FROM transactions
+    WHERE profileId = ? AND amount < 0 AND SUBSTR(date, 1, 10) BETWEEN ? AND ?
+  `;
+  const params: (string | number)[] = [profileId, from, to];
+
+  if (category && category !== 'All') {
+    query += ` AND category = ?`;
+    params.push(category);
+  }
+
+  query += ` GROUP BY SUBSTR(date, 1, 10) ORDER BY dayKey ASC;`;
+  const rows = await db.getAllAsync<{ dayKey: string; totalAmount: number }>(query, params);
+
+  const spendingMap: Record<string, number> = {};
+  rows.forEach((r) => {
+    spendingMap[r.dayKey] = r.totalAmount;
+  });
+
+  const [fromYear, fromMonth, fromDay] = from.split('-').map(Number);
+  const [toYear, toMonth, toDay] = to.split('-').map(Number);
+
+  const cursor = new Date(fromYear, fromMonth - 1, fromDay);
+  const end = new Date(toYear, toMonth - 1, toDay);
+
+  const result: AnnualTrendPointWithBudget[] = [];
+  while (cursor <= end) {
+    const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(
+      cursor.getDate()
+    ).padStart(2, '0')}`;
+    result.push({
+      monthName: key, // holds the day key (YYYY-MM-DD) in daily mode
+      totalAmount: spendingMap[key] || 0,
+      budgetLimit: 0,
+    });
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return result;
+}
 export async function getIncomeFixedVsFlexibleSummary(
   db: SQLiteDatabase,
   monthName: string,
   profileId: number
 ): Promise<FixedCostSummary> {
+  const period = periodClause(monthName);
   const transactions = await db.getAllAsync<Transaction>(
-    `SELECT * FROM transactions WHERE monthName = ? AND profileId = ? AND amount > 0;`,
-    [monthName, profileId]
+    `SELECT * FROM transactions WHERE ${period.sql} AND profileId = ? AND amount > 0;`,
+    [...period.params, profileId]
   );
 
   const customRules = await db.getAllAsync<{ keyword: string; overrideState: string }>(

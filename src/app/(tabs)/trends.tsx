@@ -1,3 +1,4 @@
+import { DateRangeModal } from '@/components/modals/DateRangeModal';
 import { TransactionDetailModal } from '@/components/modals/TransactionDetailModal';
 import { TransactionListModal } from '@/components/modals/TransactionListModal';
 import { ProfileSwitcherModal } from '@/components/ProfileSwitcherModal';
@@ -10,10 +11,14 @@ import {
   getAnnualTrendWithBudget,
   getAvailableYears,
   getCategoryGoal,
+  getDailyTrend,
   getFixedVsFlexibleSummary,
+  getRangeTrendWithBudget,
+  getTransactionDateBounds,
   getTransactionFixedState,
   getTransactionsByMonthAndCategory,
   getYearCoverageStatus,
+  makeRangeKey,
   setCategoryGoal,
   setMerchantFixedOverride,
   Transaction
@@ -32,9 +37,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View
+  TouchableOpacity, TouchableWithoutFeedback, useWindowDimensions, View
 } from 'react-native';
 import { LineChart } from 'react-native-gifted-charts';
 import { useProfile } from '../../contexts/ProfileContext';
@@ -86,6 +89,62 @@ const formatShortMonth = (monthKey: string): string => {
   return `${shortMonth} '${shortYear}`;
 };
 
+const formatRangeLabel = (from: string, to: string): string => {
+  const fmt = (key: string) => {
+    const [y, m, d] = key.split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString(undefined, {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  };
+  return from === to ? fmt(from) : `${fmt(from)} – ${fmt(to)}`;
+};
+
+const getMonthNamesForRange = (from: string, to: string): Record<string, string> => {
+  const result: Record<string, string> = {};
+  for (let year = Number(from.slice(0, 4)); year <= Number(to.slice(0, 4)); year++) {
+    Object.assign(result, getMonthNamesForYear(String(year)));
+  }
+  return result;
+};
+
+const RANGE_DAILY_MAX_DAYS = 62;
+
+const getRangeDayCount = (from: string, to: string): number => {
+  const [fy, fm, fd] = from.split('-').map(Number);
+  const [ty, tm, td] = to.split('-').map(Number);
+  const diff = Date.UTC(ty, tm - 1, td) - Date.UTC(fy, fm - 1, fd);
+  return Math.round(diff / 86400000) + 1;
+};
+
+const formatShortPoint = (key: string): string => {
+  if (!key || key === '-') return '-';
+  if (key.length === 10) {
+    const [y, m, d] = key.split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+  }
+  return formatShortMonth(key);
+};
+
+const getNiceScale = (peak: number): { max: number; sections: number } => {
+  const target = Math.max(peak * 1.05, 10);
+  const bases = [1, 2, 2.5, 5];
+  const startExponent = Math.floor(Math.log10(target / 6));
+
+  for (let exponent = startExponent; exponent <= startExponent + 2; exponent++) {
+    for (const base of bases) {
+      const step = base * Math.pow(10, exponent);
+      const sections = Math.ceil(target / step);
+      if (sections >= 2 && sections <= 6) {
+        return { max: step * sections, sections };
+      }
+    }
+  }
+
+  return { max: target, sections: 4 };
+};
+
 interface YearCoverageStatus {
   status: 'IN_PROGRESS' | 'PARTIAL' | 'COMPLETE' | 'EMPTY';
   label: string;
@@ -95,6 +154,7 @@ export default function TrendsScreen() {
   const router = useRouter();
   const db = useSQLiteContext();
   const { colors } = useTheme();
+  const { width: screenWidth } = useWindowDimensions();
   const { activeProfile, currencySymbol, dataVersion } = useProfile();
   const activeProfileId = activeProfile?.id ?? 1;
 
@@ -112,7 +172,18 @@ export default function TrendsScreen() {
     label: '',
   });
 
-  const MONTH_NAMES = getMonthNamesForYear(selectedYear);
+  // Custom Range State
+  const [rangeFilter, setRangeFilter] = useState<{ from: string; to: string } | null>(null);
+  const [rangeModalVisible, setRangeModalVisible] = useState(false);
+  const [dateBounds, setDateBounds] = useState<{ minDate: string; maxDate: string } | null>(null);
+
+  const isDailyMode =
+    rangeFilter !== null && getRangeDayCount(rangeFilter.from, rangeFilter.to) <= RANGE_DAILY_MAX_DAYS;
+
+  const MONTH_NAMES = rangeFilter
+    ? getMonthNamesForRange(rangeFilter.from, rangeFilter.to)
+    : getMonthNamesForYear(selectedYear);
+  const periodPrefix = rangeFilter ? 'Total' : `Total ${selectedYear}`;
 
   // Sorted Category Pills State
   const [sortedCategories, setSortedCategories] = useState<string[]>(CATEGORIES);
@@ -124,7 +195,6 @@ export default function TrendsScreen() {
   const activeScrubKey = useRef<string | null>(null);
   const activeScrubVal = useRef<number | null>(null);
 
-  const [maxChartValue, setMaxChartValue] = useState<number>(100);
   const [categoryBudget, setCategoryBudget] = useState<number>(0);
 
   // Inline Quick-Set Budget State
@@ -172,9 +242,12 @@ export default function TrendsScreen() {
   }, []);
 
   const [rawTrendData, setRawTrendData] = useState<any[]>([]);
-
+  const [loadedSignature, setLoadedSignature] = useState('');
   const loadAnalyticsData = useCallback(async () => {
     if (!db) return;
+    const signature = `${selectedCategory}|${selectedYear}|${
+      rangeFilter ? makeRangeKey(rangeFilter.from, rangeFilter.to) : ''
+    }`;
     try {
       setLoading(true);
 
@@ -186,8 +259,15 @@ export default function TrendsScreen() {
         }
       }
 
+      const fetchTrend = (cat: string) =>
+        rangeFilter
+          ? isDailyMode
+            ? getDailyTrend(db, rangeFilter.from, rangeFilter.to, cat, activeProfileId)
+            : getRangeTrendWithBudget(db, rangeFilter.from, rangeFilter.to, cat, activeProfileId)
+          : getAnnualTrendWithBudget(db, selectedYear, cat, activeProfileId);
+
       const categoryTotalsPromises = CATEGORIES.slice(1).map(async (cat) => {
-        const trend = await getAnnualTrendWithBudget(db, selectedYear, cat, activeProfileId);
+        const trend = await fetchTrend(cat);
         const sum = (trend || []).reduce((acc, m) => acc + m.totalAmount, 0);
         return { category: cat, total: sum };
       });
@@ -196,22 +276,30 @@ export default function TrendsScreen() {
       categoryTotals.sort((a, b) => b.total - a.total);
       setSortedCategories(['All', ...categoryTotals.map((item) => item.category)]);
 
-      const [trendWithBudget, currentGoal, coverageRes] = await Promise.all([
-        getAnnualTrendWithBudget(db, selectedYear, selectedCategory, activeProfileId),
+      const [trendWithBudget, currentGoal, coverageRes, bounds] = await Promise.all([
+        fetchTrend(selectedCategory),
         getCategoryGoal(db, selectedCategory, activeProfileId),
-        getYearCoverageStatus(db, selectedYear, activeProfileId),
+        rangeFilter
+          ? Promise.resolve({ status: 'EMPTY' as const, label: '' })
+          : getYearCoverageStatus(db, selectedYear, activeProfileId),
+        getTransactionDateBounds(db, activeProfileId),
       ]);
 
+      setDateBounds(bounds);
       setCategoryBudget(currentGoal);
       setRawTrendData(trendWithBudget || []);
 
       const values = (trendWithBudget || []).map((m) => m.totalAmount);
-      const peakVal = Math.max(...values, currentGoal, 10);
-      setMaxChartValue(Math.ceil(peakVal * 1.15));
 
       const total = values.reduce((a, b) => a + b, 0);
       const activeValues = values.filter((v) => v > 0);
-      const avg = activeValues.length > 0 ? total / activeValues.length : 0;
+      const avg = isDailyMode
+        ? values.length > 0
+          ? total / values.length
+          : 0
+        : activeValues.length > 0
+        ? total / activeValues.length
+        : 0;
 
       const maxVal = Math.max(...values);
       const minVal = Math.min(...(activeValues.length > 0 ? activeValues : [0]));
@@ -230,13 +318,18 @@ export default function TrendsScreen() {
     } catch (error) {
       console.error('Failed to query trends data for year:', error);
     } finally {
+      setLoadedSignature(signature);
       setLoading(false);
       setRefreshing(false);
     }
-  }, [db, selectedYear, selectedCategory, activeProfileId]);
+  }, [db, selectedYear, rangeFilter, isDailyMode, selectedCategory, activeProfileId]);
+
+  const isDense = rawTrendData.length > 12;
 
   const chartData = React.useMemo(() => {
-    return rawTrendData.map((item) => {
+    const labelStep = isDense ? Math.ceil(rawTrendData.length / 8) : 1;
+
+    return rawTrendData.map((item, index) => {
       const hasData = item.totalAmount > 0;
       const val = hasData ? Math.round(item.totalAmount) : 0;
       const isSelected = item.monthName === selectedMonthKey;
@@ -248,17 +341,27 @@ export default function TrendsScreen() {
         else ptColor = '#34C759';
       }
 
-      const labelStyle: TextStyle = isSelected
-        ? { color: activeColor, fontWeight: '800', fontSize: 11 }
-        : { color: colors.textSecondary, fontWeight: '400', fontSize: 10 };
+      const showLabel = !isDense || index % labelStep === 0 || isSelected;
+      const baseLabel = isDailyMode
+        ? String(Number(item.monthName.slice(8, 10)))
+        : item.monthName.split('-')[1];
+
+      const labelStyle: TextStyle = {
+        ...(isSelected
+          ? { color: activeColor, fontWeight: '800', fontSize: 11 }
+          : { color: colors.textSecondary, fontWeight: '400', fontSize: 10 }),
+        ...(isDense ? { width: 36, marginLeft: -14, textAlign: 'center' } : {}),
+      };
+
+      const showCustomDot = hasData && (!isDense || isSelected);
 
       return {
         value: val,
-        label: item.monthName.split('-')[1],
+        label: showLabel ? baseLabel : '',
         monthKey: item.monthName,
-        hideDataPoint: !hasData,
+        hideDataPoint: !showCustomDot,
         labelTextStyle: labelStyle,
-        customDataPoint: hasData
+        customDataPoint: showCustomDot
           ? () => (
               <View
                 style={{
@@ -283,8 +386,7 @@ export default function TrendsScreen() {
           : undefined,
       };
     });
-  }, [rawTrendData, selectedMonthKey, activeColor, colors.card, colors.textSecondary]);
-
+  }, [rawTrendData, selectedMonthKey, activeColor, colors.card, colors.textSecondary, isDailyMode, isDense]);
   useFocusEffect(
     useCallback(() => {
       if (activeProfile?.id) {
@@ -294,8 +396,8 @@ export default function TrendsScreen() {
   );
   
   const currentYearIndex = availableYears.indexOf(selectedYear);
-  const canGoPrev = currentYearIndex < availableYears.length - 1;
-  const canGoNext = currentYearIndex > 0;
+  const canGoPrev = !rangeFilter && currentYearIndex < availableYears.length - 1;
+  const canGoNext = !rangeFilter && currentYearIndex > 0;
 
   const handlePrevYear = () => {
     if (canGoPrev) {
@@ -311,6 +413,39 @@ export default function TrendsScreen() {
       setSelectedMonthKey(null);
       setSelectedAmount(null);
     }
+  };
+
+  const handlePickYear = (yr: string) => {
+    setRangeFilter(null);
+    setSelectedYear(yr);
+    setSelectedMonthKey(null);
+    setSelectedAmount(null);
+    setYearPickerVisible(false);
+  };
+
+  const handleOpenRangePicker = () => {
+    setYearPickerVisible(false);
+    setTimeout(() => setRangeModalVisible(true), 250);
+  };
+
+  const handleApplyRange = (from: string, to: string) => {
+    setRangeFilter({ from, to });
+    setSelectedMonthKey(null);
+    setSelectedAmount(null);
+    activeScrubKey.current = null;
+    activeScrubVal.current = null;
+    setRangeModalVisible(false);
+  };
+
+  const periodForMonth = (monthKey: string): string => {
+    if (monthKey.length === 10) return makeRangeKey(monthKey, monthKey);
+    if (!rangeFilter) return monthKey;
+    const [y, m] = monthKey.split('-').map(Number);
+    const monthStart = `${monthKey}-01`;
+    const monthEnd = `${monthKey}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}`;
+    const start = monthStart > rangeFilter.from ? monthStart : rangeFilter.from;
+    const end = monthEnd < rangeFilter.to ? monthEnd : rangeFilter.to;
+    return makeRangeKey(start, end);
   };
 
   const handleSelectCategory = (cat: string) => {
@@ -336,33 +471,34 @@ export default function TrendsScreen() {
     await loadAnalyticsData();
   };
 
-const handleOpenMonthDetails = async (monthKey: string) => {
-  if (!db) return;
-  setSelectedMonthForModal(monthKey);
-  setListModalVisible(true);
-  try {
-    setLoadingModalTrx(true);
-      const items = await getTransactionsByMonthAndCategory(
-      db,
-      monthKey,
-      selectedCategory,
-      activeProfileId,
-      true
-    );
-    setModalTransactions(items || []);
+  const handleOpenMonthDetails = async (monthKey: string) => {
+    if (!db) return;
+    setSelectedMonthForModal(monthKey);
+    setListModalVisible(true);
+    try {
+      setLoadingModalTrx(true);
+      const period = periodForMonth(monthKey);
 
-    const fixedSummaryData = await getFixedVsFlexibleSummary(
-      db,
-      monthKey,
-      activeProfileId
-    );
-    setModalFixedSummary(fixedSummaryData);
-  } catch (err) {
-    console.error('Failed to query month transactions:', err);
-  } finally {
-    setLoadingModalTrx(false);
-  }
-};
+      const items = await getTransactionsByMonthAndCategory(
+        db,
+        period,
+        selectedCategory,
+        activeProfileId
+      );
+      setModalTransactions(items || []);
+
+      const fixedSummaryData = await getFixedVsFlexibleSummary(
+        db,
+        period,
+        activeProfileId
+      );
+      setModalFixedSummary(fixedSummaryData);
+    } catch (err) {
+      console.error('Failed to query month transactions:', err);
+    } finally {
+      setLoadingModalTrx(false);
+    }
+  };
 
   const handleSelectTransactionFromModal = async (trx: Transaction) => {
     setListModalVisible(false);
@@ -404,9 +540,11 @@ const handleOpenMonthDetails = async (monthKey: string) => {
     setCurrentFixedState(newState);
 
     if (selectedMonthForModal) {
+      const period = periodForMonth(selectedMonthForModal);
+
       const updated = await getTransactionsByMonthAndCategory(
         db,
-        selectedMonthForModal,
+        period,
         selectedCategory,
         activeProfileId
       );
@@ -414,7 +552,7 @@ const handleOpenMonthDetails = async (monthKey: string) => {
 
       const updatedSummary = await getFixedVsFlexibleSummary(
         db,
-        selectedMonthForModal,
+        period,
         activeProfileId
       );
       setModalFixedSummary(updatedSummary);
@@ -436,6 +574,43 @@ const handleOpenMonthDetails = async (monthKey: string) => {
 
   const badgeTheme = getBadgeColor(yearCoverage.status);
 
+  const showBudgetLine =
+    categoryBudget > 0 &&
+    rawTrendData.every((p) => Math.abs(p.budgetLimit - categoryBudget) < 0.01);
+
+  const dataPeak = Math.max(...rawTrendData.map((p) => p.totalAmount), 0);
+  const goalInScale = showBudgetLine && categoryBudget <= dataPeak * 1.5;
+  const niceScale = getNiceScale(Math.max(dataPeak, goalInScale ? categoryBudget : 0));
+  const yAxisLabelWidthPx = 44;
+  const plotWidth = Math.max(screenWidth - 40 - 32 - yAxisLabelWidthPx - 12, 160);
+  const initialPad = 10;
+  const endPad = 10;
+  const pointSpacing =
+    chartData.length > 1
+      ? Math.max((plotWidth - initialPad - endPad) / (chartData.length - 1), 2)
+      : 24;  const requestSignature = `${selectedCategory}|${selectedYear}|${
+    rangeFilter ? makeRangeKey(rangeFilter.from, rangeFilter.to) : ''
+  }`;
+  const chartReady = loadedSignature === requestSignature;
+
+  const modalMonthNames: Record<string, string> =
+    selectedMonthForModal.length === 10
+      ? {
+          ...MONTH_NAMES,
+          [selectedMonthForModal]: formatRangeLabel(selectedMonthForModal, selectedMonthForModal),
+        }
+      : MONTH_NAMES;
+
+      console.log('TRENDS_SCALE', JSON.stringify({
+        mode: rangeFilter ? (isDailyMode ? 'daily' : 'monthly-range') : 'year',
+        range: rangeFilter,
+        points: rawTrendData.length,
+        values: rawTrendData.map((p) => Math.round(p.totalAmount)),
+        dataPeak,
+        categoryBudget,
+        goalInScale,
+        niceScale,
+      }));     
   return (
     <ScreenContainer>
       <ScrollView
@@ -502,7 +677,9 @@ const handleOpenMonthDetails = async (monthKey: string) => {
             onPress={() => setYearPickerVisible(true)}
             activeOpacity={0.7}
           >
-            <Text style={[styles.stepperLabel, { color: colors.text }]}>{selectedYear}</Text>
+            <Text style={[styles.stepperLabel, { color: colors.text }]} numberOfLines={1}>
+              {rangeFilter ? formatRangeLabel(rangeFilter.from, rangeFilter.to) : selectedYear}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -603,10 +780,12 @@ const handleOpenMonthDetails = async (monthKey: string) => {
           <View style={[styles.heroCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.heroHeader}>
               <Text style={[styles.heroLabel, { color: colors.textSecondary }]}>
-                {selectedCategory === 'All' ? `Total ${selectedYear} Spending` : `Total ${selectedYear} ${selectedCategory}`}
+                {selectedCategory === 'All' ? `${periodPrefix} Spending` : `${periodPrefix} ${selectedCategory}`}
               </Text>
               <View style={[styles.heroBadge, { backgroundColor: `${activeColor}18` }]}>
-                <Text style={[styles.heroBadgeText, { color: activeColor }]}>Annual</Text>
+                <Text style={[styles.heroBadgeText, { color: activeColor }]}>
+                  {rangeFilter ? 'Range' : 'Annual'}
+                </Text>
               </View>
             </View>
             <Text style={[styles.heroValue, { color: activeColor }]}>
@@ -617,7 +796,7 @@ const handleOpenMonthDetails = async (monthKey: string) => {
           <View style={styles.subRow}>
             <View style={[styles.subCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Text style={[styles.subLabel, { color: colors.textSecondary }]} numberOfLines={1}>
-                Monthly Avg
+                {isDailyMode ? 'Daily Avg' : 'Monthly Avg'}
               </Text>
               <Text style={[styles.subValue, { color: colors.text }]}>
                 {currencySymbol}{summary.average.toLocaleString('en-US', { maximumFractionDigits: 0 })}
@@ -626,28 +805,30 @@ const handleOpenMonthDetails = async (monthKey: string) => {
 
             <View style={[styles.subCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Text style={[styles.subLabel, { color: colors.textSecondary }]} numberOfLines={1}>
-                Peak Month
+                {isDailyMode ? 'Peak Day' : 'Peak Month'}
               </Text>
               <Text style={[styles.subValue, { color: colors.text }]}>
-                {formatShortMonth(summary.highestMonth)}
+                {formatShortPoint(summary.highestMonth)}
               </Text>
             </View>
 
             <View style={[styles.subCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Text style={[styles.subLabel, { color: colors.textSecondary }]} numberOfLines={1}>
-                Lowest Month
+                {isDailyMode ? 'Lowest Day' : 'Lowest Month'}
               </Text>
               <Text style={[styles.subValue, { color: colors.text }]}>
-                {formatShortMonth(summary.lowestMonth)}
+                {formatShortPoint(summary.lowestMonth)}
               </Text>
             </View>
           </View>
         </View>
 
-        {/* Annual Expenses Chart Card */}
+        {/* Expenses Chart Card */}
         <View style={[styles.chartCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.chartHeaderRow}>
-            <Text style={[styles.chartTitle, { color: colors.text }]}>{selectedYear} Expenses</Text>
+            <Text style={[styles.chartTitle, { color: colors.text }]}>
+              {rangeFilter ? 'Expenses' : `${selectedYear} Expenses`}
+            </Text>
             <TouchableOpacity
               activeOpacity={0.6}
               onPress={() => {
@@ -659,21 +840,23 @@ const handleOpenMonthDetails = async (monthKey: string) => {
             >
               <Text style={[styles.chartHintText, { color: colors.textSecondary }]}>
                 {selectedMonthKey
-                  ? `${MONTH_NAMES[selectedMonthKey] || selectedMonthKey} (Tap to clear)`
+                  ? `${MONTH_NAMES[selectedMonthKey] || formatRangeLabel(selectedMonthKey, selectedMonthKey)} (Tap to clear)`
+                  : isDailyMode
+                  ? 'Drag across line to select day'
                   : 'Drag across line to select month'}
               </Text>
             </TouchableOpacity>
           </View>
 
-          {loading && !refreshing ? (
+          {(loading && !refreshing) || !chartReady ? (
             <ActivityIndicator size="small" color={activeColor} style={{ paddingVertical: 40 }} />
           ) : (
             <View style={styles.chartWrapper} onTouchEnd={handleScrubDrop}>
               <LineChart
-                key={`${selectedCategory}-${categoryBudget}-${selectedYear}`}
+                key={`${selectedCategory}-${categoryBudget}-${selectedYear}-${rangeFilter ? makeRangeKey(rangeFilter.from, rangeFilter.to) : ''}-${niceScale.max}`}
                 data={chartData}
-                maxValue={maxChartValue}
-                noOfSections={3}
+                maxValue={niceScale.max}
+                noOfSections={niceScale.sections}
                 color={activeColor}
                 thickness={2.5}
                 startFillColor={`${activeColor}33`}
@@ -681,15 +864,19 @@ const handleOpenMonthDetails = async (monthKey: string) => {
                 startOpacity={0.3}
                 endOpacity={0.0}
                 areaChart
-                curved
+                curved={!isDailyMode}
                 height={140}
-                spacing={24}
+                yAxisLabelWidth={yAxisLabelWidthPx}
+                spacing={pointSpacing}
+                initialSpacing={initialPad}
+                endSpacing={endPad}
+                disableScroll
                 xAxisThickness={1}
                 yAxisThickness={0}
                 xAxisColor={colors.border}
                 yAxisTextStyle={{ color: colors.textSecondary, fontSize: 10 }}
                 xAxisLabelTextStyle={{ color: colors.textSecondary, fontSize: 10 }}
-                {...(categoryBudget > 0
+                {...(goalInScale
                   ? {
                       showReferenceLine1: true,
                       referenceLine1Position: categoryBudget,
@@ -738,7 +925,7 @@ const handleOpenMonthDetails = async (monthKey: string) => {
                 >
                   <View style={styles.gridCardHeader}>
                     <Text style={[styles.gridCardTitle, { color: colors.textSecondary }]} numberOfLines={1}>
-                      {formatShortMonth(selectedMonthKey)} Spent
+                      {formatShortPoint(selectedMonthKey)} Spent
                     </Text>
                     <Ionicons name="chevron-forward" size={14} color={colors.accent} />
                   </View>
@@ -819,7 +1006,7 @@ const handleOpenMonthDetails = async (monthKey: string) => {
               >
                 <Ionicons name="close-circle-outline" size={14} color={colors.textSecondary} />
                 <Text style={[styles.dismissBtnText, { color: colors.textSecondary }]}>
-                  Deselect {MONTH_NAMES[selectedMonthKey] || selectedMonthKey}
+                  Deselect {MONTH_NAMES[selectedMonthKey] || formatRangeLabel(selectedMonthKey, selectedMonthKey)}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -833,7 +1020,7 @@ const handleOpenMonthDetails = async (monthKey: string) => {
         onClose={() => setProfileModalVisible(false)}
       />
 
-      {/* Year Picker Modal Sheet */}
+      {/* Period Picker Modal Sheet */}
       <Modal visible={yearPickerVisible} transparent animationType="slide">
         <TouchableOpacity
           style={styles.modalOverlay}
@@ -844,11 +1031,41 @@ const handleOpenMonthDetails = async (monthKey: string) => {
             <View style={[styles.sheetContainer, { backgroundColor: colors.card }]}>
               <View style={styles.sheetHeader}>
                 <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
-                <Text style={[styles.sheetTitle, { color: colors.text }]}>Select Year</Text>
+                <Text style={[styles.sheetTitle, { color: colors.text }]}>Select Period</Text>
               </View>
-              <ScrollView style={{ maxHeight: 240 }}>
+              <ScrollView style={{ maxHeight: 320 }}>
+                <TouchableOpacity
+                  style={[
+                    styles.sheetItem,
+                    { borderBottomColor: colors.border },
+                    rangeFilter !== null && [
+                      styles.sheetItemActive,
+                      { backgroundColor: colors.tintBackground },
+                    ],
+                  ]}
+                  onPress={handleOpenRangePicker}
+                >
+                  <View style={styles.sheetItemLeft}>
+                    <Ionicons name="calendar-outline" size={18} color={colors.accent} />
+                    <Text
+                      style={[
+                        styles.sheetItemText,
+                        { color: rangeFilter ? colors.accent : colors.text },
+                        rangeFilter !== null && styles.sheetItemTextActive,
+                      ]}
+                    >
+                      Custom Range…
+                    </Text>
+                  </View>
+                  {rangeFilter ? (
+                    <Ionicons name="checkmark-circle" size={20} color={colors.accent} />
+                  ) : (
+                    <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+                  )}
+                </TouchableOpacity>
+
                 {availableYears.map((yr) => {
-                  const isSelected = selectedYear === yr;
+                  const isSelected = !rangeFilter && selectedYear === yr;
                   return (
                     <TouchableOpacity
                       key={yr}
@@ -860,12 +1077,7 @@ const handleOpenMonthDetails = async (monthKey: string) => {
                           { backgroundColor: colors.tintBackground },
                         ],
                       ]}
-                      onPress={() => {
-                        setSelectedYear(yr);
-                        setSelectedMonthKey(null);
-                        setSelectedAmount(null);
-                        setYearPickerVisible(false);
-                      }}
+                      onPress={() => handlePickYear(yr)}
                     >
                       <Text
                         style={[
@@ -886,12 +1098,22 @@ const handleOpenMonthDetails = async (monthKey: string) => {
         </TouchableOpacity>
       </Modal>
 
+      <DateRangeModal
+        visible={rangeModalVisible}
+        minDate={dateBounds?.minDate ?? null}
+        maxDate={dateBounds?.maxDate ?? null}
+        initialFrom={rangeFilter?.from ?? null}
+        initialTo={rangeFilter?.to ?? null}
+        onApply={handleApplyRange}
+        onClose={() => setRangeModalVisible(false)}
+      />
+
       {/* Modals */}
       <TransactionListModal
         visible={listModalVisible}
         listType="EXPENSE"
         selectedMonth={selectedMonthForModal}
-        monthNames={MONTH_NAMES}
+        monthNames={modalMonthNames}
         transactions={modalTransactions}
         fixedSummary={modalFixedSummary}
         loading={loadingModalTrx}
@@ -1258,6 +1480,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
+  sheetItemLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   sheetItemActive: { borderRadius: 12 },
   sheetItemText: { fontSize: 16, fontWeight: '500' },
   sheetItemTextActive: { fontWeight: '700' },
