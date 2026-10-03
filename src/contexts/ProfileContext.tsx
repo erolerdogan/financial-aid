@@ -1,10 +1,8 @@
 import {
-  clearAllData,
-  createProfile,
+  clearAllData, convertDebtAmounts, createProfile,
   getProfiles,
   Profile,
-  syncCategoryColors,
-  updateProfileCurrency
+  syncCategoryColors, updateProfileCurrency
 } from '@/db/database';
 import { seedExpandedDemoData } from '@/db/demoSeeder';
 import { useSQLiteContext } from 'expo-sqlite';
@@ -252,6 +250,8 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
            WHERE profileId = ?;`,
           [conversionFactor, activeProfile.id]
         );
+        await convertDebtAmounts(db, activeProfile.id, conversionFactor);
+        
       }
 
       await updateProfileCurrency(db, activeProfile.id, newCurrencyCode);

@@ -168,6 +168,44 @@ export async function initDatabase(db: SQLiteDatabase): Promise<void> {
       isBuiltIn INTEGER NOT NULL DEFAULT 0,
       UNIQUE(name, profileId)
     );
+    CREATE TABLE IF NOT EXISTS debts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      profileId INTEGER NOT NULL DEFAULT 1,
+      name TEXT NOT NULL,
+      type TEXT NOT NULL DEFAULT 'LOAN',
+      originalAmount REAL NOT NULL,
+      apr REAL NOT NULL DEFAULT 0,
+      paymentAmount REAL NOT NULL DEFAULT 0,
+      paymentDay INTEGER NOT NULL DEFAULT 1,
+      startDate TEXT,
+      color TEXT NOT NULL DEFAULT '#007AFF',
+      status TEXT NOT NULL DEFAULT 'ACTIVE'
+    );
+
+    CREATE TABLE IF NOT EXISTS debt_payments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      debtId INTEGER NOT NULL,
+      profileId INTEGER NOT NULL DEFAULT 1,
+      date TEXT NOT NULL,
+      amount REAL NOT NULL,
+      principal REAL NOT NULL DEFAULT 0,
+      interest REAL NOT NULL DEFAULT 0,
+      transactionId INTEGER,
+      source TEXT NOT NULL DEFAULT 'MANUAL',
+      ignored INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS debt_rules (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      debtId INTEGER NOT NULL,
+      profileId INTEGER NOT NULL DEFAULT 1,
+      keyword TEXT NOT NULL,
+      UNIQUE(debtId, keyword)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_debt_payments_debt ON debt_payments(debtId, date);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_debt_payments_tx
+      ON debt_payments(transactionId) WHERE transactionId IS NOT NULL;
   `);
 
   try {
@@ -1069,6 +1107,9 @@ export async function clearAllData(
       await db.runAsync(`DELETE FROM category_rules WHERE profileId = ?;`, [profileId]);
       await db.runAsync(`DELETE FROM fixed_cost_rules WHERE profileId = ?;`, [profileId]);
       await db.runAsync(`DELETE FROM categories WHERE profileId = ?;`, [profileId]);
+      await db.runAsync(`DELETE FROM debt_payments WHERE profileId = ?;`, [profileId]);
+      await db.runAsync(`DELETE FROM debt_rules WHERE profileId = ?;`, [profileId]);
+      await db.runAsync(`DELETE FROM debts WHERE profileId = ?;`, [profileId]);
     });
   } else {
     await db.execAsync(`
@@ -1077,6 +1118,9 @@ export async function clearAllData(
       DROP TABLE IF EXISTS category_rules;
       DROP TABLE IF EXISTS fixed_cost_rules;
       DROP TABLE IF EXISTS categories;
+      DROP TABLE IF EXISTS debt_payments;
+      DROP TABLE IF EXISTS debt_rules;
+      DROP TABLE IF EXISTS debts;
       DROP TABLE IF EXISTS profiles;
     `);
     await initDatabase(db);
@@ -1979,4 +2023,366 @@ export async function deleteCategory(
     ]);
     await db.runAsync(`DELETE FROM categories WHERE id = ?;`, [id]);
   });
+}
+
+// ---------------------------------------------------------------------------
+// Debt management
+// ---------------------------------------------------------------------------
+
+export type DebtType = 'LOAN' | 'MORTGAGE' | 'STUDENT' | 'PERSONAL' | 'OTHER';
+
+export interface DebtInput {
+  name: string;
+  type: DebtType;
+  originalAmount: number;
+  apr: number;
+  paymentAmount: number;
+  paymentDay: number;
+  startDate: string | null;
+  color: string;
+  keywords: string[];
+}
+
+export interface Debt {
+  id: number;
+  profileId: number;
+  name: string;
+  type: DebtType;
+  originalAmount: number;
+  apr: number;
+  paymentAmount: number;
+  paymentDay: number;
+  startDate: string | null;
+  color: string;
+  status: string;
+}
+
+export interface DebtPayment {
+  id: number;
+  debtId: number;
+  profileId: number;
+  date: string;
+  amount: number;
+  principal: number;
+  interest: number;
+  transactionId: number | null;
+  source: 'AUTO' | 'MANUAL';
+  ignored: number;
+}
+
+export interface DebtSummary extends Debt {
+  paidPrincipal: number;
+  paidInterest: number;
+  balance: number;
+  percentPaid: number;
+  paymentCount: number;
+  monthsRemaining: number | null;
+  payoffMonth: string | null; // YYYY-MM
+  projectedInterest: number | null;
+  keywords: string[];
+  isPaidOff: boolean;
+}
+
+const debtDaysBetween = (a: string, b: string): number => {
+  const [ay, am, ad] = a.slice(0, 10).split('-').map(Number);
+  const [by, bm, bd] = b.slice(0, 10).split('-').map(Number);
+  const diff = Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad);
+  return Math.max(0, Math.round(diff / 86400000));
+};
+
+const roundMoney = (value: number): number => Math.round(value * 100) / 100;
+
+export function projectDebtPayoff(
+  balance: number,
+  apr: number,
+  payment: number
+): { months: number | null; totalInterest: number | null } {
+  if (balance <= 0.005) return { months: 0, totalInterest: 0 };
+  if (payment <= 0) return { months: null, totalInterest: null };
+
+  const monthlyRate = apr / 1200;
+  if (monthlyRate === 0) {
+    return { months: Math.ceil(balance / payment), totalInterest: 0 };
+  }
+  if (payment <= balance * monthlyRate) return { months: null, totalInterest: null };
+
+  const months = Math.ceil(-Math.log(1 - (balance * monthlyRate) / payment) / Math.log(1 + monthlyRate));
+  return { months, totalInterest: Math.max(0, payment * months - balance) };
+}
+
+export async function recomputeDebtPayments(db: SQLiteDatabase, debtId: number): Promise<void> {
+  const debt = await db.getFirstAsync<Debt>(`SELECT * FROM debts WHERE id = ?;`, [debtId]);
+  if (!debt) return;
+
+  const payments = await db.getAllAsync<DebtPayment>(
+    `SELECT * FROM debt_payments WHERE debtId = ? AND ignored = 0 ORDER BY date ASC, id ASC;`,
+    [debtId]
+  );
+
+  let balance = debt.originalAmount;
+  let lastDate: string | null = debt.startDate ?? (payments[0]?.date ?? null);
+
+  for (const payment of payments) {
+    const days = lastDate ? debtDaysBetween(lastDate, payment.date) : 0;
+    const accrued = debt.apr > 0 ? balance * (debt.apr / 100) * (days / 365) : 0;
+    const interest = Math.min(payment.amount, roundMoney(accrued));
+    const principal = Math.min(balance, Math.max(0, roundMoney(payment.amount - interest)));
+    balance = Math.max(0, roundMoney(balance - principal));
+    lastDate = payment.date;
+
+    if (Math.abs(payment.principal - principal) > 0.004 || Math.abs(payment.interest - interest) > 0.004) {
+      await db.runAsync(`UPDATE debt_payments SET principal = ?, interest = ? WHERE id = ?;`, [
+        principal,
+        interest,
+        payment.id,
+      ]);
+    }
+  }
+
+  await db.runAsync(`UPDATE debts SET status = ? WHERE id = ?;`, [
+    balance <= 0.005 ? 'PAID_OFF' : 'ACTIVE',
+    debtId,
+  ]);
+}
+
+async function setDebtKeywords(
+  db: SQLiteDatabase,
+  debtId: number,
+  profileId: number,
+  keywords: string[]
+): Promise<void> {
+  await db.runAsync(`DELETE FROM debt_rules WHERE debtId = ?;`, [debtId]);
+  const unique = Array.from(new Set(keywords.map((k) => k.trim().toUpperCase()).filter(Boolean)));
+  for (const keyword of unique) {
+    await db.runAsync(`INSERT OR IGNORE INTO debt_rules (debtId, profileId, keyword) VALUES (?, ?, ?);`, [
+      debtId,
+      profileId,
+      keyword,
+    ]);
+  }
+}
+
+export async function createDebt(
+  db: SQLiteDatabase,
+  profileId: number,
+  input: DebtInput
+): Promise<number> {
+  const result = await db.runAsync(
+    `INSERT INTO debts (profileId, name, type, originalAmount, apr, paymentAmount, paymentDay, startDate, color, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE');`,
+    [
+      profileId,
+      input.name.trim(),
+      input.type,
+      input.originalAmount,
+      input.apr,
+      input.paymentAmount,
+      input.paymentDay,
+      input.startDate,
+      input.color,
+    ]
+  );
+  const debtId = result.lastInsertRowId;
+  await setDebtKeywords(db, debtId, profileId, input.keywords);
+  return debtId;
+}
+
+export async function updateDebt(
+  db: SQLiteDatabase,
+  debtId: number,
+  input: DebtInput
+): Promise<void> {
+  const existing = await db.getFirstAsync<Debt>(`SELECT * FROM debts WHERE id = ?;`, [debtId]);
+  if (!existing) return;
+
+  await db.runAsync(
+    `UPDATE debts
+     SET name = ?, type = ?, originalAmount = ?, apr = ?, paymentAmount = ?, paymentDay = ?, startDate = ?, color = ?
+     WHERE id = ?;`,
+    [
+      input.name.trim(),
+      input.type,
+      input.originalAmount,
+      input.apr,
+      input.paymentAmount,
+      input.paymentDay,
+      input.startDate,
+      input.color,
+      debtId,
+    ]
+  );
+  await setDebtKeywords(db, debtId, existing.profileId, input.keywords);
+  await recomputeDebtPayments(db, debtId);
+}
+
+export async function deleteDebt(db: SQLiteDatabase, debtId: number): Promise<void> {
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(`DELETE FROM debt_payments WHERE debtId = ?;`, [debtId]);
+    await db.runAsync(`DELETE FROM debt_rules WHERE debtId = ?;`, [debtId]);
+    await db.runAsync(`DELETE FROM debts WHERE id = ?;`, [debtId]);
+  });
+}
+
+export async function addManualDebtPayment(
+  db: SQLiteDatabase,
+  profileId: number,
+  debtId: number,
+  amount: number,
+  date: string
+): Promise<void> {
+  await db.runAsync(
+    `INSERT INTO debt_payments (debtId, profileId, date, amount, source) VALUES (?, ?, ?, ?, 'MANUAL');`,
+    [debtId, profileId, date, amount]
+  );
+  await recomputeDebtPayments(db, debtId);
+}
+
+export async function removeDebtPayment(db: SQLiteDatabase, paymentId: number): Promise<void> {
+  const payment = await db.getFirstAsync<DebtPayment>(
+    `SELECT * FROM debt_payments WHERE id = ?;`,
+    [paymentId]
+  );
+  if (!payment) return;
+
+  if (payment.source === 'AUTO') {
+    // Keep the row (ignored) so the same transaction is not auto-linked again.
+    await db.runAsync(`UPDATE debt_payments SET ignored = 1 WHERE id = ?;`, [paymentId]);
+  } else {
+    await db.runAsync(`DELETE FROM debt_payments WHERE id = ?;`, [paymentId]);
+  }
+  await recomputeDebtPayments(db, payment.debtId);
+}
+
+export async function getDebtPayments(db: SQLiteDatabase, debtId: number): Promise<DebtPayment[]> {
+  return await db.getAllAsync<DebtPayment>(
+    `SELECT * FROM debt_payments WHERE debtId = ? AND ignored = 0 ORDER BY date DESC, id DESC;`,
+    [debtId]
+  );
+}
+
+export async function syncDebtPayments(db: SQLiteDatabase, profileId: number): Promise<number> {
+  const rules = await db.getAllAsync<{ debtId: number; keyword: string; startDate: string | null }>(
+    `SELECT r.debtId AS debtId, r.keyword AS keyword, d.startDate AS startDate
+     FROM debt_rules r
+     JOIN debts d ON d.id = r.debtId
+     WHERE r.profileId = ? AND d.status != 'ARCHIVED';`,
+    [profileId]
+  );
+  if (rules.length === 0) return 0;
+
+  const touched = new Set<number>();
+  let inserted = 0;
+
+  for (const rule of rules) {
+    const keyword = rule.keyword.trim().toUpperCase();
+    if (!keyword) continue;
+    const pattern = `%${keyword}%`;
+
+    const matches = await db.getAllAsync<{ id: number; date: string; amount: number }>(
+      `SELECT t.id AS id, t.date AS date, t.amount AS amount
+       FROM transactions t
+       WHERE t.profileId = ?
+         AND t.amount < 0
+         AND (UPPER(t.merchant) LIKE ? OR UPPER(t.rawDescription) LIKE ?)
+         AND (? IS NULL OR SUBSTR(t.date, 1, 10) >= ?)
+         AND NOT EXISTS (SELECT 1 FROM debt_payments p WHERE p.transactionId = t.id);`,
+      [profileId, pattern, pattern, rule.startDate, rule.startDate]
+    );
+
+    for (const tx of matches) {
+      await db.runAsync(
+        `INSERT OR IGNORE INTO debt_payments (debtId, profileId, date, amount, transactionId, source)
+         VALUES (?, ?, ?, ?, ?, 'AUTO');`,
+        [rule.debtId, profileId, tx.date.slice(0, 10), Math.abs(tx.amount), tx.id]
+      );
+      touched.add(rule.debtId);
+      inserted++;
+    }
+  }
+
+  for (const debtId of touched) await recomputeDebtPayments(db, debtId);
+  return inserted;
+}
+
+export async function getDebtSummaries(
+  db: SQLiteDatabase,
+  profileId: number
+): Promise<DebtSummary[]> {
+  const debts = await db.getAllAsync<Debt>(
+    `SELECT * FROM debts WHERE profileId = ? AND status != 'ARCHIVED' ORDER BY id ASC;`,
+    [profileId]
+  );
+  if (debts.length === 0) return [];
+
+  const totals = await db.getAllAsync<{
+    debtId: number;
+    principal: number;
+    interest: number;
+    cnt: number;
+  }>(
+    `SELECT debtId, TOTAL(principal) AS principal, TOTAL(interest) AS interest, COUNT(*) AS cnt
+     FROM debt_payments WHERE profileId = ? AND ignored = 0 GROUP BY debtId;`,
+    [profileId]
+  );
+  const totalsMap = new Map(totals.map((t) => [t.debtId, t]));
+
+  const rules = await db.getAllAsync<{ debtId: number; keyword: string }>(
+    `SELECT debtId, keyword FROM debt_rules WHERE profileId = ? ORDER BY keyword ASC;`,
+    [profileId]
+  );
+  const rulesMap = new Map<number, string[]>();
+  rules.forEach((r) => rulesMap.set(r.debtId, [...(rulesMap.get(r.debtId) ?? []), r.keyword]));
+
+  const summaries = debts.map((debt): DebtSummary => {
+    const t = totalsMap.get(debt.id);
+    const paidPrincipal = Math.min(t?.principal ?? 0, debt.originalAmount);
+    const paidInterest = t?.interest ?? 0;
+    const balance = Math.max(0, roundMoney(debt.originalAmount - paidPrincipal));
+    const percentPaid =
+      debt.originalAmount > 0 ? Math.min(100, (paidPrincipal / debt.originalAmount) * 100) : 0;
+    const isPaidOff = balance <= 0.005;
+
+    const projection = projectDebtPayoff(balance, debt.apr, debt.paymentAmount);
+    let payoffMonth: string | null = null;
+    if (projection.months !== null) {
+      const d = new Date();
+      d.setMonth(d.getMonth() + projection.months);
+      payoffMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    }
+
+    return {
+      ...debt,
+      paidPrincipal,
+      paidInterest,
+      balance,
+      percentPaid,
+      paymentCount: t?.cnt ?? 0,
+      monthsRemaining: projection.months,
+      payoffMonth,
+      projectedInterest: projection.totalInterest,
+      keywords: rulesMap.get(debt.id) ?? [],
+      isPaidOff,
+    };
+  });
+
+  return summaries.sort((a, b) => Number(a.isPaidOff) - Number(b.isPaidOff) || a.id - b.id);
+}
+
+export async function convertDebtAmounts(
+  db: SQLiteDatabase,
+  profileId: number,
+  factor: number
+): Promise<void> {
+  await db.runAsync(
+    `UPDATE debts
+     SET originalAmount = ROUND(originalAmount * ?, 2), paymentAmount = ROUND(paymentAmount * ?, 2)
+     WHERE profileId = ?;`,
+    [factor, factor, profileId]
+  );
+  await db.runAsync(
+    `UPDATE debt_payments
+     SET amount = ROUND(amount * ?, 2), principal = ROUND(principal * ?, 2), interest = ROUND(interest * ?, 2)
+     WHERE profileId = ?;`,
+    [factor, factor, factor, profileId]
+  );
 }
