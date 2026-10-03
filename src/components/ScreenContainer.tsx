@@ -1,3 +1,4 @@
+import { DemoBanner } from '@/components/DemoBanner';
 import { useTheme } from '@/contexts/ThemeContext';
 import React from 'react';
 import {
@@ -12,9 +13,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 interface ScreenContainerProps {
   children: React.ReactNode;
   style?: ViewStyle;
+  showDemoBanner?: boolean;
 }
 
-export function ScreenContainer({ children, style }: ScreenContainerProps) {
+export function ScreenContainer({ children, style, showDemoBanner = true }: ScreenContainerProps) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -35,6 +37,7 @@ export function ScreenContainer({ children, style }: ScreenContainerProps) {
         style={styles.flexOne}
       >
         <View style={[styles.flexOne, { backgroundColor: colors.background }]}>
+          {showDemoBanner && <DemoBanner />}
           {children}
         </View>
       </KeyboardAvoidingView>

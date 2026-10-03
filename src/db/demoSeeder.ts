@@ -1,4 +1,80 @@
-import { insertTransactions, SQLiteDatabase, Transaction } from '@/db/database';
+import { CATEGORY_COLOR_PALETTE } from '@/constants/colors';
+import {
+  createDebt,
+  DebtInput,
+  insertTransactions,
+  SQLiteDatabase,
+  syncDebtPayments,
+  Transaction,
+} from '@/db/database';
+
+const DEMO_MONTHS = ['2026-07', '2026-08', '2026-09'];
+
+const DEMO_DEBTS: DebtInput[] = [
+  {
+    name: 'Car Loan',
+    type: 'LOAN',
+    originalAmount: 9500,
+    apr: 6.5,
+    paymentAmount: 320,
+    paymentDay: 3,
+    startDate: '2026-06-03',
+    color: CATEGORY_COLOR_PALETTE[0],
+    keywords: ['AUTOFINANCE'],
+  },
+  {
+    name: 'Personal Loan',
+    type: 'PERSONAL',
+    originalAmount: 1500,
+    apr: 0,
+    paymentAmount: 250,
+    paymentDay: 15,
+    startDate: '2026-07-01',
+    color: CATEGORY_COLOR_PALETTE[1],
+    keywords: ['PERSONAL LOAN'],
+  },
+];
+
+export async function seedDemoDebts(
+  db: SQLiteDatabase,
+  profileId: number,
+  months: string[] = DEMO_MONTHS
+): Promise<void> {
+  const debtTransactions: Omit<Transaction, 'id'>[] = months.flatMap((monthName) => [
+    {
+      profileId,
+      date: `${monthName}-03`,
+      amount: -320.0,
+      rawDescription: 'AUTOFINANCE CAR LOAN',
+      merchant: 'AutoFinance',
+      category: 'Loan & Insurance',
+      monthName,
+      is_fixed: 1,
+    },
+    {
+      profileId,
+      date: `${monthName}-15`,
+      amount: -250.0,
+      rawDescription: 'PERSONAL LOAN REPAYMENT',
+      merchant: 'Personal Loan',
+      category: 'Loan & Insurance',
+      monthName,
+      is_fixed: 1,
+    },
+  ]);
+
+  await insertTransactions(db, debtTransactions, profileId);
+
+  for (const debt of DEMO_DEBTS) {
+    const existing = await db.getFirstAsync<{ id: number }>(
+      `SELECT id FROM debts WHERE profileId = ? AND name = ?;`,
+      [profileId, debt.name]
+    );
+    if (!existing) await createDebt(db, profileId, debt);
+  }
+
+  await syncDebtPayments(db, profileId);
+}
 
 export async function seedExpandedDemoData(db: SQLiteDatabase, profileId: number): Promise<void> {
   const demoTransactions: Omit<Transaction, 'id'>[] = [
@@ -180,4 +256,5 @@ export async function seedExpandedDemoData(db: SQLiteDatabase, profileId: number
   ];
 
   await insertTransactions(db, demoTransactions, profileId);
+  await seedDemoDebts(db, profileId);
 }

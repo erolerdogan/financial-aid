@@ -1,6 +1,8 @@
-# Welcome to your Expo app 👋
+# Financial Aid
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A local-first personal finance app for iOS and Android. Import your bank statements as CSV or Excel files and the app categorises your transactions, tracks budgets and debts, and shows where your money goes. All data stays in a SQLite database on the device; nothing is sent to a server.
+
+Built with React Native, Expo SDK 57, TypeScript, Expo Router and expo-sqlite.
 
 ## Get started
 
@@ -10,118 +12,154 @@ This is an [Expo](https://expo.dev) project created with [`create-expo-app`](htt
    npm install
    ```
 
-2. Start the app
+2. Run the app in a development build
+
+   ```bash
+   npm run ios      # or: npm run android
+   ```
+
+3. Or start the dev server on its own
 
    ```bash
    npx expo start
    ```
 
-In the output, you'll find options to open the app in a
+Other commands:
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+```bash
+npm run lint       # ESLint
+npx tsc --noEmit   # type check (also run in CI)
+```
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+On first launch the welcome screen offers two paths: import a statement, or open the demo workspace to explore the app with sample data.
 
-In the output, you'll find options to open the app in a
+## Features
 
-development build
+### Statement import
 
-Android emulator
+- Imports CSV (`.csv`) and Excel (`.xlsx`, `.xls`) bank statements.
+- Detects the date, amount and description columns automatically.
+- Parses amounts in different locale formats and flags dates that could be read two ways.
+- Skips duplicates, so importing overlapping statements is safe.
+- Cleans up merchant names by removing payment processor prefixes, IBANs and dates.
+- Tags every imported row with the active profile.
 
-iOS simulator
+### Automatic categorisation
 
-Expo Go, a limited sandbox for trying out app development with Expo
+- Each transaction is categorised on import in three steps: your own keyword rules first, then built-in keyword matching, then a default category.
+- The built-in keywords are tuned for Dutch banks and merchants.
+- Changing a transaction's category by hand is remembered and is not overwritten by later rule changes.
 
-This project uses Expo Router for file-based routing.
+### Dashboard
 
-Features & Capabilities
-👥 Multi-Profile Support
-Manage separate ledger spaces within a single app instance (e.g., Personal, Business, Household, Joint).
+- Total income, total expenses and net cash flow for the selected period.
+- Spending allocation donut chart by category; tap a category to see its transactions.
+- Month stepper, plus custom date ranges with presets (last 7 days, last 30 days, year to date).
+- Statement coverage indicator for the selected month:
+  - **Statement Pending**: no data yet.
+  - **In Progress**: the current month, partway through.
+  - **Partial Statement**: a past month with incomplete date coverage.
+  - **Full Statement**: the whole month is covered.
+- Ranked lists of income, expenses, fixed costs and flexible costs.
+- Profile switcher and settings in the header.
 
-Global Profile Scoping: All transactions, auto-categorization rules, fixed cost designations, and budget goals are strictly scoped to the active profile ID.
+### Transactions
 
-Profile Switcher UI: Quick-access pill in the Dashboard header with custom avatar colors.
+- Search by merchant, description or category.
+- Filter by date range and by category chips.
+- Detail view with the raw bank description and the fixed/flexible classification.
 
-Keyboard-Aware Creation: Add new profiles with custom theme colors via a smooth, non-blocking bottom sheet.
+### Fixed vs. flexible costs
 
-📊 Dynamic Dashboard Overview
-An executive view of your financial state for any selected month.
+- Splits spending into fixed bills and flexible spending, with totals and percentages.
+- Recognises common fixed costs (rent, utilities, subscriptions) by keyword.
+- Mark any merchant as Fixed, Flexible or Auto from the transaction detail view. The choice applies to all of that merchant's transactions.
 
-Month Stepper Navigation: Fast forward and backward navigation between months with a custom bottom-sheet selector.
+### Trends
 
-Proactive Awaiting Month Projection: Automatically projects and exposes the current calendar month even before statement files are uploaded.
+- Line chart of spending over a year, a range of months, or day by day.
+- View all expenses or a single category.
+- Shows the category's budget goal as a reference line and highlights points over the limit.
+- Set or change a category's monthly goal directly from the chart.
+- Average, highest and lowest month for the period.
+- Shows which months of the year have statement data.
+- Drill down into the transactions behind any point.
 
-Smart Coverage & Partial Month Detection: Scans transaction date ranges (MIN(date) to MAX(date)) and displays real-time status indicators:
+### Categories
 
-🟡 In Progress: For current calendar months mid-cycle.
+- Built-in categories plus your own, each with a colour.
+- Create, rename, recolour and delete categories.
+- Deleting a category can move its transactions into another one.
+- Add keyword rules to a category; existing transactions are reclassified to match.
 
-🟠 Partial Statement: Highlights historical months uploaded with partial or incomplete date coverage.
+### Budget goals
 
-🟢 Full Statement: Complete month coverage detected.
+- Set a monthly spending limit per category.
+- Progress bars show spent versus limit.
 
-Summary Hero Cards: Live totals for Income, Expenses, and Net Cash Flow.
+### Debts
 
-Interactive Spending Allocation Chart: Visual bar chart displaying top category allocations with touch-to-filter capabilities.
+- Track loans, mortgages, student loans and personal loans.
+- Record the original amount, interest rate, monthly payment, payment day and start date.
+- Payments are linked automatically from imported transactions by keyword, and can also be added by hand.
+- Each payment is split into principal and interest.
+- Shows the remaining balance, progress, interest paid so far, estimated future interest and estimated debt-free month.
 
-Inline Category Breakdown: Drill down into specific spending categories with expandable sub-transaction lists.
+### Profiles
 
-📂 Statement Import & Data Parsing
-Effortlessly convert raw banking statements into structured transaction records.
+- Keep separate ledgers in one app (for example Personal, Business, Household).
+- All transactions, rules, goals, categories and debts belong to a profile.
+- Each profile has its own name, avatar colour and currency.
 
-Multi-Format Parsing: Supports both CSV (.csv) and Excel (.xlsx, .xls) file formats.
+### Settings
 
-Automatic Column Detection: Reads dates, amounts, raw descriptions, and merchants.
+- Currency: EUR, USD, GBP, JPY, CHF, CAD or AUD. Switching currency converts existing amounts using fixed built-in rates.
+- Dark mode toggle; follows the system setting at launch.
+- Import reminders: local notifications on the 15th and 28th of each month. Importing a statement cancels the pending reminders.
+- Reset all data and profiles.
 
-Concurrency Protection: Guard locks prevent double-selection and file reader freezes.
+### Demo workspace
 
-Profile Alignment: Automatically tags newly imported rows with the active profile ID.
+- A separate demo profile with three months of sample transactions and two sample debts.
 
-🔄 Fixed vs. Flexible Cost Split
-Differentiate between non-negotiable fixed bills and variable flexible spending.
+## Privacy
 
-Smart Pattern Detection: Scans multi-month transaction histories to auto-detect recurring merchants and subscription patterns.
+The app makes no network calls with user data. Statements are read on the device, and everything is stored in a local SQLite database.
 
-Default Keyword Library: Pre-configured recognition for international and local utilities and services.
+## Tech stack
 
-One-Tap Switcher: Easily mark or unmark any merchant as a recurring fixed cost directly from the transaction detail modal.
+| Area | Library |
+| --- | --- |
+| Framework | React Native 0.86, Expo SDK 57 |
+| Language | TypeScript (strict) |
+| Navigation | Expo Router |
+| Database | expo-sqlite (WAL mode) |
+| Charts | react-native-gifted-charts, react-native-svg |
+| File import | expo-document-picker, expo-file-system, papaparse, xlsx |
+| Notifications | expo-notifications |
+| State | React Context (`ProfileContext`, `ThemeContext`) |
 
-Visual Breakdown Bar: Interactive split track displaying exact proportions (%) and totals (€) for Fixed vs. Flexible costs.
+## Project structure
 
-🎯 Budget Goals & Progress Tracking
-Stay on top of spending limits per category.
+```
+src/
+  app/            Routes (Expo Router)
+    (tabs)/       Dashboard, Transactions, Trends, Debts
+    welcome.tsx   First-launch screen
+    settings.tsx  Settings (modal)
+    goals.tsx     Budget goals (modal)
+    categories.tsx  Categories (modal)
+  components/     Shared components, dashboard cards and modals
+  contexts/       Profile and theme contexts
+  db/             Schema, queries and demo seed data
+  services/       Statement import
+  hooks/          Shared hooks
+  utils/          Parsing, notifications and debt helpers
+```
 
-Monthly Limit Definition: Set monthly budget caps for individual spending categories.
+## Roadmap
 
-Real-time Progress Bars: Visual indicators showing spent vs. limit with auto-calculated percentage bars.
-
-Over-Budget Warnings: Visual cues when spending approaches or exceeds designated caps.
-
-🔍 Advanced Transaction Search & Filtering
-Locate specific purchases instantly.
-
-Multi-Property Search: Query across merchant names, category names, or full raw bank descriptions.
-
-Ranked Modals: Dedicated filter sheets for viewing ranked Income, Expense, Fixed, or Flexible lists.
-
-Selectable Transaction Detail: Inspect exact transaction details, dates, and copyable raw statement descriptions.
-
-🔔 Notifications & Reminders
-Statement Reminders: Scheduled push notifications reminding users to import their monthly statements.
-
-Auto-Cancellation: Importing a new statement automatically cancels pending reminders for that billing cycle.
-
-Tech Architecture
-Framework: React Native (Expo)
-
-Language: TypeScript
-
-Database: expo-sqlite (WAL Mode enabled)
-
-Charts: react-native-gifted-charts
-
-File Picker: expo-document-picker & expo-file-system
-
-State Management: React Context (ProfileContext)
+- Category lists driven by the `categories` table everywhere.
+- Debts: credit cards, payoff simulator, due-date reminders.
+- Recurring subscription detection (the detection logic exists but is not shown in the app yet).
+- Live exchange rates, as an optional network call that sends no user data.

@@ -14,14 +14,14 @@ export function DemoBanner() {
 
   const handleEndDemo = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    // Navigate first so the tabs never render the emptied Personal profile.
+    router.replace('/welcome');
     try {
-      // ProfileContext.setIsDemoMode(false) executes clearAllData(db) 
+      // ProfileContext.setIsDemoMode(false) executes clearAllData(db)
       // to purge all tables and reset to a clean Personal profile.
       await setIsDemoMode(false);
-      router.replace('/welcome');
     } catch (err) {
       console.error('Failed to end demo mode:', err);
-      router.replace('/welcome');
     }
   };
 

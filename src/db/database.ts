@@ -617,15 +617,16 @@ export async function getCategoryGoalsWithProgress(
   monthStr: string,
   profileId: number = 1
 ): Promise<CategoryGoalWithProgress[]> {
+  await ensureCategoriesSeeded(db, profileId);
+
   const query = `
     SELECT 
       c.category,
       COALESCE(g.monthly_limit, 0) as monthlyLimit,
       COALESCE(SUM(ABS(t.amount)), 0) as spent
     FROM (
-      SELECT DISTINCT category FROM transactions WHERE amount < 0 AND profileId = ?
-      UNION
-      SELECT category FROM category_goals WHERE profileId = ?
+      SELECT c.name AS category FROM categories c
+      WHERE c.profileId = ? AND ${EXPENSE_CATEGORY_SQL}
     ) c
     LEFT JOIN category_goals g ON c.category = g.category AND g.profileId = ?
     LEFT JOIN transactions t ON c.category = t.category 
@@ -633,11 +634,11 @@ export async function getCategoryGoalsWithProgress(
       AND t.profileId = ?
       AND t.amount < 0
     GROUP BY c.category
-    ORDER BY spent DESC;
+    ORDER BY spent DESC, c.category ASC;
   `;
   const rows = await db.getAllAsync<{ category: string; monthlyLimit: number; spent: number }>(
     query,
-    [profileId, profileId, profileId, monthStr, profileId]
+    [profileId, profileId, monthStr, profileId]
   );
 
   return rows.map((r) => {
@@ -1643,6 +1644,9 @@ export async function clearDemoWorkspace(db: SQLiteDatabase, demoProfileId: numb
     await db.runAsync('DELETE FROM category_goals WHERE profileId = ?;', [demoProfileId]);
     await db.runAsync('DELETE FROM category_rules WHERE profileId = ?;', [demoProfileId]);
     await db.runAsync('DELETE FROM fixed_cost_rules WHERE profileId = ?;', [demoProfileId]);
+    await db.runAsync('DELETE FROM debt_payments WHERE profileId = ?;', [demoProfileId]);
+    await db.runAsync('DELETE FROM debt_rules WHERE profileId = ?;', [demoProfileId]);
+    await db.runAsync('DELETE FROM debts WHERE profileId = ?;', [demoProfileId]);
   });
 }
 
@@ -1891,6 +1895,44 @@ export async function getCategoriesWithStats(
      ORDER BY transactionCount DESC, c.name ASC;`,
     [profileId, profileId, profileId]
   );
+}
+
+// A category counts as an expense category when it is built-in, has no income
+// transactions, or has at least one expense transaction. Expects alias `c`.
+const EXPENSE_CATEGORY_SQL = `(
+  c.isBuiltIn = 1
+  OR NOT EXISTS (
+    SELECT 1 FROM transactions x
+    WHERE x.profileId = c.profileId AND x.category = c.name AND x.amount >= 0
+  )
+  OR EXISTS (
+    SELECT 1 FROM transactions x
+    WHERE x.profileId = c.profileId AND x.category = c.name AND x.amount < 0
+  )
+)`;
+
+export async function getExpenseCategoryNames(
+  db: SQLiteDatabase,
+  profileId: number = 1,
+  period?: string
+): Promise<string[]> {
+  await ensureCategoriesSeeded(db, profileId);
+
+  const clause = period ? periodClause(period) : null;
+  const rows = await db.getAllAsync<{ name: string }>(
+    `SELECT c.name AS name
+     FROM categories c
+     LEFT JOIN (
+       SELECT category, TOTAL(ABS(amount)) AS spent
+       FROM transactions
+       WHERE profileId = ? AND amount < 0${clause ? ` AND ${clause.sql}` : ''}
+       GROUP BY category
+     ) s ON s.category = c.name
+     WHERE c.profileId = ? AND ${EXPENSE_CATEGORY_SQL}
+     ORDER BY COALESCE(s.spent, 0) DESC, c.name ASC;`,
+    [profileId, ...(clause ? clause.params : []), profileId]
+  );
+  return rows.map((r) => r.name);
 }
 
 export async function findCategoryByName(

@@ -1,25 +1,15 @@
 import { useProfile } from '@/contexts/ProfileContext';
-import { addCustomRule, Transaction, updateTransactionCategory } from '@/db/database';
+import {
+  addCustomRule,
+  getExpenseCategoryNames,
+  Transaction,
+  updateTransactionCategory,
+} from '@/db/database';
 import { useSQLiteContext } from 'expo-sqlite';
 import React, { useState } from 'react';
 import {
   Alert, Modal, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View
 } from 'react-native';
-
-const CATEGORIES = [
-  'Housing',
-  'Childcare',
-  'Credit Card Payments',
-  'Groceries',
-  'Dining Out',
-  'Health & Care',
-  'Financial Transfers',
-  'Utilities & Telecom',
-  'Loan Repayment',
-  'Transportation',
-  'Taxes & Municipal Fees',
-  'Shopping & Retail',
-];
 
 interface EditCategoryModalProps {
   visible: boolean;
@@ -35,11 +25,25 @@ export function EditCategoryModal({
   onSuccess,
 }: EditCategoryModalProps) {
   const db = useSQLiteContext();
-  const { activeProfile, currencySymbol } = useProfile();
+  const { activeProfile, currencySymbol, dataVersion } = useProfile();
   const activeProfileId = activeProfile?.id ?? 1;
 
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [createRule, setCreateRule] = useState<boolean>(false);
+  const [categories, setCategories] = useState<string[]>([]);
+
+  React.useEffect(() => {
+    if (!visible || !db) return;
+    let cancelled = false;
+    getExpenseCategoryNames(db, activeProfileId)
+      .then((names) => {
+        if (!cancelled) setCategories(names);
+      })
+      .catch((error) => console.error('Failed to load categories:', error));
+    return () => {
+      cancelled = true;
+    };
+  }, [visible, db, activeProfileId, dataVersion]);
 
   React.useEffect(() => {
     if (transaction) {
@@ -49,6 +53,10 @@ export function EditCategoryModal({
   }, [transaction]);
 
   if (!transaction) return null;
+
+  const options = categories.includes(transaction.category)
+    ? categories
+    : [transaction.category, ...categories];
 
   const handleSave = async () => {
     try {
@@ -92,7 +100,7 @@ export function EditCategoryModal({
           <Text style={styles.sectionHeader}>Select New Category</Text>
 
           <ScrollView style={styles.categoryList}>
-            {CATEGORIES.map((cat) => {
+            {options.map((cat) => {
               const isSelected = cat === selectedCategory;
               return (
                 <TouchableOpacity

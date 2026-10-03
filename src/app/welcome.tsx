@@ -1,7 +1,6 @@
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useStatementImporter } from '@/hooks/useStatementImporter';
-import { generateSampleData } from '@/utils/sampleData';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -31,14 +30,7 @@ export default function WelcomeScreen() {
   const handleDemoMode = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     if (db) {
-      const targetProfile = activeProfile ?? profiles[0];
-      const targetProfileId = targetProfile?.id ?? 1;
-      await generateSampleData(db, targetProfileId);
-      setIsDemoMode(true);
-      await refreshProfiles();
-      if (targetProfile) {
-        switchProfile(targetProfile);
-      }
+      await setIsDemoMode(true);
       router.replace('/(tabs)');
     }
   };

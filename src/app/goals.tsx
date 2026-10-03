@@ -29,7 +29,7 @@ export default function GoalsScreen() {
   const router = useRouter();
   const db = useSQLiteContext();
   const { colors, isDark } = useTheme();
-  const { activeProfile } = useProfile();
+  const { activeProfile, dataVersion, currencySymbol } = useProfile();
   const activeProfileId = activeProfile?.id ?? 1;
 
   const [loading, setLoading] = useState(true);
@@ -40,13 +40,12 @@ export default function GoalsScreen() {
   const [editingCategory, setEditingCategory] = useState<string>('');
   const [inputLimit, setInputLimit] = useState<string>('');
 
-  // Default to current month key e.g., '2026-09'
-  const currentMonthKey = '2026-09';
-
   const loadGoals = useCallback(async () => {
     if (!db) return;
     try {
       setLoading(true);
+      const now = new Date();
+      const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
       const data = await getCategoryGoalsWithProgress(db, currentMonthKey, activeProfileId);
       setGoals(data);
     } catch (err) {
@@ -54,12 +53,12 @@ export default function GoalsScreen() {
     } finally {
       setLoading(false);
     }
-  }, [db, activeProfileId, currentMonthKey]);
+  }, [db, activeProfileId]);
 
   useFocusEffect(
     useCallback(() => {
       loadGoals();
-    }, [loadGoals])
+    }, [loadGoals, dataVersion])
   );
 
   const handleSaveGoal = async () => {
@@ -77,7 +76,7 @@ export default function GoalsScreen() {
   };
 
   return (
-    <ScreenContainer>
+    <ScreenContainer showDemoBanner={false}>
       <View style={[styles.headerRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <Text style={[styles.headerTitle, { color: colors.text }]}>Category Budget Goals</Text>
         <TouchableOpacity
@@ -122,9 +121,9 @@ export default function GoalsScreen() {
                   </View>
                   <View style={styles.goalRight}>
                     <Text style={[styles.spentText, { color: colors.text }]}>
-                      €{item.spent.toFixed(0)}{' '}
+                      {currencySymbol}{item.spent.toFixed(0)}{' '}
                       <Text style={{ color: colors.textSecondary, fontWeight: '400' }}>
-                        / {item.monthlyLimit > 0 ? `€${item.monthlyLimit.toFixed(0)}` : 'No limit'}
+                        / {item.monthlyLimit > 0 ? `${currencySymbol}${item.monthlyLimit.toFixed(0)}` : 'No limit'}
                       </Text>
                     </Text>
                     <Ionicons name="chevron-forward" size={14} color={colors.textSecondary} />

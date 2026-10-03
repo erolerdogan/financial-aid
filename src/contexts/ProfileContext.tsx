@@ -62,6 +62,9 @@ const ProfileContext = createContext<ProfileContextType>({
   checkDataState: async () => false,
 });
 
+const DEMO_PROFILE_NAME = 'Demo Workspace';
+const isDemoProfile = (p: Profile): boolean => p.name === DEMO_PROFILE_NAME;
+
 export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const db = useSQLiteContext();
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -108,9 +111,12 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
       setProfiles(list);
 
+      const demoProfile = list.find(isDemoProfile);
+      if (demoProfile) setIsDemoMode(true);
+
       let currentActive = activeProfile;
       if (list.length > 0 && (!currentActive || !list.some((p) => p.id === currentActive?.id))) {
-        currentActive = list[0];
+        currentActive = demoProfile ?? list[0];
         setActiveProfile(currentActive);
       } else if (currentActive) {
         const updated = list.find((p) => p.id === currentActive?.id);
@@ -169,10 +175,10 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         await refreshProfiles();
       } else {
         let list = await getProfiles(db);
-        let demoProfile: Profile | null | undefined = list.find((p) => p.name.toLowerCase().includes('demo'));
+        let demoProfile: Profile | null | undefined = list.find(isDemoProfile);
 
         if (!demoProfile) {
-          demoProfile = await createProfile(db, 'Demo Workspace', '#5856D6');
+          demoProfile = await createProfile(db, DEMO_PROFILE_NAME, '#5856D6');
           if (demoProfile) {
             list = await getProfiles(db);
             setProfiles(list);
@@ -271,7 +277,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     <ProfileContext.Provider
       value={{
         activeProfile,
-        profiles,
+        profiles: isDemoMode ? profiles.filter(isDemoProfile) : profiles,
         isDemoMode,
         hasData,
         loadingProfiles,

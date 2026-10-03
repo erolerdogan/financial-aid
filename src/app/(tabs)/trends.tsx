@@ -12,6 +12,7 @@ import {
   getAvailableYears,
   getCategoryGoal,
   getDailyTrend,
+  getExpenseCategoryNames,
   getFixedVsFlexibleSummary,
   getRangeTrendWithBudget,
   getTransactionDateBounds,
@@ -41,19 +42,6 @@ import {
 } from 'react-native';
 import { LineChart } from 'react-native-gifted-charts';
 import { useProfile } from '../../contexts/ProfileContext';
-
-const CATEGORIES = [
-  'All',
-  'Housing',
-  'Childcare',
-  'Groceries',
-  'Dining Out',
-  'Transportation',
-  'Utilities & Telecom',
-  'Health & Care',
-  'Shopping & Retail',
-  'Taxes & Municipal Fees',
-];
 
 const getCurrentYear = (): string => {
   return String(new Date().getFullYear());
@@ -186,7 +174,7 @@ export default function TrendsScreen() {
   const periodPrefix = rangeFilter ? 'Total' : `Total ${selectedYear}`;
 
   // Sorted Category Pills State
-  const [sortedCategories, setSortedCategories] = useState<string[]>(CATEGORIES);
+  const [sortedCategories, setSortedCategories] = useState<string[]>([]);
 
   // Scrub & Selection State
   const [selectedMonthKey, setSelectedMonthKey] = useState<string | null>(null);
@@ -266,15 +254,15 @@ export default function TrendsScreen() {
             : getRangeTrendWithBudget(db, rangeFilter.from, rangeFilter.to, cat, activeProfileId)
           : getAnnualTrendWithBudget(db, selectedYear, cat, activeProfileId);
 
-      const categoryTotalsPromises = CATEGORIES.slice(1).map(async (cat) => {
-        const trend = await fetchTrend(cat);
-        const sum = (trend || []).reduce((acc, m) => acc + m.totalAmount, 0);
-        return { category: cat, total: sum };
-      });
-
-      const categoryTotals = await Promise.all(categoryTotalsPromises);
-      categoryTotals.sort((a, b) => b.total - a.total);
-      setSortedCategories(['All', ...categoryTotals.map((item) => item.category)]);
+      const pillPeriod = rangeFilter
+        ? makeRangeKey(rangeFilter.from, rangeFilter.to)
+        : makeRangeKey(`${selectedYear}-01-01`, `${selectedYear}-12-31`);
+      const categoryNames = await getExpenseCategoryNames(db, activeProfileId, pillPeriod);
+      setSortedCategories(categoryNames);
+      if (selectedCategory !== 'All' && !categoryNames.includes(selectedCategory)) {
+        setSelectedCategory('All');
+        return;
+      }
 
       const [trendWithBudget, currentGoal, coverageRes, bounds] = await Promise.all([
         fetchTrend(selectedCategory),
