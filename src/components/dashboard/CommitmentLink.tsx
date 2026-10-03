@@ -15,7 +15,7 @@ export function CommitmentLink({ fixedSummary }: CommitmentLinkProps) {
     <TouchableOpacity
       style={styles.miniCommitmentCard}
       activeOpacity={0.8}
-      onPress={() => router.push('/(tabs)/analytics')}
+      onPress={() => router.push('/(tabs)/trends')}
     >
       <View style={styles.miniCommitmentLeft}>
         <Ionicons name="repeat-outline" size={16} color="#007AFF" style={{ marginRight: 8 }} />

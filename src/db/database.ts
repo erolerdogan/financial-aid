@@ -873,7 +873,7 @@ export async function getTransactionsByMonthAndCategory(
 
   const query = `
     SELECT * FROM transactions
-    WHERE profileId = ? AND ${period.sql} ${categoryFilter}
+    WHERE profileId = ? AND ${period.sql} ${categoryFilter} AND amount < 0
     ORDER BY ABS(amount) DESC;
   `;
 
@@ -883,7 +883,7 @@ export async function getTransactionsByMonthAndCategory(
   const rows = await db.getAllAsync<Transaction>(query, queryParams);
 
   const needsResolution = rows.some(
-    (tx) => tx.amount < 0 && tx.is_fixed !== 1 && tx.is_fixed !== 0
+    (tx) => tx.is_fixed !== 1 && tx.is_fixed !== 0
   );
   if (!needsResolution) return rows;
 
@@ -904,7 +904,7 @@ export async function getTransactionsByMonthAndCategory(
   ]);
 
   return rows.map((tx) => {
-    if (tx.amount >= 0 || tx.is_fixed === 1 || tx.is_fixed === 0) return tx;
+    if (tx.is_fixed === 1 || tx.is_fixed === 0) return tx;
 
     const keyword = (tx.merchant && tx.merchant !== 'Unknown' ? tx.merchant : tx.rawDescription)
       .toUpperCase()
