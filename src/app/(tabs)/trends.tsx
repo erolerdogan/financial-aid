@@ -1,3 +1,4 @@
+import { MonthStepper } from '@/components/dashboard/MonthStepper';
 import { DateRangeModal } from '@/components/modals/DateRangeModal';
 import { TransactionDetailModal } from '@/components/modals/TransactionDetailModal';
 import { TransactionListModal } from '@/components/modals/TransactionListModal';
@@ -138,6 +139,13 @@ interface YearCoverageStatus {
   label: string;
 }
 
+const NO_YEARS: string[] = [];
+
+// Keeps the previous reference when a refetch returns identical data, so a focus refresh does not re-render the chart.
+function keepIfEqual<T>(next: T) {
+  return (prev: T): T => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next);
+}
+
 export default function TrendsScreen() {
   const router = useRouter();
   const db = useSQLiteContext();
@@ -234,19 +242,10 @@ export default function TrendsScreen() {
   const [loadedSignature, setLoadedSignature] = useState('');
   const loadAnalyticsData = useCallback(async () => {
     if (!db) return;
-    const signature = `${selectedCategory}|${selectedYear}|${
+    const signature = `${activeProfileId}|${selectedCategory}|${selectedYear}|${
       rangeFilter ? makeRangeKey(rangeFilter.from, rangeFilter.to) : ''
     }`;
     try {
-      setLoading(true);
-
-      const dbYears = await getAvailableYears(db, activeProfileId);
-      if (dbYears && dbYears.length > 0) {
-        setAvailableYears(dbYears);
-        if (!dbYears.includes(selectedYear)) {
-          setSelectedYear(dbYears[0]);
-        }
-      }
 
       const fetchTrend = (cat: string) =>
         rangeFilter
@@ -258,8 +257,17 @@ export default function TrendsScreen() {
       const pillPeriod = rangeFilter
         ? makeRangeKey(rangeFilter.from, rangeFilter.to)
         : makeRangeKey(`${selectedYear}-01-01`, `${selectedYear}-12-31`);
-      const categoryNames = await getExpenseCategoryNames(db, activeProfileId, pillPeriod);
-      setSortedCategories(categoryNames);
+      const [dbYears, categoryNames] = await Promise.all([
+        getAvailableYears(db, activeProfileId),
+        getExpenseCategoryNames(db, activeProfileId, pillPeriod),
+      ]);
+      if (dbYears && dbYears.length > 0) {
+        setAvailableYears(keepIfEqual(dbYears));
+        if (!dbYears.includes(selectedYear)) {
+          setSelectedYear(dbYears[0]);
+        }
+      }
+      setSortedCategories(keepIfEqual(categoryNames));
       if (selectedCategory !== 'All' && !categoryNames.includes(selectedCategory)) {
         setSelectedCategory('All');
         return;
@@ -274,9 +282,9 @@ export default function TrendsScreen() {
         getTransactionDateBounds(db, activeProfileId),
       ]);
 
-      setDateBounds(bounds);
+      setDateBounds(keepIfEqual(bounds));
       setCategoryBudget(currentGoal);
-      setRawTrendData(trendWithBudget || []);
+      setRawTrendData(keepIfEqual<any[]>(trendWithBudget || []));
 
       const values = (trendWithBudget || []).map((m) => m.totalAmount);
 
@@ -296,14 +304,16 @@ export default function TrendsScreen() {
       const highest = trendWithBudget.find((m) => m.totalAmount === maxVal && m.totalAmount > 0)?.monthName || '-';
       const lowest = trendWithBudget.find((m) => m.totalAmount === minVal && m.totalAmount > 0)?.monthName || '-';
 
-      setSummary({
-        total,
-        average: avg,
-        highestMonth: highest !== '-' ? highest : '-',
-        lowestMonth: lowest !== '-' ? lowest : '-',
-      });
+      setSummary(
+        keepIfEqual({
+          total,
+          average: avg,
+          highestMonth: highest !== '-' ? highest : '-',
+          lowestMonth: lowest !== '-' ? lowest : '-',
+        })
+      );
 
-      setYearCoverage(coverageRes);
+      setYearCoverage(keepIfEqual<YearCoverageStatus>(coverageRes));
     } catch (error) {
       console.error('Failed to query trends data for year:', error);
     } finally {
@@ -550,19 +560,26 @@ export default function TrendsScreen() {
     await loadAnalyticsData();
   };
 
-  const getBadgeColor = (status: YearCoverageStatus['status']) => {
-    switch (status) {
-      case 'COMPLETE': 
-        return { bg: 'rgba(52, 199, 89, 0.12)', text: '#34C759' };
-      case 'PARTIAL': 
-      case 'IN_PROGRESS': 
-        return { bg: 'rgba(255, 149, 0, 0.12)', text: '#FF9500' };
-      default: 
-        return { bg: 'rgba(142, 142, 147, 0.12)', text: colors.textSecondary };
+  const handleCategoryChanged = async (updated: Transaction) => {
+    setSelectedTransaction(updated);
+    if (!db) return;
+    const explanation = await getTransactionFixedExplanation(db, updated, activeProfileId);
+    setCurrentFixedState(explanation.state);
+    setFixedAuto(explanation);
+
+    if (selectedMonthForModal) {
+      const period = periodForMonth(selectedMonthForModal);
+      const items = await getTransactionsByMonthAndCategory(db, period, selectedCategory, activeProfileId);
+      setModalTransactions(items || []);
+      setModalFixedSummary(await getFixedVsFlexibleSummary(db, period, activeProfileId));
     }
+    await loadAnalyticsData();
   };
 
-  const badgeTheme = getBadgeColor(yearCoverage.status);
+  const stepperKey = rangeFilter ? makeRangeKey(rangeFilter.from, rangeFilter.to) : selectedYear;
+  const stepperNames: Record<string, string> = rangeFilter
+    ? { [stepperKey]: formatRangeLabel(rangeFilter.from, rangeFilter.to) }
+    : {};
 
   const showBudgetLine =
     categoryBudget > 0 &&
@@ -578,7 +595,8 @@ export default function TrendsScreen() {
   const pointSpacing =
     chartData.length > 1
       ? Math.max((plotWidth - initialPad - endPad) / (chartData.length - 1), 2)
-      : 24;  const requestSignature = `${selectedCategory}|${selectedYear}|${
+      : 24;
+  const requestSignature = `${activeProfileId}|${selectedCategory}|${selectedYear}|${
     rangeFilter ? makeRangeKey(rangeFilter.from, rangeFilter.to) : ''
   }`;
   const chartReady = loadedSignature === requestSignature;
@@ -591,16 +609,6 @@ export default function TrendsScreen() {
         }
       : MONTH_NAMES;
 
-      console.log('TRENDS_SCALE', JSON.stringify({
-        mode: rangeFilter ? (isDailyMode ? 'daily' : 'monthly-range') : 'year',
-        range: rangeFilter,
-        points: rawTrendData.length,
-        values: rawTrendData.map((p) => Math.round(p.totalAmount)),
-        dataPeak,
-        categoryBudget,
-        goalInScale,
-        niceScale,
-      }));     
   return (
     <ScreenContainer>
       <ScrollView
@@ -652,46 +660,15 @@ export default function TrendsScreen() {
           </View>
         </View>
 
-        {/* Unified Stepper Container */}
-        <View style={[styles.stepperContainer, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <TouchableOpacity
-            style={[styles.arrowButton, !canGoPrev && styles.disabledButton]}
-            onPress={handlePrevYear}
-            disabled={!canGoPrev}
-          >
-            <Text style={[styles.arrowText, !canGoPrev && styles.disabledText, { color: colors.accent }]}>‹</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.labelContainer}
-            onPress={() => setYearPickerVisible(true)}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.stepperLabel, { color: colors.text }]} numberOfLines={1}>
-              {rangeFilter ? formatRangeLabel(rangeFilter.from, rangeFilter.to) : selectedYear}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.arrowButton, !canGoNext && styles.disabledButton]}
-            onPress={handleNextYear}
-            disabled={!canGoNext}
-          >
-            <Text style={[styles.arrowText, !canGoNext && styles.disabledText, { color: colors.accent }]}>›</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Coverage Status Badge */}
-        {yearCoverage.label ? (
-          <View style={styles.badgeWrapper}>
-            <View style={[styles.coverageBadge, { backgroundColor: badgeTheme.bg }]}>
-              <View style={[styles.coverageDot, { backgroundColor: badgeTheme.text }]} />
-              <Text style={[styles.coverageText, { color: badgeTheme.text }]}>
-                {yearCoverage.label}
-              </Text>
-            </View>
-          </View>
-        ) : null}
+        <MonthStepper
+          selectedMonth={stepperKey}
+          availableMonths={rangeFilter ? NO_YEARS : availableYears}
+          monthNames={stepperNames}
+          coverageStatus={yearCoverage}
+          onPrevMonth={handlePrevYear}
+          onNextMonth={handleNextYear}
+          onOpenMonthPicker={() => setYearPickerVisible(true)}
+        />
 
         {/* Sticky Anchor Filter Bar */}
         <View style={styles.stickyBarContainer}>
@@ -1121,6 +1098,7 @@ export default function TrendsScreen() {
         onClose={handleCloseDetailModal}
         onDismiss={() => setSelectedTransaction(null)}
         onSelectFixedState={handleSelectFixedStateInDetail}
+        onCategoryChanged={handleCategoryChanged}
       />
     </ScreenContainer>
   );
@@ -1183,70 +1161,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 3,
     elevation: 1,
-  },
-
-  stepperContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderRadius: 16,
-    padding: 6,
-    marginBottom: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-  arrowButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  disabledButton: {
-    opacity: 0.4,
-  },
-  arrowText: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginTop: -2,
-  },
-  disabledText: {
-    color: '#C7C7CC',
-  },
-  labelContainer: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  stepperLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-
-  badgeWrapper: {
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  coverageBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 12,
-    gap: 6,
-  },
-  coverageDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  coverageText: {
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 0.2,
   },
 
   /* Sticky Anchor Layout */

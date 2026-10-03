@@ -1,14 +1,23 @@
 import { getCategoryColor } from '@/constants/colors';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { FixedOverrideState, Transaction } from '@/db/database';
+import {
+  FixedOverrideState,
+  getCategoriesWithStats,
+  Transaction,
+  updateTransactionCategory,
+} from '@/db/database';
+import { INCOME_CATEGORY, UNCATEGORISED } from '@/utils/parser';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useRef } from 'react';
+import * as Haptics from 'expo-haptics';
+import { useSQLiteContext } from 'expo-sqlite';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
   Modal,
   PanResponder,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -28,6 +37,8 @@ interface TransactionDetailModalProps {
   onClose: () => void;
   onDismiss?: () => void;
   onSelectFixedState: (newState: FixedOverrideState) => void;
+  /** Called after the category was saved, with the updated transaction. */
+  onCategoryChanged?: (updated: Transaction) => void;
 }
 
 export function TransactionDetailModal({
@@ -40,10 +51,36 @@ export function TransactionDetailModal({
   onClose,
   onDismiss,
   onSelectFixedState,
+  onCategoryChanged,
 }: TransactionDetailModalProps) {
   const handleDismissAction = onDismiss ?? onClose;
   const { colors, isDark } = useTheme();
-  const { currencySymbol } = useProfile();
+  const { currencySymbol, activeProfile } = useProfile();
+  const db = useSQLiteContext();
+  const profileId = activeProfile?.id ?? 1;
+
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [categoryNames, setCategoryNames] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!visible) return;
+    getCategoriesWithStats(db, profileId)
+      .then((rows) => setCategoryNames(rows.map((c) => c.name).filter((name) => name !== UNCATEGORISED)))
+      .catch((error) => console.warn('Failed to load categories:', error));
+  }, [visible, db, profileId]);
+
+  const handlePickCategory = async (category: string) => {
+    if (!transaction) return;
+    setPickerOpen(false);
+    if (category === transaction.category) return;
+    try {
+      await updateTransactionCategory(db, transaction.id, category);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      onCategoryChanged?.({ ...transaction, category });
+    } catch (error) {
+      console.error('Failed to update category:', error);
+    }
+  };
 
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
@@ -61,6 +98,7 @@ export function TransactionDetailModal({
         useNativeDriver: true,
       }),
     ]).start(() => {
+      setPickerOpen(false);
       callback();
     });
   };
@@ -116,6 +154,8 @@ export function TransactionDetailModal({
   const isAuto = fixedState === 'AUTO';
   const effectiveState = isAuto ? (autoIsFixed ? 'FIXED' : 'FLEXIBLE') : fixedState;
   const formattedAmount = `${isIncome ? '+' : '-'}${currencySymbol}${Math.abs(transaction.amount).toFixed(2)}`;
+  const pickerOptions =
+    isIncome && !categoryNames.includes(INCOME_CATEGORY) ? [INCOME_CATEGORY, ...categoryNames] : categoryNames;
 
   return (
     <Modal
@@ -175,15 +215,61 @@ export function TransactionDetailModal({
             </Text>
 
             <View style={styles.metaRow}>
-              <View style={[styles.categoryPill, { backgroundColor: getCategoryColor(transaction.category) + '20' }]}>
+              <TouchableOpacity
+                style={[styles.categoryPill, { backgroundColor: getCategoryColor(transaction.category) + '20' }]}
+                activeOpacity={0.7}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel={`Category ${transaction.category}, change`}
+                onPress={() => {
+                  Haptics.selectionAsync().catch(() => {});
+                  setPickerOpen((open) => !open);
+                }}
+              >
                 <View style={[styles.dot, { backgroundColor: getCategoryColor(transaction.category) }]} />
                 <Text style={[styles.categoryText, { color: getCategoryColor(transaction.category) }]}>
                   {transaction.category}
                 </Text>
-              </View>
+                <Ionicons
+                  name={pickerOpen ? 'chevron-up' : 'chevron-down'}
+                  size={12}
+                  color={getCategoryColor(transaction.category)}
+                  style={styles.categoryChevron}
+                />
+              </TouchableOpacity>
               <Text style={[styles.dateText, { color: colors.textSecondary }]}>{transaction.date}</Text>
             </View>
           </View>
+
+          {pickerOpen && (
+            <View style={[styles.sectionContainer, { backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7' }]}>
+              <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>CATEGORY</Text>
+              <ScrollView style={styles.categoryScroll} contentContainerStyle={styles.categoryGrid}>
+                {pickerOptions.map((name) => {
+                  const selected = name === transaction.category;
+                  const color = getCategoryColor(name);
+                  return (
+                    <TouchableOpacity
+                      key={name}
+                      style={[
+                        styles.categoryChip,
+                        { backgroundColor: selected ? color + '20' : colors.card, borderColor: selected ? color : colors.border },
+                      ]}
+                      activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                      onPress={() => handlePickCategory(name)}
+                    >
+                      <View style={[styles.dot, { backgroundColor: color }]} />
+                      <Text style={[styles.categoryChipText, { color: colors.text }, selected && { fontWeight: '700' }]}>
+                        {name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
 
           {/* Classification Selection */}
           <View style={[styles.sectionContainer, { backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7' }]}>
@@ -318,6 +404,29 @@ const styles = StyleSheet.create({
   categoryText: {
     fontSize: 12,
     fontWeight: '700',
+  },
+  categoryChevron: {
+    marginLeft: 4,
+  },
+  categoryScroll: {
+    maxHeight: 200,
+  },
+  categoryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  categoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  categoryChipText: {
+    fontSize: 13,
+    fontWeight: '500',
   },
   dateText: {
     fontSize: 12,

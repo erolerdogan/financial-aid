@@ -15,6 +15,13 @@ export function containsWord(text: string, word: string): boolean {
   }
 }
 
+/** "JD3001GammaEindhoven" -> "JD3001 Gamma Eindhoven", "TeslaMotorsBV" -> "Tesla Motors BV". */
+export function splitJoinedWords(text: string): string {
+  return text
+    .replace(/([\p{Ll}\d])(\p{Lu}\p{Ll})/gu, '$1 $2')
+    .replace(/(\p{Ll})(\p{Lu})/gu, '$1 $2');
+}
+
 export interface MerchantSource {
   /** Full bank text of the row. */
   description: string;
@@ -114,6 +121,9 @@ const MERCHANT_ALIASES: { name: string; words?: string[]; parts?: string[] }[] =
   { name: 'Transavia', parts: ['TRANSAVIA'] },
   { name: 'KLM', words: ['KLM'] },
   { name: 'Geldmaat', parts: ['GELDMAAT'] },
+  { name: 'Trading 212', parts: ['TRADING 212'] },
+  { name: 'Revolut', parts: ['REVOLUT'] },
+  { name: 'Klarna', parts: ['KLARNA'] },
   { name: 'Migros', parts: ['MIGROS'] },
   { name: 'Carrefour', parts: ['CARREFOUR'] },
   { name: 'BİM', words: ['BIM', 'BİM'] },
@@ -149,7 +159,7 @@ const NOISE_PATTERNS: RegExp[] = [
   /\b\d{4}[.\-/]\d{2}[.\-/]\d{2}\b/g,
   /\b\d{1,2}:\d{2}(?::\d{2})?\b/g,
   // Payment method words
-  /\b(?:SEPA|INCASSO|ALGEMEEN|DOORLOPENDE?|OVERBOEKING|BEA|GEA|APPLE PAY|GOOGLE PAY|BETAALPAS|IDEAL|WERO|NOTPROVIDED)\b/gi,
+  /\b(?:SEPA|INCASSO|ALGEMEEN|DOORLOPENDE?|OVERBOEKING|BEA|GEA|ECOM|TERUGKEREND|APPLE PAY|GOOGLE PAY|BETAALPAS|IDEAL|WERO|NOTPROVIDED)\b/gi,
   /^\s*POS\s+(?:HARCAMA|ALISVERIS|ALIŞVERİŞ)?/i,
 ];
 
@@ -174,7 +184,12 @@ function stripNoise(text: string): string {
   for (const pattern of NOISE_PATTERNS) cleaned = cleaned.replace(pattern, ' ');
   cleaned = cleaned.replace(/\*/g, ' ');
 
-  const tokens = cleaned.split(/\s+/).filter((token) => token && !looksLikeCode(token));
+  // A code glued to a name ("JD3001GammaEindhoven") keeps its readable pieces.
+  const tokens = cleaned.split(/\s+/).flatMap((token) => {
+    if (!token) return [];
+    if (!looksLikeCode(token)) return [token];
+    return splitJoinedWords(token).split(' ').filter((piece) => !looksLikeCode(piece));
+  });
   cleaned = tokens
     .join(' ')
     // Trailing country code: "EINDHOVEN NLD", "Amsterdam, NL"
@@ -187,6 +202,9 @@ function stripNoise(text: string): string {
 
   return cleaned;
 }
+
+const CARD_TEXT =
+  /\b(?:BEA|GEA|ECOM)\b,?\s*(?:TERUGKEREND\s+)?(?:Apple Pay|Google Pay|Betaalpas|Pin)?\s*(.*?)(?=,\s*PAS\s*\d+|\s+NR:|\s+\d{2}\.\d{2}\.\d{2}\/|$)/i;
 
 const isReadable = (text: string): boolean => (text.match(/\p{L}/gu) ?? []).length >= 2;
 
@@ -208,14 +226,15 @@ function taggedCandidates(text: string): string[] {
     )?.[1]
   );
 
-  // Card payments: "BEA, Apple Pay ALBERT HEIJN 1234,PAS123 NR:CT123456, 01.02.24/12:34 EINDHOVEN"
-  const pos = text.match(
-    /\b(?:BEA|GEA)\b,?\s*(?:Apple Pay|Google Pay|Betaalpas|Pin)?\s*(.*?)(?=,\s*PAS\s*\d+|\s+NR:|$)/i
-  );
+  // Card payments: "BEA, Apple Pay ALBERT HEIJN 1234,PAS123 NR:CT123456, 01.02.24/12:34 EINDHOVEN",
+  // "eCom, Betaalpas PARKnCHARGE B.V. 24.07.26/19.14 Veenendaal"
+  const pos = text.match(CARD_TEXT);
   if (pos) {
     push(pos[1]);
     // Older layout: "BEA NR:AB12CD 01.02.24/12.34 ALBERT HEIJN 1234 EINDHOVEN,PAS123"
-    push(text.match(/\d{2}\.\d{2}\.\d{2}\/\d{2}[.:]\d{2}\s+(.+?)(?=,\s*PAS\s*\d+|$)/i)?.[1]);
+    if (!pos[1].trim()) {
+      push(text.match(/\d{2}\.\d{2}\.\d{2}\/\d{2}[.:]\d{2}\s+(.+?)(?=,\s*PAS\s*\d+|$)/i)?.[1]);
+    }
   }
 
   const remi = text.match(/\/REMI\/([^/]+)/i)?.[1];
@@ -281,11 +300,12 @@ function truncate(text: string): string {
  */
 export function deriveMerchant(source: MerchantSource): string {
   const description = String(source.description ?? '');
+  // On a card row the text around the terminal name is only the city, so a coded name gets the label.
+  const isCardText = CARD_TEXT.test(description);
   const candidates = [
     source.name ?? '',
     ...taggedCandidates(description),
-    source.memo ?? '',
-    description,
+    ...(isCardText ? [] : [source.memo ?? '', description]),
   ];
 
   for (const candidate of candidates) {

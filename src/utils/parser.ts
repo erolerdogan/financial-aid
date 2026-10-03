@@ -1,5 +1,5 @@
 import type { CategoryRule, Transaction } from '@/db/database';
-import { classificationText, containsWord, deriveMerchant } from '@/utils/merchantName';
+import { classificationText, containsWord, deriveMerchant, splitJoinedWords } from '@/utils/merchantName';
 import Papa from 'papaparse';
 import XLSX from 'xlsx';
 
@@ -23,7 +23,7 @@ import XLSX from 'xlsx';
 export { containsWord };
 
 /** Bump when the built-in keywords change; stored rows are reclassified once on the next launch. */
-export const CLASSIFIER_VERSION = 3;
+export const CLASSIFIER_VERSION = 4;
 
 /** No rule or keyword matched; these rows show up in the review list. */
 export const UNCATEGORISED = 'Uncategorised';
@@ -132,6 +132,7 @@ const CATEGORY_KEYWORDS: { category: string; parts: string[]; words: string[] }[
       'KREDI', 'KREDİ',
       'CZ GROEP', 'ANDERZORG', 'ZORG EN ZEKERHEID', 'INSHARED', 'UNIGARANT', 'MONUTA',
       'RECHTSBIJSTAND', 'ACHMEA', 'DIENST UITVOERING ONDERWIJS', 'SANTANDER CONSUMER',
+      'BNP PARIBAS PERSONAL',
     ],
     words: [
       'DSW', 'ONVZ', 'DELA', 'ARAG', 'FREO', 'DITZO', 'REAAL', 'LOAN', 'DUO', 'FBTO', 'OHRA',
@@ -145,11 +146,12 @@ const CATEGORY_KEYWORDS: { category: string; parts: string[]; words: string[] }[
       'HOOGVLIET', 'NETTORAMA', 'PICNIC', 'MIGROS', 'CARREFOUR',
       'AH TO GO', 'DIRK VDBROEK', 'JAN LINDERS', 'POIESZ', 'AMAZING ORIENTAL', 'SLAGERIJ',
       'BAKKERIJ', 'GROENTE', 'SOK MARKET', 'ŞOK MARKET', 'TESCO', 'EDEKA', 'DELHAIZE', 'COLRUYT',
-      'KAUFLAND',
+      'KAUFLAND', 'AVANTAGE', 'KAASHANDEL', 'KAASBOER', 'MEATUPP', 'MEAT UPP', 'SLAGER', 'VLAAI',
+      'VISHANDEL', 'NOTENSHOP',
     ],
     words: [
       'BONI', 'MARQT', 'FLINK', 'GETIR', 'GETİR', 'REWE', 'MARKT', 'MARKET', 'BAKKER', 'AH', 'ALDI',
-      'SPAR', 'PLUS', 'COOP', 'DIRK', 'VOMAR', 'CRISP', 'BIM', 'A101',
+      'SPAR', 'PLUS', 'COOP', 'DIRK', 'VOMAR', 'CRISP', 'BIM', 'A101', 'TOKO', 'BUTCHER',
     ],
   },
   {
@@ -160,10 +162,13 @@ const CATEGORY_KEYWORDS: { category: string; parts: string[]; words: string[] }[
       'LUNCHROOM', 'LS DODO',
       'CAFETARIA', 'SNACKBAR', 'SMULLERS', 'LA PLACE', 'WAGAMAMA', 'VAPIANO', 'FIVE GUYS',
       'JUST EAT', 'YEMEKSEPETI', 'YEMEKSEPETİ', 'LOKANTA', 'RESTORAN', 'KOFFIE', 'COFFEE',
-      'ESPRESSO', 'IJSSALON', 'PANNENKOEK', 'SHOARMA', 'EETHUIS',
+      'ESPRESSO', 'IJSSALON', 'PANNENKOEK', 'SHOARMA', 'EETHUIS', 'HMSHOST', 'FRIET', 'FRITES',
+      'FRITUUR', 'MOVENPICK', 'MÖVENPICK', 'HAPPY ITALY', 'OLIEBOLLEN', 'SIMON LEVELT', 'PAVILJOEN',
+      'TRATTORIA', 'RISTORANTE', 'STEAKHOUSE', 'BURGER', 'GELATO', 'CATERING', 'KANTINE',
     ],
     words: [
       'FEBO', 'DONER', 'DÖNER', 'PUB', 'CAFE', 'CAFÉ', 'BAR', 'BISTRO', 'KFC', 'SUBWAY', 'GRILL',
+      'FOOD', 'FOODS', 'LUNCH', 'DINER', 'TEA', 'TEDS', 'RAMEN', 'TAPAS', 'CANON',
     ],
   },
   {
@@ -173,9 +178,9 @@ const CATEGORY_KEYWORDS: { category: string; parts: string[]; words: string[] }[
       'FYSIO', 'CATHARINA', 'DOCTOR', 'DENTIST', 'OPTICIEN', 'SPECSAVERS', 'ECZANE', 'HASTANE',
       'DROGIST', 'HOLLAND & BARRETT', 'TANDHEELKUND', 'ORTHODONT', 'KLINIEK', 'CLINIC', 'PSYCHOLO',
       'INFOMEDICS', 'MEDISCH', 'PEARLE', 'HANS ANDERS', 'EYE WISH', 'KAPSALON', 'BASIC-FIT',
-      'BASIC FIT', 'BASICFIT', 'FITNESS', 'SPORTSCHOOL',
+      'BASIC FIT', 'BASICFIT', 'FITNESS', 'SPORTSCHOOL', 'LACTATIEKUNDIGE', 'VERLOSKUND',
     ],
-    words: ['BENU', 'FAMED', 'KAPPER', 'BARBER', 'GYM', 'GGD'],
+    words: ['BENU', 'FAMED', 'KAPPER', 'BARBER', 'GYM', 'GGD', 'MMC'],
   },
   {
     category: 'Financial Transfers',
@@ -183,9 +188,10 @@ const CATEGORY_KEYWORDS: { category: string; parts: string[]; words: string[] }[
       'TRANSFER', 'SAVINGS', 'SPAARREKENING', 'INVESTMENT', 'BELEGG', 'DEGIRO', 'MEESMAN',
       'BRAND NEW DAY', 'TRADE REPUBLIC', 'CANON PRODUCTION', 'OVERBOEKING', 'HAVALE',
       'SPAARGELD', 'EIGEN REKENING', 'OWN ACCOUNT', 'BITVAVO', 'COINBASE', 'BINANCE', 'ETORO',
-      'FLATEX', 'SCALABLE CAPITAL', 'BIRIKIM', 'BİRİKİM',
+      'FLATEX', 'SCALABLE CAPITAL', 'BIRIKIM', 'BİRİKİM', 'TRADING 212', 'REVOLUT', 'GELDMAAT',
+      'GELDAUTOMAAT', 'STORTEN',
     ],
-    words: ['PEAKS', 'VIRMAN', 'VİRMAN', 'TOPUP', 'TOP-UP', 'SPAREN', 'BUX', 'EFT'],
+    words: ['PEAKS', 'VIRMAN', 'VİRMAN', 'TOPUP', 'TOP-UP', 'SPAREN', 'BUX', 'EFT', 'ATM'],
   },
   {
     category: 'Utilities & Telecom',
@@ -197,7 +203,7 @@ const CATEGORY_KEYWORDS: { category: string; parts: string[]; words: string[] }[
       'PURE ENERGIE', 'DELTA FIBER', 'YOUFONE', 'HOLLANDSNIEUWE', 'WATERBEDRIJF', 'AMAZON PRIME',
       'PRIME VIDEO', 'APPLE.COM/BILL', 'GOOGLE ONE', 'GOOGLE STORAGE', 'OPENAI', 'CHATGPT',
       'VIAPLAY', 'TURKCELL', 'TURK TELEKOM', 'TÜRK TELEKOM', 'ELEKTRIK', 'ELEKTRİK', 'DOGALGAZ',
-      'DOĞALGAZ',
+      'DOĞALGAZ', 'BUDGET MOBIEL', 'BUDGET THUIS', 'BEN NEDERLAND', 'ESIM',
     ],
     words: [
       'OXXIO', 'ENGIE', 'SIMPEL', 'PWN', 'WML', 'OASEN', 'DAZN', 'IGDAS', 'İGDAŞ', 'ISKI', 'İSKİ',
@@ -214,16 +220,21 @@ const CATEGORY_KEYWORDS: { category: string; parts: string[]; words: string[] }[
       'THALYS', 'TRANSLINK', 'PARKMOBILE', 'YELLOWBRICK', 'EASYPARK', 'PARKBEE', 'SHELL RECHARGE',
       'BLABLACAR', 'EUROPCAR', 'KWIK-FIT', 'KWIK FIT', 'AUTOBEDRIJF', 'CARWASH', 'WASSTRAAT',
       'QBUZZ', 'KEOLIS', 'PETROL OFISI', 'AKARYAKIT', 'ISTANBULKART', 'İSTANBULKART', 'OTOPARK',
+      'AIRPORT', 'TANKSTELLE', 'PARKNCHARGE', 'TMCP', 'BETAALD PARK', 'BANDEN', 'VIGNET', 'PEGASUS',
+      'TURKISH AIRLINES', 'LUFTHANSA', 'SUNEXPRESS', 'CORENDON', 'WIZZ AIR', 'BAGGAGE', 'ROAD B.V.',
     ],
     words: [
       'KLM', 'ANWB', 'HTM', 'RDW', 'AVIA', 'GULF', 'SIXT', 'HERTZ', 'TAXI', 'TAKSI', 'TAKSİ',
       'OPET', 'TAMOIL', 'TESLA', 'FELYX', 'GARAGE', 'BRENG', 'NS', 'EV', 'BP', 'ESSO', 'TINQ',
-      'TANGO', 'GVB', 'RET', 'UBER', 'BOLT', 'CHARGE',
+      'TANGO', 'GVB', 'RET', 'UBER', 'BOLT', 'CHARGE', 'ARAL', 'IATA',
     ],
   },
   {
     category: 'Taxes & Municipal Fees',
-    parts: ['BELASTING', 'GEMEENTE', 'WATERSCHAP', 'HOOGHEEMRAADSCHAP', 'COCENSUS', 'CJIB', 'VERGI'],
+    parts: [
+      'BELASTING', 'GEMEENTE', 'WATERSCHAP', 'HOOGHEEMRAADSCHAP', 'COCENSUS', 'CJIB', 'VERGI',
+      'IMMIGRATIE EN NATURALISATIE',
+    ],
     words: ['BSGR', 'SVHW', 'GBLT', 'TAX'],
   },
   {
@@ -236,12 +247,15 @@ const CATEGORY_KEYWORDS: { category: string; parts: string[]; words: string[] }[
       'PERRY SPORT', 'KWANTUM', 'LEEN BAKKER', 'FLYING TIGER', 'SOSTRENE', 'BIG BAZAR', 'SCAPINO',
       'VAN HAREN', 'BOEKHANDEL', 'ALLEKABELS', 'BAX MUSIC', 'ABOUT YOU', 'TRENDYOL', 'HEPSIBURADA',
       'LC WAIKIKI', 'BOYNER', 'TEKNOSA', 'INTRATUIN', 'TUINCENTRUM', 'WELKOOP', 'PETS PLACE',
-      'BOUWMARKT', 'BERSHKA', 'PULL&BEAR', 'STRADIVARIUS',
+      'BOUWMARKT', 'BERSHKA', 'PULL&BEAR', 'STRADIVARIUS', 'KLARNA', 'RIVERTY', 'AFTERPAY',
+      'CORPORATE BENEFITS', 'JUWELIER', 'GSMPUNT', 'JOYBUY', 'BAUHAUS', 'LIFEGOODS', 'GROENRIJK',
+      'TUINEN', 'COPPELMANS', 'FRUUGO', 'OUTLET', 'SOLOW', 'WOOLRICH', 'CK STORES', 'ZONWERING',
+      'FIYO', 'RETAIL', 'WEBSHOP',
     ],
     words: [
       'C&A', 'BCC', 'EBAY', 'ETSY', 'NIKE', 'JYSK', 'ASOS', 'LEGO', 'MANGO', 'ZEEMAN', 'WIBRA',
       'BRUNA', 'BEVER', 'SNIPES', 'N11', 'HEMA', 'ACTION', 'IKEA', 'ZARA', 'GAMMA', 'H&M', 'TEMU',
-      'XENOS', 'DOUGLAS',
+      'XENOS', 'DOUGLAS', 'STORE', 'STORES', 'SHOP',
     ],
   },
 ];
@@ -271,18 +285,20 @@ export function classifyTransaction(
     }
   }
 
-  // Tier 2: Built-in Keywords
+  // Tier 2: Built-in Keywords; joined names are also tried split ("JD3001GammaEindhoven", "TeslaMotorsBV")
+  const split = normalizeMerchantName(splitJoinedWords(description || ''));
+  const text = split === desc ? desc : `${desc} ${split}`;
   let bestCategory = fallback;
   let bestLength = 0;
   for (const { category, parts, words } of CATEGORY_KEYWORDS) {
     for (const part of parts) {
-      if (part.length > bestLength && desc.includes(part)) {
+      if (part.length > bestLength && text.includes(part)) {
         bestCategory = category;
         bestLength = part.length;
       }
     }
     for (const word of words) {
-      if (word.length > bestLength && containsWord(desc, word)) {
+      if (word.length > bestLength && containsWord(text, word)) {
         bestCategory = category;
         bestLength = word.length;
       }

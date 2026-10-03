@@ -13,12 +13,13 @@ import {
     getTransactionCategories,
     getTransactionDateBounds,
     getTransactionFixedExplanation,
+    getUncategorisedCount,
     setMerchantFixedOverride,
     Transaction
 } from '@/db/database';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -89,6 +90,7 @@ const formatDayTitle = (isoDate: string): string => {
 };
 
 export default function TransactionsScreen() {
+  const router = useRouter();
   const db = useSQLiteContext();
   const { colors } = useTheme();
   const { activeProfile, dataVersion, currencySymbol } = useProfile();
@@ -109,6 +111,7 @@ export default function TransactionsScreen() {
 
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [categories, setCategories] = useState<string[]>([]);
+  const [uncategorisedCount, setUncategorisedCount] = useState(0);
 
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [currentFixedState, setCurrentFixedState] = useState<FixedOverrideState>('AUTO');
@@ -236,15 +239,17 @@ export default function TransactionsScreen() {
       (async () => {
         if (!db) return;
         try {
-          const [months, dateBounds, cats] = await Promise.all([
+          const [months, dateBounds, cats, uncategorised] = await Promise.all([
             getAvailableMonths(db, activeProfileId),
             getTransactionDateBounds(db, activeProfileId),
             getTransactionCategories(db, activeProfileId, dateFrom, dateTo),
+            getUncategorisedCount(db, activeProfileId),
           ]);
           if (!active) return;
           setAvailableMonths(months);
           setBounds(dateBounds);
           setCategories(cats);
+          setUncategorisedCount(uncategorised);
           setSelectedCategory((prev) => (prev === 'All' || cats.includes(prev) ? prev : 'All'));
         } catch (error) {
           console.error('Failed to load filter options:', error);
@@ -345,6 +350,15 @@ export default function TransactionsScreen() {
     await fetchFirstPage(true);
   };
 
+  const handleCategoryChanged = async (updated: Transaction) => {
+    setSelectedTransaction(updated);
+    if (!db) return;
+    const explanation = await getTransactionFixedExplanation(db, updated, activeProfileId);
+    setCurrentFixedState(explanation.state);
+    setFixedAuto(explanation);
+    await fetchFirstPage(true);
+  };
+
   const renderItem = ({
     item,
     index,
@@ -396,6 +410,16 @@ export default function TransactionsScreen() {
           <HeaderActions />
         </View>
 
+        <MonthStepper
+          selectedMonth={stepperLabel}
+          availableMonths={filter.kind === 'MONTH' ? availableMonths : NO_MONTHS}
+          monthNames={filter.kind === 'MONTH' ? monthNames : EMPTY_NAMES}
+          coverageStatus={NO_COVERAGE}
+          onPrevMonth={handlePrevMonth}
+          onNextMonth={handleNextMonth}
+          onOpenMonthPicker={handleOpenPicker}
+        />
+
         <View style={[styles.searchBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Ionicons name="search" size={16} color={colors.textSecondary} />
           <TextInput
@@ -414,18 +438,6 @@ export default function TransactionsScreen() {
               <Ionicons name="close-circle" size={16} color={colors.textSecondary} />
             </TouchableOpacity>
           )}
-        </View>
-
-        <View style={styles.stepperWrap}>
-          <MonthStepper
-            selectedMonth={stepperLabel}
-            availableMonths={filter.kind === 'MONTH' ? availableMonths : NO_MONTHS}
-            monthNames={filter.kind === 'MONTH' ? monthNames : EMPTY_NAMES}
-            coverageStatus={NO_COVERAGE}
-            onPrevMonth={handlePrevMonth}
-            onNextMonth={handleNextMonth}
-            onOpenMonthPicker={handleOpenPicker}
-          />
         </View>
 
         {categories.length > 1 && (
@@ -457,6 +469,25 @@ export default function TransactionsScreen() {
             </View>
           )}
           stickySectionHeadersEnabled
+          ListHeaderComponent={
+            uncategorisedCount > 0 ? (
+              <TouchableOpacity
+                style={[styles.reviewRow, { backgroundColor: colors.card }]}
+                activeOpacity={0.7}
+                onPress={() => {
+                  Haptics.selectionAsync().catch(() => {});
+                  router.push('/review');
+                }}
+              >
+                <Ionicons name="pricetags-outline" size={18} color={colors.accent} />
+                <Text style={[styles.reviewRowText, { color: colors.text }]}>
+                  {uncategorisedCount} uncategorised transaction{uncategorisedCount === 1 ? '' : 's'}
+                </Text>
+                <Text style={[styles.reviewRowAction, { color: colors.accent }]}>Review</Text>
+                <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+              </TouchableOpacity>
+            ) : null
+          }
           contentContainerStyle={styles.listContent}
           onEndReached={fetchNextPage}
           onEndReachedThreshold={0.5}
@@ -607,6 +638,7 @@ export default function TransactionsScreen() {
         onClose={() => setSelectedTransaction(null)}
         onDismiss={() => setSelectedTransaction(null)}
         onSelectFixedState={handleSelectFixedState}
+        onCategoryChanged={handleCategoryChanged}
       />
     </ScreenContainer>
   );
@@ -631,8 +663,18 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   searchInput: { flex: 1, fontSize: 15, paddingVertical: 0 },
-  stepperWrap: { marginTop: 12 },
-  categoryBarWrap: { marginHorizontal: -20, marginBottom: 4 },
+  categoryBarWrap: { marginHorizontal: -20, marginTop: 8, marginBottom: 4 },
+  reviewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginTop: 12,
+  },
+  reviewRowText: { flex: 1, fontSize: 14, fontWeight: '600' },
+  reviewRowAction: { fontSize: 14, fontWeight: '600' },
   listContent: { paddingHorizontal: 20, paddingBottom: 40 },
   sectionHeader: { paddingTop: 16, paddingBottom: 8 },
   sectionHeaderText: {

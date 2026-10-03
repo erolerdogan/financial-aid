@@ -21,7 +21,6 @@ import {
   getMonthlySummary,
   getTransactionDateBounds,
   getTransactionFixedExplanation,
-  getUncategorisedCount,
   getTransactionsByMonthAndCategory,
   makeRangeKey,
   MonthlySummary,
@@ -30,7 +29,6 @@ import {
 } from '@/db/database';
 import { useStatementImporter } from '@/hooks/useStatementImporter';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import React, { useCallback, useMemo, useState } from 'react';
@@ -83,6 +81,14 @@ const formatRangeLabel = (from: string, to: string): string => {
   return from === to ? fmt(from) : `${fmt(from)} – ${fmt(to)}`;
 };
 
+const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+// '2026-09-01', '2026-09-28' → '1 – 28 Sep'
+const formatCoverageDays = (minDate: string, maxDate: string): string => {
+  const month = SHORT_MONTHS[Number(maxDate.slice(5, 7)) - 1] ?? '';
+  return `${Number(minDate.slice(8, 10))} – ${Number(maxDate.slice(8, 10))} ${month}`;
+};
+
 interface MonthCoverageStatus {
   status: 'IN_PROGRESS' | 'PARTIAL' | 'COMPLETE' | 'EMPTY';
   minDate?: string;
@@ -115,7 +121,6 @@ export default function DashboardScreen() {
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [currentFixedState, setCurrentFixedState] = useState<FixedOverrideState>('AUTO');
   const [fixedAuto, setFixedAuto] = useState({ autoIsFixed: false, reason: '' });
-  const [uncategorisedCount, setUncategorisedCount] = useState(0);
   const [detailParentTitle, setDetailParentTitle] = useState<string>('Back');
   const [wasOpenedFromList, setWasOpenedFromList] = useState(false);
 
@@ -233,7 +238,6 @@ export default function DashboardScreen() {
       setCategoryData(categoryRes || []);
       setFixedSummary(fixedRes);
       setIncomeSummary(incomeFixedRes);
-      setUncategorisedCount(await getUncategorisedCount(db, activeProfileId));
 
       if (rangeFilter) {
         setCoverageStatus({ status: 'EMPTY', label: '' });
@@ -248,21 +252,21 @@ export default function DashboardScreen() {
             status: 'IN_PROGRESS',
             minDate: dateRangeRes.minDate,
             maxDate: dateRangeRes.maxDate,
-            label: `In Progress (${dateRangeRes.minDate.slice(5)} – ${dateRangeRes.maxDate.slice(5)})`,
+            label: `In Progress (${formatCoverageDays(dateRangeRes.minDate, dateRangeRes.maxDate)})`,
           });
         } else if (maxDay < 25) {
           setCoverageStatus({
             status: 'PARTIAL',
             minDate: dateRangeRes.minDate,
             maxDate: dateRangeRes.maxDate,
-            label: `Partial Statement (${dateRangeRes.minDate.slice(5)} – ${dateRangeRes.maxDate.slice(5)})`,
+            label: `Partial Statement (${formatCoverageDays(dateRangeRes.minDate, dateRangeRes.maxDate)})`,
           });
         } else {
           setCoverageStatus({
             status: 'COMPLETE',
             minDate: dateRangeRes.minDate,
             maxDate: dateRangeRes.maxDate,
-            label: `Full Statement (${dateRangeRes.minDate.slice(5)} – ${dateRangeRes.maxDate.slice(5)})`,
+            label: `Full Statement (${formatCoverageDays(dateRangeRes.minDate, dateRangeRes.maxDate)})`,
           });
         }
       }
@@ -443,6 +447,32 @@ export default function DashboardScreen() {
     }
   };
 
+  const handleCategoryChanged = async (updated: Transaction) => {
+    setSelectedTransaction(updated);
+    setListModalTransactions((prevList) => prevList.map((tx) => (tx.id === updated.id ? updated : tx)));
+    if (!db) return;
+
+    try {
+      const explanation = await getTransactionFixedExplanation(db, updated, activeProfileId);
+      setCurrentFixedState(explanation.state);
+      setFixedAuto(explanation);
+
+      if (selectedBarCategory) {
+        const updatedItems = await getTransactionsByMonthAndCategory(
+          db,
+          periodKey,
+          selectedBarCategory,
+          activeProfileId
+        );
+        setSelectedCategoryTransactions(updatedItems || []);
+      }
+
+      await loadDashboardData();
+    } catch (error) {
+      console.error('Failed to refresh after category change:', error);
+    }
+  };
+
   const handleOpenCardModal = async (type: 'INCOME' | 'EXPENSE' | 'FIXED' | 'FLEXIBLE') => {
     setListModalType(type);
     setListModalVisible(true);
@@ -582,24 +612,6 @@ export default function DashboardScreen() {
               onOpenMonthPicker={() => setMonthPickerVisible(true)}
             />
 
-            {uncategorisedCount > 0 && (
-              <TouchableOpacity
-                style={[styles.reviewRow, { backgroundColor: colors.card }]}
-                activeOpacity={0.7}
-                onPress={() => {
-                  Haptics.selectionAsync().catch(() => {});
-                  router.push('/review');
-                }}
-              >
-                <Ionicons name="pricetags-outline" size={18} color={colors.accent} />
-                <Text style={[styles.reviewRowText, { color: colors.text }]}>
-                  {uncategorisedCount} uncategorised transaction{uncategorisedCount === 1 ? '' : 's'}
-                </Text>
-                <Text style={[styles.reviewRowAction, { color: colors.accent }]}>Review</Text>
-                <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
-              </TouchableOpacity>
-            )}
-
             <SummaryCards
               summary={summary}
               totalTransactions={totalTransactions}
@@ -644,6 +656,7 @@ export default function DashboardScreen() {
         onClose={handleGoBackFromDetail}
         onDismiss={handleDismissDetailDirectly}
         onSelectFixedState={handleSelectFixedState}
+        onCategoryChanged={handleCategoryChanged}
       />
 
       <ImportSummaryHost />
@@ -744,17 +757,6 @@ export default function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  reviewRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    borderRadius: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginBottom: 16,
-  },
-  reviewRowText: { flex: 1, fontSize: 14, fontWeight: '600' },
-  reviewRowAction: { fontSize: 14, fontWeight: '600' },
   container: { flex: 1 },
   content: { padding: 20, paddingTop: 0, paddingBottom: 100 },
   headerRow: {

@@ -48,11 +48,12 @@ On first launch the welcome screen offers two paths: import a statement, or open
 ### Automatic categorisation
 
 - Each transaction is categorised on import in three steps: your own rules first, then built-in keyword matching. If nothing matches, money coming in becomes "Income" and spending becomes "Uncategorised".
-- Review screen: the dashboard shows how many transactions are uncategorised. The review list groups them per merchant, largest first; picking a category once applies it to all of that merchant's transactions and to future imports.
+- Review screen: the Transactions tab shows how many transactions are uncategorised at the top of the list. The review list groups them per merchant, largest first; picking a category once applies it to all of that merchant's transactions and to future imports.
 - Reads the counterparty IBAN and payment type (direct debit, card, online, transfer) from the bank's columns or from the description text. A merchant is recognised by its IBAN when it has one of its own (not for card payments, iDEAL or payment processors).
 - The built-in keywords are tuned for Dutch banks and merchants, with some English and Turkish terms. The most specific (longest) keyword wins, and short names such as NS or AH only match as whole words.
 - When the built-in keywords change in an update, existing transactions you have not categorised by hand are re-categorised once on launch.
 - Changing a transaction's category by hand is remembered and is not overwritten by later rule changes.
+- Change a single transaction's category from its detail sheet (tap the category pill), from the dashboard, Transactions or Trends.
 
 ### Dashboard
 
