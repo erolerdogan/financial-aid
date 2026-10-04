@@ -1,4 +1,5 @@
 import { ImportResultProvider } from '@/contexts/ImportResultContext';
+import { PeriodProvider } from '@/contexts/PeriodContext';
 import { ProfileProvider, useProfile } from '@/contexts/ProfileContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { initDatabase } from '@/db/database';
@@ -87,9 +88,11 @@ export default function RootLayout() {
       <SQLiteProvider databaseName="financial_aid.db" onInit={initDatabase} useSuspense>
         <ThemeProvider>
           <ProfileProvider>
-            <ImportResultProvider>
-              <AppInitializer />
-            </ImportResultProvider>
+            <PeriodProvider>
+              <ImportResultProvider>
+                <AppInitializer />
+              </ImportResultProvider>
+            </PeriodProvider>
           </ProfileProvider>
         </ThemeProvider>
       </SQLiteProvider>

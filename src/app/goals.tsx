@@ -78,7 +78,7 @@ export default function GoalsScreen() {
   return (
     <ScreenContainer showDemoBanner={false}>
       <View style={[styles.headerRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Category Budget Goals</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Budgets</Text>
         <TouchableOpacity
           style={[styles.closeBtn, { backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7' }]}
           onPress={() => router.back()}

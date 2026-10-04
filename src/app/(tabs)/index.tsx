@@ -1,18 +1,24 @@
 import { AllocationChart } from '@/components/dashboard/AllocationChart';
+import { AttentionItem, AttentionRows } from '@/components/dashboard/AttentionRows';
+import { DebtsCard } from '@/components/dashboard/DebtsCard';
+import { FixedFlexibleCard } from '@/components/dashboard/FixedFlexibleCard';
 import { MonthStepper } from '@/components/dashboard/MonthStepper';
 import { SummaryCards } from '@/components/dashboard/SummaryCards';
+import { HeaderActions } from '@/components/HeaderActions';
 import { DateRangeModal } from '@/components/modals/DateRangeModal';
 import { TransactionDetailModal } from '@/components/modals/TransactionDetailModal';
 import { TransactionListModal } from '@/components/modals/TransactionListModal';
-import { ProfileSwitcherModal } from '@/components/ProfileSwitcherModal';
 import { ScreenContainer } from '@/components/ScreenContainer';
-import { ImportSummaryHost } from '@/contexts/ImportResultContext';
+import { usePeriod } from '@/contexts/PeriodContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import {
   CategoryTotal,
   FixedCostSummary,
   FixedOverrideState,
   getAvailableMonths,
+  getCategoryFixedVsFlexibleSummary,
+  getCategoryGoals,
+  getDebtSuggestions,
   getFilteredTransactions,
   getFixedOrFlexibleTransactions,
   getFixedVsFlexibleSummary,
@@ -22,6 +28,7 @@ import {
   getTransactionDateBounds,
   getTransactionFixedExplanation,
   getTransactionsByMonthAndCategory,
+  getUncategorisedCount,
   makeRangeKey,
   MonthlySummary,
   setMerchantFixedOverride,
@@ -29,6 +36,7 @@ import {
 } from '@/db/database';
 import { useStatementImporter } from '@/hooks/useStatementImporter';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import React, { useCallback, useMemo, useState } from 'react';
@@ -45,28 +53,20 @@ import {
 } from 'react-native';
 import { useProfile } from '../../contexts/ProfileContext';
 
-const MONTH_NAMES: Record<string, string> = {
-  '2026-01': 'January 2026',
-  '2026-02': 'February 2026',
-  '2026-03': 'March 2026',
-  '2026-04': 'April 2026',
-  '2026-05': 'May 2026',
-  '2026-06': 'June 2026',
-  '2026-07': 'July 2026',
-  '2026-08': 'August 2026',
-  '2026-09': 'September 2026',
-  '2026-10': 'October 2026',
-  '2026-11': 'November 2026',
-  '2026-12': 'December 2026',
-};
-
 const NO_MONTHS: string[] = [];
+const NO_BUDGETS: Record<string, number> = {};
 
 const getCurrentMonthKey = (): string => {
   const now = new Date();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, '0');
   return `${year}-${month}`;
+};
+
+const formatMonthKey = (monthKey: string): string => {
+  const [y, m] = monthKey.split('-').map(Number);
+  if (!y || !m) return monthKey;
+  return new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
 };
 
 const formatRangeLabel = (from: string, to: string): string => {
@@ -96,44 +96,53 @@ interface MonthCoverageStatus {
   label: string;
 }
 
-interface DateRangeFilter {
-  from: string;
-  to: string;
-}
+type ListType = 'INCOME' | 'EXPENSE' | 'FIXED' | 'FLEXIBLE';
+
+const LIST_TITLES: Record<ListType, string> = {
+  INCOME: 'Income Items',
+  EXPENSE: 'Expenses',
+  FIXED: 'Fixed Transactions',
+  FLEXIBLE: 'Flexible Transactions',
+};
+
+const EMPTY_FIXED_SUMMARY: FixedCostSummary = {
+  fixedTotal: 0,
+  flexibleTotal: 0,
+  fixedPercentage: 0,
+  flexiblePercentage: 0,
+  fixedItemsCount: 0,
+};
 
 export default function DashboardScreen() {
   const router = useRouter();
   const db = useSQLiteContext();
   const { colors } = useTheme();
-  
+
   const { activeProfile, dataVersion, refreshProfiles } = useProfile();
   const activeProfileId = activeProfile?.id ?? 1;
+  const { period, setPeriod } = usePeriod();
 
   const { importStatement, importing } = useStatementImporter();
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Modals & Selection State
   const [monthPickerVisible, setMonthPickerVisible] = useState(false);
   const [rangeModalVisible, setRangeModalVisible] = useState(false);
-  const [profileModalVisible, setProfileModalVisible] = useState(false);
+
+  // Transaction list sheet (cards and categories) and the detail opened from it
+  const [listModalVisible, setListModalVisible] = useState(false);
+  const [listModalType, setListModalType] = useState<ListType>('EXPENSE');
+  const [listModalCategory, setListModalCategory] = useState<string | null>(null);
+  const [listModalTransactions, setListModalTransactions] = useState<Transaction[]>([]);
+  const [listModalSummary, setListModalSummary] = useState<FixedCostSummary | undefined>(undefined);
+  const [loadingListModal, setLoadingListModal] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [currentFixedState, setCurrentFixedState] = useState<FixedOverrideState>('AUTO');
   const [fixedAuto, setFixedAuto] = useState({ autoIsFixed: false, reason: '' });
-  const [detailParentTitle, setDetailParentTitle] = useState<string>('Back');
-  const [wasOpenedFromList, setWasOpenedFromList] = useState(false);
-
-  // Card Modal State
-  const [listModalVisible, setListModalVisible] = useState(false);
-  const [listModalType, setListModalType] = useState<'INCOME' | 'EXPENSE' | 'FIXED' | 'FLEXIBLE'>('EXPENSE');
-  const [listModalTransactions, setListModalTransactions] = useState<Transaction[]>([]);
-  const [loadingListModal, setLoadingListModal] = useState(false);
 
   // Filters & State
   const [availableMonths, setAvailableMonths] = useState<string[]>([]);
-  const [selectedMonth, setSelectedMonth] = useState<string>('');
-  const [rangeFilter, setRangeFilter] = useState<DateRangeFilter | null>(null);
   const [dateBounds, setDateBounds] = useState<{ minDate: string; maxDate: string } | null>(null);
   const [coverageStatus, setCoverageStatus] = useState<MonthCoverageStatus>({
     status: 'EMPTY',
@@ -141,47 +150,42 @@ export default function DashboardScreen() {
   });
 
   // Dashboard Data
-  const [incomeSummary, setIncomeSummary] = useState<FixedCostSummary>({
-    fixedTotal: 0,
-    flexibleTotal: 0,
-    fixedPercentage: 0,
-    flexiblePercentage: 0,
-    fixedItemsCount: 0,
-  });
-  
   const [summary, setSummary] = useState<MonthlySummary>({
     totalIncome: 0,
     totalExpenses: 0,
     netSavings: 0,
   });
-  const [fixedSummary, setFixedSummary] = useState<FixedCostSummary>({
-    fixedTotal: 0,
-    flexibleTotal: 0,
-    fixedPercentage: 0,
-    flexiblePercentage: 0,
-    fixedItemsCount: 0,
-  });
+  const [fixedSummary, setFixedSummary] = useState<FixedCostSummary>(EMPTY_FIXED_SUMMARY);
   const [categoryData, setCategoryData] = useState<CategoryTotal[]>([]);
-  const [selectedBarCategory, setSelectedBarCategory] = useState<string | null>(null);
-
-  const [selectedCategoryTransactions, setSelectedCategoryTransactions] = useState<Transaction[]>([]);
-  const [loadingTransactions, setLoadingTransactions] = useState(false);
+  const [budgets, setBudgets] = useState<Record<string, number>>(NO_BUDGETS);
+  const [uncategorisedCount, setUncategorisedCount] = useState(0);
+  const [debtSuggestionCount, setDebtSuggestionCount] = useState(0);
 
   const currentMonthKey = getCurrentMonthKey();
+
+  // Nothing picked yet (or the picked month has no data): show the latest month.
+  const rangeFilter = period.kind === 'RANGE' ? period : null;
+  const selectedMonth =
+    period.kind === 'MONTH' && availableMonths.includes(period.month)
+      ? period.month
+      : availableMonths[0] ?? '';
 
   // A "period" is either a month key (2026-03) or a date range key (2026-03-05..2026-04-10)
   const periodKey = rangeFilter ? makeRangeKey(rangeFilter.from, rangeFilter.to) : selectedMonth;
 
   const periodNames = useMemo<Record<string, string>>(() => {
-    if (!rangeFilter) return MONTH_NAMES;
-    return {
-      ...MONTH_NAMES,
-      [makeRangeKey(rangeFilter.from, rangeFilter.to)]: formatRangeLabel(
+    const names: Record<string, string> = {};
+    availableMonths.forEach((m) => {
+      names[m] = formatMonthKey(m);
+    });
+    if (rangeFilter) {
+      names[makeRangeKey(rangeFilter.from, rangeFilter.to)] = formatRangeLabel(
         rangeFilter.from,
         rangeFilter.to
-      ),
-    };
-  }, [rangeFilter]);
+      );
+    }
+    return names;
+  }, [availableMonths, rangeFilter]);
 
   const loadDashboardData = useCallback(async () => {
     if (!db) return;
@@ -199,47 +203,41 @@ export default function DashboardScreen() {
         setCoverageStatus({ status: 'EMPTY', label: 'Statement Pending' });
         setSummary({ totalIncome: 0, totalExpenses: 0, netSavings: 0 });
         setCategoryData([]);
-        setFixedSummary({
-          fixedTotal: 0,
-          flexibleTotal: 0,
-          fixedPercentage: 0,
-          flexiblePercentage: 0,
-          fixedItemsCount: 0,
-        });
+        setFixedSummary(EMPTY_FIXED_SUMMARY);
+        setUncategorisedCount(0);
+        setDebtSuggestionCount(0);
         return;
       }
 
-      const activeMonth = selectedMonth && dbMonths.includes(selectedMonth)
-        ? selectedMonth
-        : dbMonths[0];
+      const activeMonth =
+        period.kind === 'MONTH' && dbMonths.includes(period.month) ? period.month : dbMonths[0];
+      const activeRange = period.kind === 'RANGE' ? period : null;
+      const activePeriod = activeRange ? makeRangeKey(activeRange.from, activeRange.to) : activeMonth;
 
-      if (activeMonth !== selectedMonth) {
-        setSelectedMonth(activeMonth);
-      }
+      const [summaryRes, categoryRes, fixedRes, goalsRes, uncategorised, debtSuggestions, dateRangeRes] =
+        await Promise.all([
+          getMonthlySummary(db, activePeriod, activeProfileId),
+          getMonthlyCategoryTotals(db, activePeriod, activeProfileId),
+          getFixedVsFlexibleSummary(db, activePeriod, activeProfileId),
+          getCategoryGoals(db, activeProfileId),
+          getUncategorisedCount(db, activeProfileId),
+          getDebtSuggestions(db, activeProfileId),
+          activeRange
+            ? Promise.resolve(null)
+            : db.getFirstAsync<{ minDate: string; maxDate: string }>(
+                `SELECT MIN(date) as minDate, MAX(date) as maxDate FROM transactions WHERE monthName = ? AND profileId = ?;`,
+                [activeMonth, activeProfileId]
+              ),
+        ]);
 
-      const activePeriod = rangeFilter
-        ? makeRangeKey(rangeFilter.from, rangeFilter.to)
-        : activeMonth;
-
-      const [summaryRes, categoryRes, fixedRes, incomeFixedRes, dateRangeRes] = await Promise.all([
-        getMonthlySummary(db, activePeriod, activeProfileId),
-        getMonthlyCategoryTotals(db, activePeriod, activeProfileId),
-        getFixedVsFlexibleSummary(db, activePeriod, activeProfileId),
-        getIncomeFixedVsFlexibleSummary(db, activePeriod, activeProfileId),
-        rangeFilter
-          ? Promise.resolve(null)
-          : db.getFirstAsync<{ minDate: string; maxDate: string }>(
-              `SELECT MIN(date) as minDate, MAX(date) as maxDate FROM transactions WHERE monthName = ? AND profileId = ?;`,
-              [activeMonth, activeProfileId]
-            ),
-      ]);
-      
       setSummary(summaryRes);
       setCategoryData(categoryRes || []);
       setFixedSummary(fixedRes);
-      setIncomeSummary(incomeFixedRes);
+      setBudgets(goalsRes);
+      setUncategorisedCount(uncategorised);
+      setDebtSuggestionCount(debtSuggestions.length);
 
-      if (rangeFilter) {
+      if (activeRange) {
         setCoverageStatus({ status: 'EMPTY', label: '' });
       } else if (!dateRangeRes || !dateRangeRes.minDate) {
         setCoverageStatus({ status: 'EMPTY', label: 'Statement Pending' });
@@ -276,7 +274,7 @@ export default function DashboardScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [db, selectedMonth, rangeFilter, activeProfileId, currentMonthKey]);
+  }, [db, period, activeProfileId, currentMonthKey]);
 
   // Execute directly on screen mount/focus without checking activeProfile?.id
   useFocusEffect(
@@ -291,33 +289,24 @@ export default function DashboardScreen() {
     await loadDashboardData();
   };
 
-  const resetCategorySelection = () => {
-    setSelectedBarCategory(null);
-    setSelectedCategoryTransactions([]);
-  };
-
   const currentIndex = availableMonths.indexOf(selectedMonth);
 
   const handlePrevMonth = () => {
     if (rangeFilter) return;
     if (currentIndex < availableMonths.length - 1) {
-      setSelectedMonth(availableMonths[currentIndex + 1]);
-      resetCategorySelection();
+      setPeriod({ kind: 'MONTH', month: availableMonths[currentIndex + 1] });
     }
   };
 
   const handleNextMonth = () => {
     if (rangeFilter) return;
     if (currentIndex > 0) {
-      setSelectedMonth(availableMonths[currentIndex - 1]);
-      resetCategorySelection();
+      setPeriod({ kind: 'MONTH', month: availableMonths[currentIndex - 1] });
     }
   };
 
   const handlePickMonth = (month: string) => {
-    setRangeFilter(null);
-    setSelectedMonth(month);
-    resetCategorySelection();
+    setPeriod({ kind: 'MONTH', month });
     setMonthPickerVisible(false);
   };
 
@@ -327,167 +316,46 @@ export default function DashboardScreen() {
   };
 
   const handleApplyRange = (from: string, to: string) => {
-    setRangeFilter({ from, to });
-    resetCategorySelection();
+    setPeriod({ kind: 'RANGE', from, to });
     setRangeModalVisible(false);
   };
 
-  const handleSelectTransaction = async (trx: Transaction, customParentTitle?: string) => {
-    setSelectedTransaction(trx);
+  const loadListModal = async (type: ListType, category: string | null) => {
+    if (!db) return;
+    const byAmount = (items: Transaction[]) =>
+      [...items].sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
 
-    if (customParentTitle) {
-      setDetailParentTitle(customParentTitle);
-    } else if (selectedBarCategory) {
-      setDetailParentTitle(selectedBarCategory);
-    } else {
-      setDetailParentTitle(trx.amount > 0 ? 'Income Items' : 'Expenses');
+    if (category) {
+      const [items, fixed] = await Promise.all([
+        getTransactionsByMonthAndCategory(db, periodKey, category, activeProfileId),
+        getCategoryFixedVsFlexibleSummary(db, periodKey, category, activeProfileId),
+      ]);
+      setListModalTransactions(items || []);
+      setListModalSummary(fixed);
+      return;
     }
 
-    if (db && trx) {
-      const explanation = await getTransactionFixedExplanation(db, trx, activeProfileId);
-      setCurrentFixedState(explanation.state);
-      setFixedAuto(explanation);
-    }
-  };
-
-  const handleSelectFromFlatList = (trx: Transaction) => {
-    const parentTitleMap: Record<string, string> = {
-      INCOME: 'Income Items',
-      EXPENSE: 'Expenses',
-      FIXED: 'Fixed Transactions',
-      FLEXIBLE: 'Flexible Transactions',
-    };
-
-    const parentTitle = parentTitleMap[listModalType] || 'Back';
-    setWasOpenedFromList(true);
-    setListModalVisible(false);
-
-    setTimeout(() => {
-      handleSelectTransaction(trx, parentTitle);
-    }, 250);
-  };
-
-  const handleGoBackFromDetail = () => {
-    setSelectedTransaction(null);
-    if (wasOpenedFromList) {
-      setWasOpenedFromList(false);
-      setTimeout(() => {
-        setListModalVisible(true);
-      }, 250);
-    }
-  };
-
-  const handleDismissDetailDirectly = () => {
-    setWasOpenedFromList(false);
-    setSelectedTransaction(null);
-  };
-
-  const fetchListModalItems = async (
-    database: NonNullable<typeof db>,
-    type: 'INCOME' | 'EXPENSE' | 'FIXED' | 'FLEXIBLE'
-  ): Promise<Transaction[]> => {
-    const items =
+    const [items, fixed] = await Promise.all([
       type === 'FIXED' || type === 'FLEXIBLE'
-        ? await getFixedOrFlexibleTransactions(database, periodKey, type === 'FIXED', activeProfileId)
-        : await getFilteredTransactions(database, periodKey, type, activeProfileId);
-
-    return [...(items || [])].sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
+        ? getFixedOrFlexibleTransactions(db, periodKey, type === 'FIXED', activeProfileId)
+        : getFilteredTransactions(db, periodKey, type, activeProfileId),
+      type === 'INCOME'
+        ? getIncomeFixedVsFlexibleSummary(db, periodKey, activeProfileId)
+        : getFixedVsFlexibleSummary(db, periodKey, activeProfileId),
+    ]);
+    setListModalTransactions(byAmount(items || []));
+    setListModalSummary(fixed);
   };
 
-  const handleSelectFixedState = async (newState: FixedOverrideState) => {
-    if (!db || !selectedTransaction) return;
-  
-    setCurrentFixedState(newState);
-  
-    const keyword =
-      selectedTransaction.merchant !== 'Unknown'
-        ? selectedTransaction.merchant
-        : selectedTransaction.rawDescription;
-  
-    try {
-      await setMerchantFixedOverride(
-        db,
-        keyword,
-        selectedTransaction.category,
-        newState,
-        activeProfileId
-      );
-  
-      // Back to automatic: list badges show what detection decides.
-      let updatedIsFixedVal: number | null = fixedAuto.autoIsFixed ? 1 : 0;
-      if (newState === 'FIXED') updatedIsFixedVal = 1;
-      if (newState === 'FLEXIBLE') updatedIsFixedVal = 0;
-  
-      setSelectedTransaction((prev) =>
-        prev
-          ? {
-              ...prev,
-              is_fixed: updatedIsFixedVal,
-            }
-          : null
-      );
-  
-      // The override applies to every row the keyword matches, so reload instead of patching by name.
-      if (wasOpenedFromList) {
-        setListModalTransactions(await fetchListModalItems(db, listModalType));
-      }
-  
-      if (selectedBarCategory) {
-        const updatedItems = await getTransactionsByMonthAndCategory(
-          db,
-          periodKey,
-          selectedBarCategory,
-          activeProfileId
-        );
-        setSelectedCategoryTransactions(updatedItems || []);
-      }
-  
-      await loadDashboardData();
-    } catch (error) {
-      console.error('Failed to update fixed state override:', error);
-    }
-  };
-
-  const handleCategoryChanged = async (updated: Transaction) => {
-    setSelectedTransaction(updated);
-    setListModalTransactions((prevList) => prevList.map((tx) => (tx.id === updated.id ? updated : tx)));
-    if (!db) return;
-
-    try {
-      const explanation = await getTransactionFixedExplanation(db, updated, activeProfileId);
-      setCurrentFixedState(explanation.state);
-      setFixedAuto(explanation);
-
-      // Category feeds the fixed score, so badges can change with it.
-      if (wasOpenedFromList) {
-        setListModalTransactions(await fetchListModalItems(db, listModalType));
-      }
-
-      if (selectedBarCategory) {
-        const updatedItems = await getTransactionsByMonthAndCategory(
-          db,
-          periodKey,
-          selectedBarCategory,
-          activeProfileId
-        );
-        setSelectedCategoryTransactions(updatedItems || []);
-      }
-
-      await loadDashboardData();
-    } catch (error) {
-      console.error('Failed to refresh after category change:', error);
-    }
-  };
-
-  const handleOpenCardModal = async (type: 'INCOME' | 'EXPENSE' | 'FIXED' | 'FLEXIBLE') => {
+  const openListModal = async (type: ListType, category: string | null = null) => {
+    Haptics.selectionAsync().catch(() => {});
     setListModalType(type);
+    setListModalCategory(category);
+    setListModalTransactions([]);
     setListModalVisible(true);
-    if (!db) return;
-
     try {
       setLoadingListModal(true);
-
-      setListModalTransactions(await fetchListModalItems(db, type));
+      await loadListModal(type, category);
     } catch (error) {
       console.error(`Failed to load ${type} list:`, error);
     } finally {
@@ -495,24 +363,103 @@ export default function DashboardScreen() {
     }
   };
 
-  const handleBarPress = async (categoryName: string) => {
-    if (selectedBarCategory === categoryName) {
-      resetCategorySelection();
-    } else {
-      setSelectedBarCategory(categoryName);
+  const handleSelectFromList = (trx: Transaction) => {
+    setListModalVisible(false);
+    setTimeout(async () => {
+      setSelectedTransaction(trx);
       if (db) {
-        try {
-          setLoadingTransactions(true);
-          const items = await getTransactionsByMonthAndCategory(db, periodKey, categoryName, activeProfileId);
-          setSelectedCategoryTransactions(items || []);
-        } catch (error) {
-          console.error(`Failed to load transactions for ${categoryName}:`, error);
-        } finally {
-          setLoadingTransactions(false);
-        }
+        const explanation = await getTransactionFixedExplanation(db, trx, activeProfileId);
+        setCurrentFixedState(explanation.state);
+        setFixedAuto(explanation);
       }
+    }, 250);
+  };
+
+  const handleBackFromDetail = () => {
+    setSelectedTransaction(null);
+    setTimeout(() => setListModalVisible(true), 250);
+  };
+
+  const refreshAfterDetailChange = async () => {
+    await loadListModal(listModalType, listModalCategory);
+    await loadDashboardData();
+  };
+
+  const handleSelectFixedState = async (newState: FixedOverrideState) => {
+    if (!db || !selectedTransaction) return;
+    setCurrentFixedState(newState);
+
+    const keyword =
+      selectedTransaction.merchant !== 'Unknown'
+        ? selectedTransaction.merchant
+        : selectedTransaction.rawDescription;
+
+    try {
+      await setMerchantFixedOverride(db, keyword, selectedTransaction.category, newState, activeProfileId);
+
+      // Back to automatic: list badges show what detection decides.
+      let isFixed: number | null = fixedAuto.autoIsFixed ? 1 : 0;
+      if (newState === 'FIXED') isFixed = 1;
+      if (newState === 'FLEXIBLE') isFixed = 0;
+      setSelectedTransaction((prev) => (prev ? { ...prev, is_fixed: isFixed } : null));
+
+      // The override applies to every row the keyword matches, so reload instead of patching by name.
+      await refreshAfterDetailChange();
+    } catch (error) {
+      console.error('Failed to update fixed state override:', error);
     }
   };
+
+  const handleCategoryChanged = async (updated: Transaction) => {
+    setSelectedTransaction(updated);
+    if (!db) return;
+
+    try {
+      const explanation = await getTransactionFixedExplanation(db, updated, activeProfileId);
+      setCurrentFixedState(explanation.state);
+      setFixedAuto(explanation);
+      // Category feeds the fixed score, so badges can change with it.
+      await refreshAfterDetailChange();
+    } catch (error) {
+      console.error('Failed to refresh after category change:', error);
+    }
+  };
+
+  const listModalNames = listModalCategory
+    ? { ...periodNames, [periodKey]: `${listModalCategory} · ${periodNames[periodKey] ?? periodKey}` }
+    : periodNames;
+
+  const attentionItems: AttentionItem[] = [];
+  if (uncategorisedCount > 0) {
+    attentionItems.push({
+      key: 'review',
+      icon: 'pricetags-outline',
+      text: `${uncategorisedCount} uncategorised transaction${uncategorisedCount === 1 ? '' : 's'}`,
+      action: 'Review',
+      onPress: () => router.push('/review'),
+    });
+  }
+  if (debtSuggestionCount > 0) {
+    attentionItems.push({
+      key: 'debts',
+      icon: 'trending-down-outline',
+      text: `${debtSuggestionCount} possible debt${debtSuggestionCount === 1 ? '' : 's'} in your statements`,
+      action: 'View',
+      onPress: () => router.navigate('/debts'),
+    });
+  }
+  if (coverageStatus.status === 'PARTIAL' && coverageStatus.minDate && coverageStatus.maxDate) {
+    attentionItems.push({
+      key: 'coverage',
+      icon: 'download-outline',
+      text: `${periodNames[selectedMonth] ?? selectedMonth} only covers ${formatCoverageDays(
+        coverageStatus.minDate,
+        coverageStatus.maxDate
+      )}`,
+      action: 'Import',
+      onPress: importStatement,
+    });
+  }
 
   const totalTransactions = categoryData.reduce((a, b) => a + (b.count || 0), 0);
 
@@ -533,68 +480,42 @@ export default function DashboardScreen() {
         {/* Top Header Bar */}
         <View style={styles.headerRow}>
           <Text style={[styles.headerTitle, { color: colors.text }]}>Home</Text>
-
-          <View style={styles.headerRightGroup}>
-            <TouchableOpacity
-              style={[styles.profilePill, { backgroundColor: colors.card, borderColor: colors.border }]}
-              onPress={() => setProfileModalVisible(true)}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.miniAvatar, { backgroundColor: activeProfile?.avatarColor || '#007AFF' }]}>
-                <Text style={styles.miniAvatarText}>
-                  {activeProfile?.name?.substring(0, 1) || 'P'}
-                </Text>
-              </View>
-              <Text style={[styles.profilePillText, { color: colors.text }]}>
-                {activeProfile?.name || 'Personal'}
-              </Text>
-              <Ionicons name="chevron-down" size={12} color={colors.textSecondary} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.settingsHeaderBtn,
-                { backgroundColor: colors.card, borderColor: colors.border },
-              ]}
-              activeOpacity={0.8}
-              onPress={() => router.push('/settings')}
-            >
-              <Ionicons name="settings-outline" size={18} color={colors.text} />
-            </TouchableOpacity>
-          </View>
+          <HeaderActions />
         </View>
 
         {/* Empty Workspace View vs Main Dashboard */}
         {availableMonths.length === 0 ? (
-          <View style={[styles.emptyHeroCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <View style={[styles.emptyIconContainer, { backgroundColor: colors.tintBackground }]}>
-              <Ionicons name="wallet-outline" size={32} color={colors.accent} />
-            </View>
-            <Text style={[styles.emptyHeroTitle, { color: colors.text }]}>
-              No Transactions in {activeProfile?.name || 'this profile'}
-            </Text>
-            <Text style={[styles.emptyHeroSubtitle, { color: colors.textSecondary }]}>
-              Your financial data stays 100% private on this device. Import a statement to start tracking your finances.
-            </Text>
+          loading ? null : (
+            <View style={[styles.emptyHeroCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <View style={[styles.emptyIconContainer, { backgroundColor: colors.tintBackground }]}>
+                <Ionicons name="wallet-outline" size={32} color={colors.accent} />
+              </View>
+              <Text style={[styles.emptyHeroTitle, { color: colors.text }]}>
+                No Transactions in {activeProfile?.name || 'this profile'}
+              </Text>
+              <Text style={[styles.emptyHeroSubtitle, { color: colors.textSecondary }]}>
+                Your financial data stays 100% private on this device. Import a statement to start tracking your finances.
+              </Text>
 
-            <View style={styles.emptyActionStack}>
-              <TouchableOpacity
-                style={[styles.primaryImportBtn, { backgroundColor: colors.accent }]}
-                onPress={importStatement}
-                disabled={importing}
-                activeOpacity={0.85}
-              >
-                {importing ? (
-                  <ActivityIndicator size="small" color="#FFF" />
-                ) : (
-                  <Ionicons name="cloud-upload-outline" size={18} color="#FFF" />
-                )}
-                <Text style={styles.primaryImportText}>
-                  {importing ? 'Processing Statement...' : 'Import Bank Statement'}
-                </Text>
-              </TouchableOpacity>
+              <View style={styles.emptyActionStack}>
+                <TouchableOpacity
+                  style={[styles.primaryImportBtn, { backgroundColor: colors.accent }]}
+                  onPress={importStatement}
+                  disabled={importing}
+                  activeOpacity={0.85}
+                >
+                  {importing ? (
+                    <ActivityIndicator size="small" color="#FFF" />
+                  ) : (
+                    <Ionicons name="download-outline" size={18} color="#FFF" />
+                  )}
+                  <Text style={styles.primaryImportText}>
+                    {importing ? 'Processing Statement...' : 'Import Bank Statement'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
+          )
         ) : (
           <>
             <MonthStepper
@@ -607,24 +528,29 @@ export default function DashboardScreen() {
               onOpenMonthPicker={() => setMonthPickerVisible(true)}
             />
 
+            <AttentionRows items={attentionItems} />
+
             <SummaryCards
               summary={summary}
               totalTransactions={totalTransactions}
               categoryCount={categoryData.length}
-              onOpenCardModal={handleOpenCardModal}
+              onPressCard={openListModal}
+            />
+
+            <FixedFlexibleCard
+              summary={fixedSummary}
+              onPressFixed={() => openListModal('FIXED')}
+              onPressFlexible={() => openListModal('FLEXIBLE')}
             />
 
             <AllocationChart
               categoryData={categoryData}
-              selectedBarCategory={selectedBarCategory}
-              selectedCategoryTransactions={selectedCategoryTransactions}
-              loadingTransactions={loadingTransactions}
-              onBarPress={handleBarPress}
-              onSelectTransaction={(trx) => {
-                setWasOpenedFromList(false);
-                handleSelectTransaction(trx, selectedBarCategory ?? 'Category');
-              }}
+              budgets={rangeFilter ? NO_BUDGETS : budgets}
+              onCategoryPress={(category) => openListModal('EXPENSE', category)}
+              onOpenBudgets={() => router.push('/goals')}
             />
+
+            <DebtsCard />
           </>
         )}
       </ScrollView>
@@ -633,12 +559,12 @@ export default function DashboardScreen() {
         visible={listModalVisible}
         listType={listModalType}
         selectedMonth={periodKey}
-        monthNames={periodNames}
+        monthNames={listModalNames}
         transactions={listModalTransactions}
         loading={loadingListModal}
-        fixedSummary={listModalType === 'INCOME' ? incomeSummary : fixedSummary}
+        fixedSummary={listModalSummary}
         onClose={() => setListModalVisible(false)}
-        onSelectTransaction={handleSelectFromFlatList}
+        onSelectTransaction={handleSelectFromList}
       />
 
       <TransactionDetailModal
@@ -647,18 +573,11 @@ export default function DashboardScreen() {
         fixedState={currentFixedState}
         autoIsFixed={fixedAuto.autoIsFixed}
         autoReason={fixedAuto.reason}
-        parentTitle={detailParentTitle}
-        onClose={handleGoBackFromDetail}
-        onDismiss={handleDismissDetailDirectly}
+        parentTitle={listModalCategory ?? LIST_TITLES[listModalType]}
+        onClose={handleBackFromDetail}
+        onDismiss={() => setSelectedTransaction(null)}
         onSelectFixedState={handleSelectFixedState}
         onCategoryChanged={handleCategoryChanged}
-      />
-
-      <ImportSummaryHost />
-
-      <ProfileSwitcherModal
-        visible={profileModalVisible}
-        onClose={() => setProfileModalVisible(false)}
       />
 
       <DateRangeModal
@@ -736,7 +655,7 @@ export default function DashboardScreen() {
                           isSelected && [styles.sheetItemTextActive, { color: colors.accent }],
                         ]}
                       >
-                        {MONTH_NAMES[m] || m}
+                        {periodNames[m] || m}
                       </Text>
                       {isSelected && <Ionicons name="checkmark-circle" size={20} color={colors.accent} />}
                     </TouchableOpacity>
@@ -765,49 +684,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
     letterSpacing: -0.5,
-  },
-  headerRightGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  profilePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: 20,
-    borderWidth: StyleSheet.hairlineWidth,
-    gap: 6,
-  },
-  miniAvatar: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  miniAvatarText: {
-    color: '#FFF',
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  profilePillText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  settingsHeaderBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
   },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   sheetContainer: {

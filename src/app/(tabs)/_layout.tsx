@@ -1,3 +1,4 @@
+import { ImportSummaryHost } from '@/contexts/ImportResultContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
@@ -17,6 +18,7 @@ export default function TabLayout() {
       : 56 + bottomInset;
 
   return (
+    <>
     <Tabs
       initialRouteName="index"
       screenOptions={{
@@ -46,10 +48,10 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Dashboard',
+          title: 'Home',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
-              name={focused ? 'grid' : 'grid-outline'}
+              name={focused ? 'home' : 'home-outline'}
               size={22}
               color={color}
             />
@@ -97,5 +99,7 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+    <ImportSummaryHost />
+    </>
   );
 }

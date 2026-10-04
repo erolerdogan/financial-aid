@@ -6,10 +6,11 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 interface FixedFlexibleCardProps {
   summary: FixedCostSummary;
-  onPress?: () => void;
+  onPressFixed?: () => void;
+  onPressFlexible?: () => void;
 }
 
-export function FixedFlexibleCard({ summary, onPress }: FixedFlexibleCardProps) {
+export function FixedFlexibleCard({ summary, onPressFixed, onPressFlexible }: FixedFlexibleCardProps) {
   const { colors, isDark } = useTheme();
   const { currencySymbol } = useProfile();
   const { fixedTotal, flexibleTotal, fixedPercentage, flexiblePercentage, fixedItemsCount } = summary;
@@ -17,15 +18,12 @@ export function FixedFlexibleCard({ summary, onPress }: FixedFlexibleCardProps) 
   const displayFixedPct = Math.round(fixedPercentage);
   const displayFlexiblePct = Math.round(flexiblePercentage);
 
-  const CardWrapper = onPress ? TouchableOpacity : View;
-
   return (
-    <CardWrapper
+    <View
       style={[
         styles.cardContainer,
         { backgroundColor: colors.card, borderColor: colors.border },
       ]}
-      {...(onPress ? { activeOpacity: 0.8, onPress } : {})}
     >
       {/* Header */}
       <View style={styles.cardHeader}>
@@ -56,7 +54,7 @@ export function FixedFlexibleCard({ summary, onPress }: FixedFlexibleCardProps) 
       {/* Simplified Metrics Row */}
       <View style={styles.statsRow}>
         {/* Fixed Overhead */}
-        <View style={styles.statCol}>
+        <TouchableOpacity style={styles.statCol} activeOpacity={0.7} onPress={onPressFixed} disabled={!onPressFixed}>
           <View style={styles.indicatorRow}>
             <View style={[styles.dot, { backgroundColor: '#5856D6' }]} />
             <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Fixed</Text>
@@ -67,7 +65,7 @@ export function FixedFlexibleCard({ summary, onPress }: FixedFlexibleCardProps) 
               ({displayFixedPct}%)
             </Text>
           </Text>
-        </View>
+        </TouchableOpacity>
 
         <View
           style={[
@@ -77,7 +75,7 @@ export function FixedFlexibleCard({ summary, onPress }: FixedFlexibleCardProps) 
         />
 
         {/* Flexible Spending */}
-        <View style={styles.statCol}>
+        <TouchableOpacity style={styles.statCol} activeOpacity={0.7} onPress={onPressFlexible} disabled={!onPressFlexible}>
           <View style={styles.indicatorRow}>
             <View style={[styles.dot, { backgroundColor: '#FF9500' }]} />
             <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Flexible</Text>
@@ -88,17 +86,17 @@ export function FixedFlexibleCard({ summary, onPress }: FixedFlexibleCardProps) 
               ({displayFlexiblePct}%)
             </Text>
           </Text>
-        </View>
+        </TouchableOpacity>
       </View>
-    </CardWrapper>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   cardContainer: {
-    borderRadius: 20,
+    borderRadius: 16,
     padding: 16,
-    marginVertical: 8,
+    marginBottom: 16,
     borderWidth: StyleSheet.hairlineWidth,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },

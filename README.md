@@ -52,31 +52,35 @@ On first launch the welcome screen offers two paths: import a statement, or open
 - The merchant name counts for more than the memo: generic words such as "market", "shop" or "transfer" only decide the category when they are part of the name.
 - Money coming in is never filed under a spending category by the built-in keywords; it is "Income", or "Financial Transfers" for savings and investment accounts.
 - Your own rules match whole words (or the start of a word for keywords of 5 or more characters); when several match, the longest wins.
-- Review screen: the Transactions tab shows how many transactions are uncategorised at the top of the list. The review list groups them per merchant, largest first; picking a category once applies it to all of that merchant's transactions and to future imports.
+- Review screen: Home and the Transactions tab show how many transactions are uncategorised. The review list groups them per merchant, largest first; picking a category once applies it to all of that merchant's transactions and to future imports.
 - The review list suggests a category where it can (your earlier choices, a similar merchant, a word in the bank text, or a monthly direct debit) and shows why; one tap accepts it.
 - Reads the counterparty IBAN and payment type (direct debit, card, online, transfer) from the bank's columns or from the description text. A merchant is recognised by its IBAN when it has one of its own (not for card payments, iDEAL or payment processors).
 - The built-in keywords are tuned for Dutch banks and merchants, with some English and Turkish terms. The most specific (longest) keyword wins, and short names such as NS or AH only match as whole words.
 - When the built-in keywords change in an update, existing transactions you have not categorised by hand are re-categorised once on launch.
 - Changing a transaction's category by hand is remembered and is not overwritten by later rule changes.
-- Change a single transaction's category from its detail sheet (tap the category pill), from the dashboard, Transactions or Trends.
+- Change a single transaction's category from its detail sheet (tap the category pill), from Home, Transactions or Trends.
 
-### Dashboard
+### Home
 
 - Total income, total expenses and net cash flow for the selected period.
-- Spending allocation donut chart by category; tap a category to see its transactions.
+- Fixed vs. flexible split for the period.
+- Spending allocation donut chart by category, with budget progress per category when a single month is selected.
+- Tapping income, expenses, fixed, flexible or a category opens a bottom sheet with those transactions (search, fixed/flexible and category filters).
+- "Needs attention" rows when there is something to do: uncategorised transactions, possible debts found in your statements, a past month with a partial statement.
+- Debts summary card.
 - Month stepper, plus custom date ranges with presets (last 7 days, last 30 days, year to date).
 - Statement coverage indicator for the selected month:
   - **Statement Pending**: no data yet.
   - **In Progress**: the current month, partway through.
   - **Partial Statement**: a past month with incomplete date coverage.
   - **Full Statement**: the whole month is covered.
-- Ranked lists of income, expenses, fixed costs and flexible costs.
-- Profile switcher and settings in the header.
+- Profile switcher, statement import and settings in the header of every tab.
 
 ### Transactions
 
 - Search by merchant, description or category.
-- Filter by date range and by category chips.
+- Filter by date range, by type (income, expenses, fixed, flexible) and by category chips.
+- The month or range you pick is shared with Home.
 - Detail view with the raw bank description and the fixed/flexible classification.
 
 ### Fixed vs. flexible costs
@@ -104,10 +108,10 @@ On first launch the welcome screen offers two paths: import a statement, or open
 - Deleting a category can move its transactions into another one.
 - Add keyword rules to a category; existing transactions are reclassified to match.
 
-### Budget goals
+### Budgets
 
-- Set a monthly spending limit per category.
-- Progress bars show spent versus limit.
+- Set a monthly spending limit per category (Home → Budgets, or Settings).
+- Progress bars show spent versus limit, on the Budgets screen and on Home.
 
 ### Debts
 
@@ -169,13 +173,13 @@ The app makes no network calls with user data. Statements are read on the device
 ```
 src/
   app/            Routes (Expo Router)
-    (tabs)/       Dashboard, Transactions, Trends, Debts
+    (tabs)/       Home, Transactions, Trends, Debts
     welcome.tsx   First-launch screen
     settings.tsx  Settings (modal)
-    goals.tsx     Budget goals (modal)
+    goals.tsx     Budgets (modal)
     categories.tsx  Categories (modal)
   components/     Shared components, dashboard cards and modals
-  contexts/       Profile and theme contexts
+  contexts/       Profile, period and theme contexts
   db/             Schema, queries and demo seed data
   services/       Statement import
   hooks/          Shared hooks

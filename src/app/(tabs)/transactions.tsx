@@ -4,6 +4,7 @@ import { HeaderActions } from '@/components/HeaderActions';
 import { DateRangeModal } from '@/components/modals/DateRangeModal';
 import { TransactionDetailModal } from '@/components/modals/TransactionDetailModal';
 import { ScreenContainer } from '@/components/ScreenContainer';
+import { usePeriod } from '@/contexts/PeriodContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import {
@@ -15,7 +16,8 @@ import {
     getTransactionFixedExplanation,
     getUncategorisedCount,
     setMerchantFixedOverride,
-    Transaction
+    Transaction,
+    TransactionTypeFilter
 } from '@/db/database';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -39,10 +41,13 @@ import {
 
 const PAGE_SIZE = 100;
 
-type DateFilter =
-  | { kind: 'ALL' }
-  | { kind: 'MONTH'; month: string }
-  | { kind: 'RANGE'; from: string; to: string };
+const TYPE_FILTERS: { key: TransactionTypeFilter; label: string }[] = [
+  { key: 'ALL', label: 'All' },
+  { key: 'INCOME', label: 'Income' },
+  { key: 'EXPENSE', label: 'Expenses' },
+  { key: 'FIXED', label: 'Fixed' },
+  { key: 'FLEXIBLE', label: 'Flexible' },
+];
 
 interface DaySection {
   title: string;
@@ -92,8 +97,9 @@ const formatDayTitle = (isoDate: string): string => {
 export default function TransactionsScreen() {
   const router = useRouter();
   const db = useSQLiteContext();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const { activeProfile, dataVersion, currencySymbol } = useProfile();
+  const { period: filter, setPeriod: setFilter } = usePeriod();
   const activeProfileId = activeProfile?.id ?? 1;
 
   const [items, setItems] = useState<Transaction[]>([]);
@@ -103,7 +109,7 @@ export default function TransactionsScreen() {
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
-  const [filter, setFilter] = useState<DateFilter>({ kind: 'ALL' });
+  const [typeFilter, setTypeFilter] = useState<TransactionTypeFilter>('ALL');
   const [availableMonths, setAvailableMonths] = useState<string[]>([]);
   const [bounds, setBounds] = useState<{ minDate: string; maxDate: string } | null>(null);
   const [pickerVisible, setPickerVisible] = useState(false);
@@ -161,8 +167,8 @@ export default function TransactionsScreen() {
   }, [searchInput]);
 
   useEffect(() => {
-    setFilter({ kind: 'ALL' });
     setSelectedCategory('All');
+    setTypeFilter('ALL');
   }, [activeProfileId]);
 
   const fetchFirstPage = useCallback(
@@ -181,13 +187,14 @@ export default function TransactionsScreen() {
           0,
           dateFrom,
           dateTo,
-          selectedCategory
+          selectedCategory,
+          typeFilter
         );
         loadedCountRef.current = rows.length;
         setItems(rows);
         setHasMore(rows.length === limit);
 
-        const filterKey = `${activeProfileId}|${debouncedSearch}|${dateFrom ?? ''}|${dateTo ?? ''}|${selectedCategory}`;
+        const filterKey = `${activeProfileId}|${debouncedSearch}|${dateFrom ?? ''}|${dateTo ?? ''}|${selectedCategory}|${typeFilter}`;
         if (filterKey !== lastFilterKeyRef.current) {
           lastFilterKeyRef.current = filterKey;
           requestAnimationFrame(() => {
@@ -206,7 +213,7 @@ export default function TransactionsScreen() {
         setRefreshing(false);
       }
     },
-    [db, activeProfileId, debouncedSearch, dateFrom, dateTo, selectedCategory]
+    [db, activeProfileId, debouncedSearch, dateFrom, dateTo, selectedCategory, typeFilter]
   );
 
   const fetchNextPage = useCallback(async () => {
@@ -221,7 +228,8 @@ export default function TransactionsScreen() {
         loadedCountRef.current,
         dateFrom,
         dateTo,
-        selectedCategory
+        selectedCategory,
+        typeFilter
       );
       loadedCountRef.current += rows.length;
       setItems((prev) => [...prev, ...rows]);
@@ -231,7 +239,7 @@ export default function TransactionsScreen() {
     } finally {
       fetchingRef.current = false;
     }
-  }, [db, activeProfileId, debouncedSearch, dateFrom, dateTo, selectedCategory, hasMore]);
+  }, [db, activeProfileId, debouncedSearch, dateFrom, dateTo, selectedCategory, typeFilter, hasMore]);
 
   useFocusEffect(
     useCallback(() => {
@@ -242,7 +250,7 @@ export default function TransactionsScreen() {
           const [months, dateBounds, cats, uncategorised] = await Promise.all([
             getAvailableMonths(db, activeProfileId),
             getTransactionDateBounds(db, activeProfileId),
-            getTransactionCategories(db, activeProfileId, dateFrom, dateTo),
+            getTransactionCategories(db, activeProfileId, dateFrom, dateTo, typeFilter),
             getUncategorisedCount(db, activeProfileId),
           ]);
           if (!active) return;
@@ -259,7 +267,7 @@ export default function TransactionsScreen() {
       return () => {
         active = false;
       };
-    }, [db, activeProfileId, fetchFirstPage, dataVersion, dateFrom, dateTo])
+    }, [db, activeProfileId, fetchFirstPage, dataVersion, dateFrom, dateTo, typeFilter])
   );
 
   const sections = useMemo<DaySection[]>(() => {
@@ -440,6 +448,40 @@ export default function TransactionsScreen() {
           )}
         </View>
 
+        <View style={[styles.typeBar, { backgroundColor: isDark ? '#2C2C2E' : '#E5E5EA' }]}>
+          {TYPE_FILTERS.map((option) => {
+            const isActive = typeFilter === option.key;
+            return (
+              <TouchableOpacity
+                key={option.key}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isActive }}
+                style={[
+                  styles.typeSegment,
+                  isActive && [styles.typeSegmentActive, { backgroundColor: isDark ? '#636366' : '#FFFFFF' }],
+                ]}
+                onPress={() => {
+                  if (isActive) return;
+                  Haptics.selectionAsync().catch(() => {});
+                  setTypeFilter(option.key);
+                }}
+              >
+                <Text
+                  style={[
+                    styles.typeSegmentText,
+                    { color: isActive ? colors.text : colors.textSecondary },
+                    isActive && styles.typeSegmentTextActive,
+                  ]}
+                  numberOfLines={1}
+                >
+                  {option.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
         {categories.length > 1 && (
           <View style={styles.categoryBarWrap}>
             <CategoryFilterBar
@@ -502,7 +544,7 @@ export default function TransactionsScreen() {
               <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
                 {debouncedSearch.length > 0
                   ? 'No matching transactions.'
-                  : filter.kind !== 'ALL' || selectedCategory !== 'All'
+                  : filter.kind !== 'ALL' || selectedCategory !== 'All' || typeFilter !== 'ALL'
                   ? 'No transactions match these filters.'
                   : 'No transactions yet.'}
               </Text>
@@ -663,6 +705,17 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   searchInput: { flex: 1, fontSize: 15, paddingVertical: 0 },
+  typeBar: { flexDirection: 'row', borderRadius: 9, padding: 2, marginTop: 8 },
+  typeSegment: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 6, borderRadius: 7 },
+  typeSegmentActive: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  typeSegmentText: { fontSize: 12, fontWeight: '500' },
+  typeSegmentTextActive: { fontWeight: '600' },
   categoryBarWrap: { marginHorizontal: -20, marginTop: 8, marginBottom: 4 },
   reviewRow: {
     flexDirection: 'row',

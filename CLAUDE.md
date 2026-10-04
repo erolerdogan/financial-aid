@@ -11,8 +11,8 @@
 - Period queries take a "period key": `YYYY-MM` or a range key from `makeRangeKey(from, to)`.
 
 ## Features built
-Dashboard, Transactions (search, date range, category chips), Trends (year / monthly / daily range),
-Categories screen, Review screen (uncategorised merchants), Goals, fixed vs. flexible detection,
+Home (dashboard), Transactions (search, date range, type and category filters), Trends (year / monthly / daily range),
+Categories screen, Review screen (uncategorised merchants), Budgets (`goals.tsx`), fixed vs. flexible detection,
 Debts tab (installment loans, auto-linked payments, interest estimates),
 statement import (CSV/XLSX), demo workspace, import reminders, backup & restore. Full list in `README.md`; keep it updated.
 
@@ -23,6 +23,10 @@ statement import (CSV/XLSX), demo workspace, import reminders, backup & restore.
 - Reminders: `src/utils/notifications.ts`.
 
 ## Behaviours to know
+- Home (cards, fixed/flexible, categories) and Trends ("Inspect items") drill down into `TransactionListModal`, a bottom sheet, then `TransactionDetailModal`; they do not navigate to the Transactions tab.
+- Picked period is shared by Home and Transactions through `PeriodContext` (`ALL | MONTH | RANGE`, per profile). `ALL` means nothing picked: Home shows the latest month, Transactions the full list. Trends keeps its own year/range and follows the picked month's year.
+- Type filter `FIXED | FLEXIBLE` in `getAllTransactionsByDate` is resolved in JS and paged after filtering.
+- Headers use `HeaderActions` (profile, import, settings). `ImportSummaryHost` is mounted in the tabs layout and in Settings.
 - Amount sign: expenses are negative, income positive.
 - Import dedup relies on the unique index `(date, amount, rawDescription, profileId)`.
 - Category rules reclassify only rows with `userOverridden = 0`.
@@ -51,7 +55,7 @@ statement import (CSV/XLSX), demo workspace, import reminders, backup & restore.
 
 ## Not wired up (exists, but nothing renders or calls it)
 - `RecurringSuggestionsModal`, `detectRecurringPatterns`, `getRecurringCandidates`.
-- `dashboard/DebtsCard`, `dashboard/CommitmentLink`, `CategoryDetailModal`, `EditCategoryModal`, `MonthSelector`.
+- `dashboard/CommitmentLink`, `CategoryDetailModal`, `EditCategoryModal`, `MonthSelector`.
 - `src/components/components/modals/DebtDetailModal.tsx` is a stray duplicate; the live one is `src/components/modals/DebtDetailModal.tsx`.
 
 ## Next

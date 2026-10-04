@@ -1,10 +1,11 @@
 import { ProfileSwitcherModal } from '@/components/ProfileSwitcherModal';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useStatementImporter } from '@/hooks/useStatementImporter';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 interface HeaderActionsProps {
   children?: React.ReactNode;
@@ -14,6 +15,7 @@ export function HeaderActions({ children }: HeaderActionsProps) {
   const router = useRouter();
   const { colors } = useTheme();
   const { activeProfile } = useProfile();
+  const { importStatement, importing } = useStatementImporter();
   const [profileModalVisible, setProfileModalVisible] = useState(false);
 
   return (
@@ -35,7 +37,22 @@ export function HeaderActions({ children }: HeaderActionsProps) {
       <TouchableOpacity
         style={[styles.settingsBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
         activeOpacity={0.8}
+        onPress={importStatement}
+        disabled={importing}
+        accessibilityLabel="Import bank statement"
+      >
+        {importing ? (
+          <ActivityIndicator size="small" color={colors.accent} />
+        ) : (
+          <Ionicons name="download-outline" size={18} color={colors.text} />
+        )}
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.settingsBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+        activeOpacity={0.8}
         onPress={() => router.push('/settings')}
+        accessibilityLabel="Settings"
       >
         <Ionicons name="settings-outline" size={18} color={colors.text} />
       </TouchableOpacity>

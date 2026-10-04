@@ -256,10 +256,7 @@ export default function SettingsScreen() {
           <TouchableOpacity
             style={styles.rowItem}
             activeOpacity={0.7}
-            onPress={() => {
-              router.back();
-              setTimeout(() => router.push('/categories'), 200);
-            }}
+            onPress={() => router.push('/categories')}
           >
             <View style={styles.rowLeft}>
               <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
@@ -275,16 +272,13 @@ export default function SettingsScreen() {
           <TouchableOpacity
             style={styles.rowItem}
             activeOpacity={0.7}
-            onPress={() => {
-              router.back();
-              setTimeout(() => router.push('/goals'), 200);
-            }}
+            onPress={() => router.push('/goals')}
           >
             <View style={styles.rowLeft}>
               <View style={[styles.iconCircle, { backgroundColor: '#EAF8E6' }]}>
                 <Ionicons name="disc-outline" size={18} color="#34C759" />
               </View>
-              <Text style={[styles.rowTitle, { color: colors.text }]}>Category Budget Goals</Text>
+              <Text style={[styles.rowTitle, { color: colors.text }]}>Budgets</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
           </TouchableOpacity>

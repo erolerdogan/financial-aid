@@ -950,6 +950,8 @@ export async function getTransactionsByMonthAndCategory(
 
   return withResolvedFixed(rows, await getFixedResolver(db, profileId));
 }
+export type TransactionTypeFilter = 'ALL' | 'INCOME' | 'EXPENSE' | 'FIXED' | 'FLEXIBLE';
+
 export async function getAllTransactionsByDate(
   db: SQLiteDatabase,
   profileId: number = 1,
@@ -958,7 +960,8 @@ export async function getAllTransactionsByDate(
   offset: number = 0,
   dateFrom?: string,
   dateTo?: string,
-  category?: string
+  category?: string,
+  type: TransactionTypeFilter = 'ALL'
 ): Promise<Transaction[]> {
   const params: (string | number)[] = [profileId];
   let sql = `SELECT * FROM transactions WHERE profileId = ?`;
@@ -973,6 +976,12 @@ export async function getAllTransactionsByDate(
     params.push(category);
   }
 
+  if (type === 'INCOME') {
+    sql += ` AND amount > 0`;
+  } else if (type !== 'ALL') {
+    sql += ` AND amount < 0`;
+  }
+
   const term = searchQuery.trim();
   if (term.length > 0) {
     sql += ` AND (rawDescription LIKE ? OR merchant LIKE ? OR category LIKE ?)`;
@@ -980,7 +989,17 @@ export async function getAllTransactionsByDate(
     params.push(pattern, pattern, pattern);
   }
 
-  sql += ` ORDER BY date DESC, id DESC LIMIT ? OFFSET ?;`;
+  sql += ` ORDER BY date DESC, id DESC`;
+
+  // Fixed / flexible is resolved in JS, so page after filtering. Rows keep their stored `is_fixed`.
+  if (type === 'FIXED' || type === 'FLEXIBLE') {
+    const rows = await db.getAllAsync<Transaction>(`${sql};`, params);
+    const resolver = await getFixedResolver(db, profileId);
+    const wantFixed = type === 'FIXED';
+    return rows.filter((tx) => resolver.resolve(tx).isFixed === wantFixed).slice(offset, offset + limit);
+  }
+
+  sql += ` LIMIT ? OFFSET ?;`;
   params.push(limit, offset);
 
   return await db.getAllAsync<Transaction>(sql, params);
@@ -990,7 +1009,8 @@ export async function getTransactionCategories(
   db: SQLiteDatabase,
   profileId: number = 1,
   dateFrom?: string,
-  dateTo?: string
+  dateTo?: string,
+  type: TransactionTypeFilter = 'ALL'
 ): Promise<string[]> {
   const params: (string | number)[] = [profileId];
   let sql = `SELECT category FROM transactions WHERE profileId = ?`;
@@ -998,6 +1018,12 @@ export async function getTransactionCategories(
   if (dateFrom && dateTo) {
     sql += ` AND date >= ? AND date < ?`;
     params.push(dateFrom, dateTo);
+  }
+
+  if (type === 'INCOME') {
+    sql += ` AND amount > 0`;
+  } else if (type !== 'ALL') {
+    sql += ` AND amount < 0`;
   }
 
   sql += ` GROUP BY category ORDER BY SUM(ABS(amount)) DESC;`;
@@ -1403,6 +1429,22 @@ export async function getCategoryGoal(
     [category, profileId]
   );
   return result?.monthly_limit ?? 0;
+}
+
+/** Monthly limits per category; categories without a limit are left out. */
+export async function getCategoryGoals(
+  db: SQLiteDatabase,
+  profileId: number
+): Promise<Record<string, number>> {
+  const rows = await db.getAllAsync<{ category: string; monthly_limit: number }>(
+    `SELECT category, monthly_limit FROM category_goals WHERE profileId = ? AND monthly_limit > 0;`,
+    [profileId]
+  );
+  const goals: Record<string, number> = {};
+  rows.forEach((r) => {
+    goals[r.category] = r.monthly_limit;
+  });
+  return goals;
 }
 
 export async function getAnnualTrendWithBudget(

@@ -11,14 +11,14 @@ interface SummaryCardsProps {
   };
   totalTransactions: number;
   categoryCount: number;
-  onOpenCardModal: (type: 'INCOME' | 'EXPENSE' | 'FIXED' | 'FLEXIBLE') => void;
+  onPressCard: (type: 'INCOME' | 'EXPENSE') => void;
 }
 
 export function SummaryCards({
   summary,
   totalTransactions,
   categoryCount,
-  onOpenCardModal,
+  onPressCard,
 }: SummaryCardsProps) {
   const { colors } = useTheme();
   const { currencySymbol } = useProfile();
@@ -29,7 +29,7 @@ export function SummaryCards({
         <TouchableOpacity
           style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
           activeOpacity={0.8}
-          onPress={() => onOpenCardModal('INCOME')}
+          onPress={() => onPressCard('INCOME')}
         >
           <Text style={[styles.label, { color: colors.textSecondary }]}>Total Income</Text>
           <Text style={[styles.amount, { color: '#34C759' }]}>
@@ -40,7 +40,7 @@ export function SummaryCards({
         <TouchableOpacity
           style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
           activeOpacity={0.8}
-          onPress={() => onOpenCardModal('EXPENSE')}
+          onPress={() => onPressCard('EXPENSE')}
         >
           <Text style={[styles.label, { color: colors.textSecondary }]}>Total Expenses</Text>
           <Text style={[styles.amount, { color: '#FF3B30' }]}>

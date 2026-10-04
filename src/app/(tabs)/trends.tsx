@@ -1,10 +1,11 @@
 import { MonthStepper } from '@/components/dashboard/MonthStepper';
+import { HeaderActions } from '@/components/HeaderActions';
 import { DateRangeModal } from '@/components/modals/DateRangeModal';
 import { TransactionDetailModal } from '@/components/modals/TransactionDetailModal';
 import { TransactionListModal } from '@/components/modals/TransactionListModal';
-import { ProfileSwitcherModal } from '@/components/ProfileSwitcherModal';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { getCategoryColor } from '@/constants/colors';
+import { usePeriod } from '@/contexts/PeriodContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import {
   FixedCostSummary,
@@ -27,7 +28,7 @@ import {
 } from '@/db/database';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import React, { useCallback, useRef, useState } from 'react';
 import type { TextStyle } from 'react-native';
@@ -147,12 +148,13 @@ function keepIfEqual<T>(next: T) {
 }
 
 export default function TrendsScreen() {
-  const router = useRouter();
   const db = useSQLiteContext();
   const { colors } = useTheme();
   const { width: screenWidth } = useWindowDimensions();
   const { activeProfile, currencySymbol, dataVersion } = useProfile();
   const activeProfileId = activeProfile?.id ?? 1;
+  const { period } = usePeriod();
+  const sharedYear = period.kind === 'MONTH' ? period.month.slice(0, 4) : null;
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -162,7 +164,6 @@ export default function TrendsScreen() {
   const [availableYears, setAvailableYears] = useState<string[]>([getCurrentYear()]);
   const [selectedYear, setSelectedYear] = useState<string>(getCurrentYear());
   const [yearPickerVisible, setYearPickerVisible] = useState(false);
-  const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [yearCoverage, setYearCoverage] = useState<YearCoverageStatus>({
     status: 'EMPTY',
     label: '',
@@ -172,6 +173,13 @@ export default function TrendsScreen() {
   const [rangeFilter, setRangeFilter] = useState<{ from: string; to: string } | null>(null);
   const [rangeModalVisible, setRangeModalVisible] = useState(false);
   const [dateBounds, setDateBounds] = useState<{ minDate: string; maxDate: string } | null>(null);
+
+  // Open on the year of the month picked on Home or Transactions.
+  const [followedYear, setFollowedYear] = useState<string | null>(null);
+  if (sharedYear !== followedYear) {
+    setFollowedYear(sharedYear);
+    if (sharedYear) setSelectedYear(sharedYear);
+  }
 
   const isDailyMode =
     rangeFilter !== null && getRangeDayCount(rangeFilter.from, rangeFilter.to) <= RANGE_DAILY_MAX_DAYS;
@@ -630,34 +638,7 @@ export default function TrendsScreen() {
         <View style={styles.headerRow}>
           <Text style={[styles.headerTitle, { color: colors.text }]}>Trends</Text>
 
-          <View style={styles.headerRightGroup}>
-            <TouchableOpacity
-              style={[styles.profilePill, { backgroundColor: colors.card, borderColor: colors.border }]}
-              onPress={() => setProfileModalVisible(true)}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.miniAvatar, { backgroundColor: activeProfile?.avatarColor || '#007AFF' }]}>
-                <Text style={styles.miniAvatarText}>
-                  {activeProfile?.name?.substring(0, 1) || 'P'}
-                </Text>
-              </View>
-              <Text style={[styles.profilePillText, { color: colors.text }]}>
-                {activeProfile?.name || 'Personal'}
-              </Text>
-              <Ionicons name="chevron-down" size={12} color={colors.textSecondary} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.settingsHeaderBtn,
-                { backgroundColor: colors.card, borderColor: colors.border },
-              ]}
-              activeOpacity={0.8}
-              onPress={() => router.push('/settings')}
-            >
-              <Ionicons name="settings-outline" size={18} color={colors.text} />
-            </TouchableOpacity>
-          </View>
+          <HeaderActions />
         </View>
 
         <MonthStepper
@@ -981,12 +962,6 @@ export default function TrendsScreen() {
         </View>
       </ScrollView>
 
-      {/* Profile Switcher Modal */}
-      <ProfileSwitcherModal
-        visible={profileModalVisible}
-        onClose={() => setProfileModalVisible(false)}
-      />
-
       {/* Period Picker Modal Sheet */}
       <Modal visible={yearPickerVisible} transparent animationType="slide">
         <TouchableOpacity
@@ -1119,50 +1094,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: -0.5,
   },
-  headerRightGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  profilePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: 20,
-    borderWidth: StyleSheet.hairlineWidth,
-    gap: 6,
-  },
-  miniAvatar: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  miniAvatarText: {
-    color: '#FFF',
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  profilePillText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  settingsHeaderBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-
   /* Sticky Anchor Layout */
   stickyBarContainer: {
     flexDirection: 'row',
