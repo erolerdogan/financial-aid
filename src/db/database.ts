@@ -2779,8 +2779,15 @@ export async function getDebtSuggestions(db: SQLiteDatabase, profileId: number):
   );
   if (rows.length === 0) return [];
 
-  const [rules, latest, dismissed] = await Promise.all([
+  const [rules, unmatchedDebts, latest, dismissed] = await Promise.all([
     db.getAllAsync<{ keyword: string }>(`SELECT keyword FROM debt_rules WHERE profileId = ?;`, [profileId]),
+    // A debt added by hand has no keyword; its name is the only thing that ties it to the statements.
+    db.getAllAsync<{ name: string }>(
+      `SELECT d.name AS name FROM debts d
+       WHERE d.profileId = ? AND d.status != 'ARCHIVED'
+         AND NOT EXISTS (SELECT 1 FROM debt_rules r WHERE r.debtId = d.id);`,
+      [profileId]
+    ),
     db.getFirstAsync<{ date: string | null }>(
       `SELECT MAX(date) AS date FROM transactions WHERE profileId = ?;`,
       [profileId]
@@ -2790,7 +2797,7 @@ export async function getDebtSuggestions(db: SQLiteDatabase, profileId: number):
 
   return buildDebtSuggestions(
     rows,
-    rules.map((r) => r.keyword),
+    [...rules.map((r) => r.keyword), ...unmatchedDebts.map((d) => d.name)],
     dismissed,
     latest?.date ?? null
   );

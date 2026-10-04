@@ -1,7 +1,5 @@
 import { AllocationChart } from '@/components/dashboard/AllocationChart';
-import { AttentionItem, AttentionRows } from '@/components/dashboard/AttentionRows';
 import { DebtsCard } from '@/components/dashboard/DebtsCard';
-import { FixedFlexibleCard } from '@/components/dashboard/FixedFlexibleCard';
 import { MonthStepper } from '@/components/dashboard/MonthStepper';
 import { SummaryCards } from '@/components/dashboard/SummaryCards';
 import { HeaderActions } from '@/components/HeaderActions';
@@ -18,7 +16,6 @@ import {
   getAvailableMonths,
   getCategoryFixedVsFlexibleSummary,
   getCategoryGoals,
-  getDebtSuggestions,
   getFilteredTransactions,
   getFixedOrFlexibleTransactions,
   getFixedVsFlexibleSummary,
@@ -104,14 +101,6 @@ const LIST_TITLES: Record<ListType, string> = {
   FLEXIBLE: 'Flexible Transactions',
 };
 
-const EMPTY_FIXED_SUMMARY: FixedCostSummary = {
-  fixedTotal: 0,
-  flexibleTotal: 0,
-  fixedPercentage: 0,
-  flexiblePercentage: 0,
-  fixedItemsCount: 0,
-};
-
 export default function DashboardScreen() {
   const router = useRouter();
   const db = useSQLiteContext();
@@ -139,6 +128,13 @@ export default function DashboardScreen() {
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [currentFixedState, setCurrentFixedState] = useState<FixedOverrideState>('AUTO');
   const [fixedAuto, setFixedAuto] = useState({ autoIsFixed: false, reason: '' });
+  // False when the detail was opened from an expanded category row instead of the list sheet.
+  const [detailFromList, setDetailFromList] = useState(true);
+
+  // Category expanded inline in the allocation card; only valid for the period and profile it was opened in.
+  const [expanded, setExpanded] = useState<{ scope: string; category: string } | null>(null);
+  const [expandedTransactions, setExpandedTransactions] = useState<Transaction[]>([]);
+  const [loadingExpanded, setLoadingExpanded] = useState(false);
 
   // Filters & State
   const [availableMonths, setAvailableMonths] = useState<string[]>([]);
@@ -154,10 +150,8 @@ export default function DashboardScreen() {
     totalExpenses: 0,
     netSavings: 0,
   });
-  const [fixedSummary, setFixedSummary] = useState<FixedCostSummary>(EMPTY_FIXED_SUMMARY);
   const [categoryData, setCategoryData] = useState<CategoryTotal[]>([]);
   const [budgets, setBudgets] = useState<Record<string, number>>(NO_BUDGETS);
-  const [debtSuggestionCount, setDebtSuggestionCount] = useState(0);
 
   const currentMonthKey = getCurrentMonthKey();
 
@@ -201,8 +195,6 @@ export default function DashboardScreen() {
         setCoverageStatus({ status: 'EMPTY', label: 'Statement Pending' });
         setSummary({ totalIncome: 0, totalExpenses: 0, netSavings: 0 });
         setCategoryData([]);
-        setFixedSummary(EMPTY_FIXED_SUMMARY);
-        setDebtSuggestionCount(0);
         return;
       }
 
@@ -211,13 +203,11 @@ export default function DashboardScreen() {
       const activeRange = period.kind === 'RANGE' ? period : null;
       const activePeriod = activeRange ? makeRangeKey(activeRange.from, activeRange.to) : activeMonth;
 
-      const [summaryRes, categoryRes, fixedRes, goalsRes, debtSuggestions, dateRangeRes] =
+      const [summaryRes, categoryRes, goalsRes, dateRangeRes] =
         await Promise.all([
           getMonthlySummary(db, activePeriod, activeProfileId),
           getMonthlyCategoryTotals(db, activePeriod, activeProfileId),
-          getFixedVsFlexibleSummary(db, activePeriod, activeProfileId),
           getCategoryGoals(db, activeProfileId),
-          getDebtSuggestions(db, activeProfileId),
           activeRange
             ? Promise.resolve(null)
             : db.getFirstAsync<{ minDate: string; maxDate: string }>(
@@ -228,9 +218,7 @@ export default function DashboardScreen() {
 
       setSummary(summaryRes);
       setCategoryData(categoryRes || []);
-      setFixedSummary(fixedRes);
       setBudgets(goalsRes);
-      setDebtSuggestionCount(debtSuggestions.length);
 
       if (activeRange) {
         setCoverageStatus({ status: 'EMPTY', label: '' });
@@ -315,6 +303,43 @@ export default function DashboardScreen() {
     setRangeModalVisible(false);
   };
 
+  const expandedScope = `${activeProfileId}:${periodKey}`;
+  const expandedCategory = expanded?.scope === expandedScope ? expanded.category : null;
+
+  const handleCategoryPress = async (category: string) => {
+    if (!db) return;
+    Haptics.selectionAsync().catch(() => {});
+    if (expandedCategory === category) {
+      setExpanded(null);
+      return;
+    }
+    setExpanded({ scope: expandedScope, category });
+    setExpandedTransactions([]);
+    try {
+      setLoadingExpanded(true);
+      const items = await getTransactionsByMonthAndCategory(db, periodKey, category, activeProfileId);
+      setExpandedTransactions(items || []);
+    } catch (error) {
+      console.error(`Failed to load ${category} transactions:`, error);
+    } finally {
+      setLoadingExpanded(false);
+    }
+  };
+
+  const openDetail = async (trx: Transaction) => {
+    setSelectedTransaction(trx);
+    if (db) {
+      const explanation = await getTransactionFixedExplanation(db, trx, activeProfileId);
+      setCurrentFixedState(explanation.state);
+      setFixedAuto(explanation);
+    }
+  };
+
+  const handleSelectFromCategory = (trx: Transaction) => {
+    setDetailFromList(false);
+    openDetail(trx);
+  };
+
   const loadListModal = async (type: ListType, category: string | null) => {
     if (!db) return;
     const byAmount = (items: Transaction[]) =>
@@ -360,23 +385,21 @@ export default function DashboardScreen() {
 
   const handleSelectFromList = (trx: Transaction) => {
     setListModalVisible(false);
-    setTimeout(async () => {
-      setSelectedTransaction(trx);
-      if (db) {
-        const explanation = await getTransactionFixedExplanation(db, trx, activeProfileId);
-        setCurrentFixedState(explanation.state);
-        setFixedAuto(explanation);
-      }
-    }, 250);
+    setDetailFromList(true);
+    setTimeout(() => openDetail(trx), 250);
   };
 
   const handleBackFromDetail = () => {
     setSelectedTransaction(null);
-    setTimeout(() => setListModalVisible(true), 250);
+    if (detailFromList) setTimeout(() => setListModalVisible(true), 250);
   };
 
   const refreshAfterDetailChange = async () => {
-    await loadListModal(listModalType, listModalCategory);
+    if (detailFromList) await loadListModal(listModalType, listModalCategory);
+    if (db && expandedCategory) {
+      const items = await getTransactionsByMonthAndCategory(db, periodKey, expandedCategory, activeProfileId);
+      setExpandedTransactions(items || []);
+    }
     await loadDashboardData();
   };
 
@@ -423,29 +446,6 @@ export default function DashboardScreen() {
   const listModalNames = listModalCategory
     ? { ...periodNames, [periodKey]: `${listModalCategory} · ${periodNames[periodKey] ?? periodKey}` }
     : periodNames;
-
-  const attentionItems: AttentionItem[] = [];
-  if (debtSuggestionCount > 0) {
-    attentionItems.push({
-      key: 'debts',
-      icon: 'trending-down-outline',
-      text: `${debtSuggestionCount} possible debt${debtSuggestionCount === 1 ? '' : 's'} in your statements`,
-      action: 'View',
-      onPress: () => router.navigate('/debts'),
-    });
-  }
-  if (coverageStatus.status === 'PARTIAL' && coverageStatus.minDate && coverageStatus.maxDate) {
-    attentionItems.push({
-      key: 'coverage',
-      icon: 'download-outline',
-      text: `${periodNames[selectedMonth] ?? selectedMonth} only covers ${formatCoverageDays(
-        coverageStatus.minDate,
-        coverageStatus.maxDate
-      )}`,
-      action: 'Import',
-      onPress: importStatement,
-    });
-  }
 
   const totalTransactions = categoryData.reduce((a, b) => a + (b.count || 0), 0);
 
@@ -514,8 +514,6 @@ export default function DashboardScreen() {
               onOpenMonthPicker={() => setMonthPickerVisible(true)}
             />
 
-            <AttentionRows items={attentionItems} />
-
             <SummaryCards
               summary={summary}
               totalTransactions={totalTransactions}
@@ -523,16 +521,14 @@ export default function DashboardScreen() {
               onPressCard={openListModal}
             />
 
-            <FixedFlexibleCard
-              summary={fixedSummary}
-              onPressFixed={() => openListModal('FIXED')}
-              onPressFlexible={() => openListModal('FLEXIBLE')}
-            />
-
             <AllocationChart
               categoryData={categoryData}
               budgets={rangeFilter ? NO_BUDGETS : budgets}
-              onCategoryPress={(category) => openListModal('EXPENSE', category)}
+              expandedCategory={expandedCategory}
+              expandedTransactions={expandedTransactions}
+              loadingTransactions={loadingExpanded}
+              onCategoryPress={handleCategoryPress}
+              onSelectTransaction={handleSelectFromCategory}
               onOpenBudgets={() => router.push('/goals')}
             />
 
@@ -559,7 +555,7 @@ export default function DashboardScreen() {
         fixedState={currentFixedState}
         autoIsFixed={fixedAuto.autoIsFixed}
         autoReason={fixedAuto.reason}
-        parentTitle={listModalCategory ?? LIST_TITLES[listModalType]}
+        parentTitle={detailFromList ? listModalCategory ?? LIST_TITLES[listModalType] : 'Home'}
         onClose={handleBackFromDetail}
         onDismiss={() => setSelectedTransaction(null)}
         onSelectFixedState={handleSelectFixedState}

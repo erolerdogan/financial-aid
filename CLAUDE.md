@@ -11,7 +11,7 @@
 - Period queries take a "period key": `YYYY-MM` or a range key from `makeRangeKey(from, to)`.
 
 ## Features built
-Home (dashboard), Transactions (search, date range, type and category filters), Trends (year / monthly / daily range),
+Home (dashboard), For You inbox (bell in every tab header), Transactions (search, date range, type and category filters), Trends (year / monthly / daily range),
 Categories screen, Review screen (uncategorised merchants), Budgets (`goals.tsx`), fixed vs. flexible detection,
 Debts tab (installment loans, auto-linked payments, interest estimates),
 statement import (CSV/XLSX), demo workspace, import reminders, backup & restore. Full list in `README.md`; keep it updated.
@@ -23,10 +23,14 @@ statement import (CSV/XLSX), demo workspace, import reminders, backup & restore.
 - Reminders: `src/utils/notifications.ts`.
 
 ## Behaviours to know
-- Home (cards, fixed/flexible, categories) and Trends ("Inspect items") drill down into `TransactionListModal`, a bottom sheet, then `TransactionDetailModal`; they do not navigate to the Transactions tab.
+- Home category rows in `AllocationChart` expand inline to their transactions (state in `src/app/(tabs)/index.tsx`, straight to `TransactionDetailModal`, no sheet).
+- Home cards (the fixed vs. flexible split is shown inside the sheet, not on Home) and Trends ("Inspect items") drill down into `TransactionListModal`, a bottom sheet, then `TransactionDetailModal`; they do not navigate to the Transactions tab.
 - Picked period is shared by Home and Transactions through `PeriodContext` (`ALL | MONTH | RANGE`, per profile). `ALL` means nothing picked: Home shows the latest month, Transactions the full list. Trends keeps its own year/range and follows the picked month's year.
 - Type filter `FIXED | FLEXIBLE` in `getAllTransactionsByDate` is resolved in JS and paged after filtering.
-- Headers use `HeaderActions` (profile, import, settings). `ImportSummaryHost` is mounted in the tabs layout and in Settings.
+- Headers use `HeaderActions` (profile, "For You" bell, settings). `ImportSummaryHost` is mounted in the tabs layout and in Settings.
+- For You inbox: `getInboxItems` in `src/services/inboxService.ts` aggregates debt suggestions (always one row: a single suggestion opens the prefilled form, several navigate to the Debts tab; dismissing the row dismisses them all), uncategorised count, `POSSIBLE` debt payment matches, partial past months and the backup reminder (not in demo mode). `InboxProvider` / `InboxHost` (`src/contexts/InboxContext.tsx`) wrap the tabs layout; the host owns `InboxModal` plus the `DebtFormModal` and `BackupRestoreModal` its rows open. Home has no attention rows any more. `InboxModal` is not a bottom sheet: `HeaderActions` measures the bell (`measureInWindow`) and passes it to `openInbox(anchor)`, and the panel scales out of that point (`transformOrigin`).
+- Inbox refresh: `HeaderActions` calls `refreshInbox` on focus; it is skipped while profile, `dataVersion`, `total_changes()` and day are unchanged. Screens that write without bumping `dataVersion` call `refreshInbox` themselves (Debts `load`).
+- Inbox dismissals: JSON map in `app_meta` (`inbox_dismissed:<profileId>`, key → number). An item stays hidden while the stored number is >= its threshold (max transaction id for uncategorised / debt matches, snooze timestamp for backup); debt suggestions use `dismissDebtSuggestion`. Bell badge counts everything except quiet items (`isQuietInboxItem`, backup), which show a dot.
 - Amount sign: expenses are negative, income positive.
 - Import dedup relies on the unique index `(date, amount, rawDescription, profileId)`.
 - Category rules reclassify only rows with `userOverridden = 0`.
@@ -50,7 +54,7 @@ statement import (CSV/XLSX), demo workspace, import reminders, backup & restore.
 - Debt suggestions: `buildDebtSuggestions` in `src/utils/debtSuggestion.ts` (unlinked expenses grouped by `merchantKey`; needs a `DEBT_SIGNALS` word, no insurance/credit-card word, 2+ months, steady amount, recent, no existing debt keyword match). `getDebtSuggestions` / `dismissDebtSuggestion` in `src/db/database.ts`; dismissals are a JSON list in `app_meta` (`debt_suggestions_dismissed:<profileId>`). The Debts tab passes a suggestion to `DebtFormModal` as `prefill` (name, type, keyword); the form's keyword effect fills the rest.
 - Backup/restore: `src/services/backupService.ts` + `src/components/modals/BackupRestoreModal.tsx` (opened from Settings). Backup is the whole SQLite file via `serializeAsync` (WAL header bytes 18/19 normalised to 1, otherwise `deserializeDatabaseAsync` cannot read it), shared with RN `Share` on iOS and a directory picker on Android (no `expo-sharing`). Restore validates an in-memory copy, writes `pre-restore.db` to the document directory (used by "Undo Last Restore"), then `replaceDatabaseContents` (`backupDatabaseAsync` + `initDatabase`) and `reloadAfterRestore` in ProfileContext. Backups with `user_version > CLASSIFIER_VERSION` are refused.
 - `app_meta` is a key/value table (last backup date, backup notice seen); it survives "Reset" and is replaced by a restore.
-- Themes: `THEMES` in `src/contexts/ThemeContext.tsx` (Aurora default, Midnight Gold, Sunset, Forest Mint, Orchid, Classic), each with light and dark `ThemeColors`. Besides the base tokens there are `surface`, `track`, `field`, `raised` (use these instead of `isDark ? grey : grey`) and `gradient` / `onGradient` for hero surfaces (`LinearGradient`). Theme name and mode are saved in `app_meta` (`theme_name`, `theme_mode`) and read synchronously on launch; with no saved mode the system scheme is followed.
+- Themes: `THEMES` in `src/contexts/ThemeContext.tsx` (Aurora, Midnight Gold, Sunset, Forest Mint, Orchid, Classic default), each with light and dark `ThemeColors`. Besides the base tokens there are `surface`, `track`, `field`, `raised` (use these instead of `isDark ? grey : grey`) and `gradient` / `onGradient` for hero surfaces (`LinearGradient`). Theme name and mode are saved in `app_meta` (`theme_name`, `theme_mode`) and read synchronously on launch; with no saved mode the system scheme is followed.
 - Schema changes go in `initDatabase` as `CREATE TABLE IF NOT EXISTS` plus a try/catch `ALTER TABLE`.
 
 ## Not wired up (exists, but nothing renders or calls it)

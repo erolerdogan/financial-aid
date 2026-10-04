@@ -1,11 +1,12 @@
 import { ProfileSwitcherModal } from '@/components/ProfileSwitcherModal';
+import { useInbox } from '@/contexts/InboxContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useStatementImporter } from '@/hooks/useStatementImporter';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useRef, useState } from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 interface HeaderActionsProps {
   children?: React.ReactNode;
@@ -15,8 +16,18 @@ export function HeaderActions({ children }: HeaderActionsProps) {
   const router = useRouter();
   const { colors } = useTheme();
   const { activeProfile } = useProfile();
-  const { importStatement, importing } = useStatementImporter();
+  const { count, hasQuietItems, openInbox, refreshInbox } = useInbox();
   const [profileModalVisible, setProfileModalVisible] = useState(false);
+  const bellRef = useRef<View>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshInbox();
+    }, [refreshInbox])
+  );
+
+  const inboxLabel =
+    count > 0 ? `For you, ${count} item${count === 1 ? '' : 's'}` : hasQuietItems ? 'For you, 1 reminder' : 'For you';
 
   return (
     <View style={styles.group}>
@@ -35,17 +46,25 @@ export function HeaderActions({ children }: HeaderActionsProps) {
       </TouchableOpacity>
 
       <TouchableOpacity
+        ref={bellRef}
         style={[styles.settingsBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
         activeOpacity={0.8}
-        onPress={importStatement}
-        disabled={importing}
-        accessibilityLabel="Import bank statement"
+        onPress={() => {
+          Haptics.selectionAsync().catch(() => {});
+          // The panel grows out of the bell, so it needs to know where the bell is.
+          if (!bellRef.current) return openInbox();
+          bellRef.current.measureInWindow((x, y, width, height) => openInbox({ x, y, width, height }));
+        }}
+        accessibilityLabel={inboxLabel}
       >
-        {importing ? (
-          <ActivityIndicator size="small" color={colors.accent} />
-        ) : (
-          <Ionicons name="download-outline" size={18} color={colors.text} />
-        )}
+        <Ionicons name="notifications-outline" size={18} color={colors.text} />
+        {count > 0 ? (
+          <View style={[styles.badge, { borderColor: colors.background }]}>
+            <Text style={styles.badgeText}>{count > 9 ? '9+' : count}</Text>
+          </View>
+        ) : hasQuietItems ? (
+          <View style={[styles.dot, { backgroundColor: colors.accent, borderColor: colors.background }]} />
+        ) : null}
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -111,5 +130,32 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 3,
     elevation: 1,
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 17,
+    height: 17,
+    borderRadius: 8.5,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FF3B30',
+    borderWidth: 1.5,
+  },
+  badgeText: {
+    color: '#FFF',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  dot: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
+    borderWidth: 1.5,
   },
 });

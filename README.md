@@ -63,10 +63,9 @@ On first launch the welcome screen offers two paths: import a statement, or open
 ### Home
 
 - Total income, total expenses and net cash flow for the selected period.
-- Fixed vs. flexible split for the period.
 - Spending allocation donut chart by category, with budget progress per category when a single month is selected.
-- Tapping income, expenses, fixed, flexible or a category opens a bottom sheet with those transactions (search, fixed/flexible and category filters).
-- "Needs attention" rows when there is something to do: possible debts found in your statements, a past month with a partial statement.
+- Tapping income or expenses opens a bottom sheet with those transactions (fixed vs. flexible split, search, fixed/flexible and category filters).
+- Tapping a category in the allocation card expands its transactions inline; tapping one opens its detail.
 - Debts summary card.
 - Month stepper, plus custom date ranges with presets (last 7 days, last 30 days, year to date).
 - Statement coverage indicator for the selected month:
@@ -74,7 +73,14 @@ On first launch the welcome screen offers two paths: import a statement, or open
   - **In Progress**: the current month, partway through.
   - **Partial Statement**: a past month with incomplete date coverage.
   - **Full Statement**: the whole month is covered.
-- Profile switcher, statement import and settings in the header of every tab.
+- Profile switcher, "For You" bell and settings in the header of every tab.
+
+### For You (bell)
+
+- One list of things found in your statements that you can act on, opened from the bell in any tab header.
+- Possible debts (one row: a single one opens the debt form prefilled, several open the Debts tab), uncategorised transactions (opens Review), possible payments for an existing debt, past months with a partial statement (import), and a backup reminder after 30 days.
+- The bell shows a count for items that need a decision and a dot when only a reminder is left.
+- Every item can be dismissed; it comes back only when there is something new (a later import, a new month, 30 days for backups).
 
 ### Transactions
 
@@ -136,7 +142,7 @@ On first launch the welcome screen offers two paths: import a statement, or open
 ### Settings
 
 - Currency: EUR, USD, GBP, JPY, CHF, CAD or AUD. Switching currency converts existing amounts using fixed built-in rates.
-- Six colour themes (Aurora, Midnight Gold, Sunset, Forest Mint, Orchid, Classic) with gradient accents, each in light and dark; the choice is remembered. Dark mode follows the system until you toggle it.
+- Six colour themes (Aurora, Midnight Gold, Sunset, Forest Mint, Orchid, Classic; Classic is the default) with gradient accents, each in light and dark; the choice is remembered. Dark mode follows the system until you toggle it.
 - Import reminders: local notifications on the 15th and 28th of each month. Importing a statement cancels the pending reminders.
 - Reset all data and profiles.
 

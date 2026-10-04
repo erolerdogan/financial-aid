@@ -1,24 +1,33 @@
 import { getCategoryColor } from '@/constants/colors';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { CategoryTotal } from '@/db/database';
+import { CategoryTotal, Transaction } from '@/db/database';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { G, Path } from 'react-native-svg';
 
 interface AllocationChartProps {
   categoryData: CategoryTotal[];
   /** Monthly limit per category; pass an empty object when the period is not a single month. */
   budgets: Record<string, number>;
+  /** Category whose transactions are shown inline, or null when all rows are collapsed. */
+  expandedCategory: string | null;
+  expandedTransactions: Transaction[];
+  loadingTransactions: boolean;
   onCategoryPress: (categoryName: string) => void;
+  onSelectTransaction: (trx: Transaction) => void;
   onOpenBudgets: () => void;
 }
 
 export function AllocationChart({
   categoryData,
   budgets,
+  expandedCategory,
+  expandedTransactions,
+  loadingTransactions,
   onCategoryPress,
+  onSelectTransaction,
   onOpenBudgets,
 }: AllocationChartProps) {
   const { colors } = useTheme();
@@ -59,13 +68,16 @@ export function AllocationChart({
                 const strokeDashoffset = -((circumference * accumulatedPercentage) / 100);
                 accumulatedPercentage += percentage;
 
+                const isSelected = expandedCategory === item.category;
+                const isDimmed = expandedCategory !== null && !isSelected;
+
                 return (
                   <Path
                     key={`${item.category}-${index}`}
                     d={`M ${center} ${center - radius} A ${radius} ${radius} 0 1 1 ${center - 0.01} ${center - radius}`}
                     fill="none"
-                    stroke={getCategoryColor(item.category)}
-                    strokeWidth={strokeWidth}
+                    stroke={isDimmed ? colors.track : getCategoryColor(item.category)}
+                    strokeWidth={isSelected ? strokeWidth + 4 : strokeWidth}
                     strokeDasharray={strokeDasharray}
                     strokeDashoffset={strokeDashoffset}
                   />
@@ -82,67 +94,115 @@ export function AllocationChart({
         </View>
       </View>
 
-      {/* Category list; each row opens the transactions behind it */}
+      {/* Category list; each row expands to the transactions behind it */}
       <View style={styles.bottomLegendList}>
         {displayedCategories.map((item) => {
           const percentage = totalSpending > 0 ? (item.totalAmount / totalSpending) * 100 : 0;
           const color = getCategoryColor(item.category);
           const budget = budgets[item.category] ?? 0;
           const isOver = budget > 0 && item.totalAmount > budget;
+          const isSelected = expandedCategory === item.category;
 
           return (
-            <TouchableOpacity
-              key={item.category}
-              style={[styles.legendRow, { backgroundColor: colors.surface }]}
-              activeOpacity={0.7}
-              onPress={() => onCategoryPress(item.category)}
-            >
-              <View style={styles.legendTop}>
-                <View style={styles.legendLeft}>
-                  <View style={[styles.dot, { backgroundColor: color }]} />
-                  <Text style={[styles.legendLabel, { color: colors.text }]} numberOfLines={1}>
-                    {item.category}
-                  </Text>
+            <View key={item.category}>
+              <TouchableOpacity
+                style={[
+                  styles.legendRow,
+                  { backgroundColor: isSelected ? colors.tintBackground : colors.surface },
+                ]}
+                activeOpacity={0.7}
+                onPress={() => onCategoryPress(item.category)}
+              >
+                <View style={styles.legendTop}>
+                  <View style={styles.legendLeft}>
+                    <View style={[styles.dot, { backgroundColor: color }]} />
+                    <Text style={[styles.legendLabel, { color: colors.text }]} numberOfLines={1}>
+                      {item.category}
+                    </Text>
+                  </View>
+
+                  <View style={styles.legendRight}>
+                    <Text style={[styles.amountText, { color: isOver ? '#FF3B30' : colors.text }]}>
+                      {currencySymbol}{item.totalAmount.toFixed(0)}
+                      {budget > 0 && (
+                        <Text style={[styles.budgetText, { color: colors.textSecondary }]}>
+                          {' '}/ {currencySymbol}{budget.toFixed(0)}
+                        </Text>
+                      )}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.percentBadge,
+                        {
+                          backgroundColor: colors.track,
+                          color: colors.textSecondary,
+                        },
+                      ]}
+                    >
+                      {percentage.toFixed(0)}%
+                    </Text>
+                    <Ionicons
+                      name={isSelected ? 'chevron-up' : 'chevron-down'}
+                      size={14}
+                      color={colors.textSecondary}
+                    />
+                  </View>
                 </View>
 
-                <View style={styles.legendRight}>
-                  <Text style={[styles.amountText, { color: isOver ? '#FF3B30' : colors.text }]}>
-                    {currencySymbol}{item.totalAmount.toFixed(0)}
-                    {budget > 0 && (
-                      <Text style={[styles.budgetText, { color: colors.textSecondary }]}>
-                        {' '}/ {currencySymbol}{budget.toFixed(0)}
-                      </Text>
-                    )}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.percentBadge,
-                      {
-                        backgroundColor: colors.track,
-                        color: colors.textSecondary,
-                      },
-                    ]}
-                  >
-                    {percentage.toFixed(0)}%
-                  </Text>
-                  <Ionicons name="chevron-forward" size={14} color={colors.textSecondary} />
-                </View>
-              </View>
+                {budget > 0 && (
+                  <View style={[styles.budgetTrack, { backgroundColor: colors.track }]}>
+                    <View
+                      style={[
+                        styles.budgetBar,
+                        {
+                          width: `${Math.min(100, (item.totalAmount / budget) * 100)}%`,
+                          backgroundColor: isOver ? '#FF3B30' : color,
+                        },
+                      ]}
+                    />
+                  </View>
+                )}
+              </TouchableOpacity>
 
-              {budget > 0 && (
-                <View style={[styles.budgetTrack, { backgroundColor: colors.track }]}>
-                  <View
-                    style={[
-                      styles.budgetBar,
-                      {
-                        width: `${Math.min(100, (item.totalAmount / budget) * 100)}%`,
-                        backgroundColor: isOver ? '#FF3B30' : color,
-                      },
-                    ]}
-                  />
+              {isSelected && (
+                <View style={[styles.inlineTrxContainer, { borderColor: colors.border }]}>
+                  {loadingTransactions ? (
+                    <ActivityIndicator size="small" color={colors.accent} style={styles.inlineLoader} />
+                  ) : expandedTransactions.length === 0 ? (
+                    <Text style={[styles.noTrxText, { color: colors.textSecondary }]}>
+                      No transactions in this category.
+                    </Text>
+                  ) : (
+                    expandedTransactions.map((trx, idx) => (
+                      <TouchableOpacity
+                        key={trx.id}
+                        style={[
+                          styles.trxRow,
+                          idx < expandedTransactions.length - 1 && [
+                            styles.trxRowBorder,
+                            { borderBottomColor: colors.border },
+                          ],
+                        ]}
+                        activeOpacity={0.7}
+                        onPress={() => onSelectTransaction(trx)}
+                      >
+                        <View style={styles.trxLeft}>
+                          <Text style={[styles.trxDesc, { color: colors.text }]} numberOfLines={1}>
+                            {trx.merchant !== 'Unknown' ? trx.merchant : trx.rawDescription}
+                          </Text>
+                          <Text style={[styles.trxDate, { color: colors.textSecondary }]}>{trx.date}</Text>
+                        </View>
+                        <Text style={[styles.trxAmount, { color: trx.amount < 0 ? colors.text : '#34C759' }]}>
+                          {trx.amount < 0
+                            ? `-${currencySymbol}${Math.abs(trx.amount).toFixed(2)}`
+                            : `+${currencySymbol}${trx.amount.toFixed(2)}`}
+                        </Text>
+                      </TouchableOpacity>
+                    ))
+                  )}
                 </View>
               )}
-            </TouchableOpacity>
+            </View>
           );
         })}
 
@@ -272,6 +332,27 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     overflow: 'hidden',
   },
+
+  inlineTrxContainer: {
+    marginTop: 2,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  inlineLoader: { paddingVertical: 10 },
+  trxRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 9,
+  },
+  trxRowBorder: { borderBottomWidth: StyleSheet.hairlineWidth },
+  trxLeft: { flex: 1, marginRight: 8 },
+  trxDesc: { fontSize: 13, fontWeight: '500' },
+  trxDate: { fontSize: 11, marginTop: 1 },
+  trxAmount: { fontSize: 13, fontWeight: '600' },
+  noTrxText: { fontSize: 12, paddingVertical: 8 },
 
   expandLegendBtn: {
     flexDirection: 'row',

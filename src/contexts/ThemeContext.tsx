@@ -242,7 +242,7 @@ export const THEMES: ThemeDefinition[] = [
   },
 ];
 
-const DEFAULT_THEME: ThemeName = 'aurora';
+const DEFAULT_THEME: ThemeName = 'classic';
 const THEME_NAME_KEY = 'theme_name';
 const THEME_MODE_KEY = 'theme_mode';
 

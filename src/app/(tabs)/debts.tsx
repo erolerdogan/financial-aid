@@ -3,6 +3,7 @@ import { HeaderActions } from '@/components/HeaderActions';
 import { DebtDetailModal } from '@/components/modals/DebtDetailModal';
 import { DebtFormModal, DebtPrefill } from '@/components/modals/DebtFormModal';
 import { ScreenContainer } from '@/components/ScreenContainer';
+import { useInbox } from '@/contexts/InboxContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import {
@@ -28,6 +29,7 @@ export default function DebtsScreen() {
   const { colors } = useTheme();
   const { activeProfile, dataVersion, currencySymbol } = useProfile();
   const profileId = activeProfile?.id ?? 1;
+  const { refreshInbox } = useInbox();
 
   const [debts, setDebts] = useState<DebtSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,8 +52,9 @@ export default function DebtsScreen() {
       console.error('Failed to load debts:', error);
     } finally {
       setLoading(false);
+      refreshInbox(true);
     }
-  }, [db, profileId]);
+  }, [db, profileId, refreshInbox]);
 
   useFocusEffect(
     useCallback(() => {

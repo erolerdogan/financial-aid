@@ -1,4 +1,5 @@
 import { ImportSummaryHost } from '@/contexts/ImportResultContext';
+import { InboxHost, InboxProvider } from '@/contexts/InboxContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
@@ -18,7 +19,7 @@ export default function TabLayout() {
       : 56 + bottomInset;
 
   return (
-    <>
+    <InboxProvider>
     <Tabs
       initialRouteName="index"
       screenOptions={{
@@ -100,6 +101,7 @@ export default function TabLayout() {
       />
     </Tabs>
     <ImportSummaryHost />
-    </>
+    <InboxHost />
+    </InboxProvider>
   );
 }
