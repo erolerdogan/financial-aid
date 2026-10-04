@@ -42,6 +42,7 @@ interface ProfileContextType {
   editProfile: (id: number, name: string, color: string) => Promise<void>;
   updateCurrency: (currencyCode: string, convertAmounts?: boolean) => Promise<void>;
   refreshProfiles: () => Promise<void>;
+  reloadAfterRestore: () => Promise<void>;
   checkDataState: (profileId?: number) => Promise<boolean>;
 }
 
@@ -59,6 +60,7 @@ const ProfileContext = createContext<ProfileContextType>({
   editProfile: async () => {},
   updateCurrency: async () => {},
   refreshProfiles: async () => {},
+  reloadAfterRestore: async () => {},
   checkDataState: async () => false,
 });
 
@@ -135,6 +137,28 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       }
     } finally {
       setLoadingProfiles(false);
+    }
+  };
+
+  // Every row was replaced: profile ids may now point at different people, so pick the active profile again.
+  const reloadAfterRestore = async () => {
+    if (!db) return;
+    try {
+      const list = await getProfiles(db);
+      const next = list.find((p) => !isDemoProfile(p)) ?? list[0] ?? null;
+
+      setProfiles(list);
+      setIsDemoMode(!!next && isDemoProfile(next));
+      setActiveProfile(next);
+
+      if (next) {
+        await checkDataState(next.id);
+        await syncCategoryColors(db, next.id);
+      }
+
+      setDataVersion((prev) => prev + 1);
+    } catch (error) {
+      console.error('Error reloading after restore:', error);
     }
   };
 
@@ -289,6 +313,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         editProfile,
         updateCurrency,
         refreshProfiles,
+        reloadAfterRestore,
         checkDataState,
       }}
     >

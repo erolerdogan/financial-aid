@@ -61,6 +61,17 @@ export async function seedDemoDebts(
       monthName,
       is_fixed: 1,
     },
+    // Not tracked as a debt, so the Debts tab has a suggestion to show.
+    {
+      profileId,
+      date: `${monthName}-24`,
+      amount: -85.0,
+      rawDescription: 'DIENST UITVOERING ONDERWIJS STUDIESCHULD',
+      merchant: 'DUO',
+      category: 'Loan & Insurance',
+      monthName,
+      is_fixed: 1,
+    },
   ]);
 
   await insertTransactions(db, debtTransactions, profileId);

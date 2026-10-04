@@ -14,7 +14,7 @@
 Dashboard, Transactions (search, date range, category chips), Trends (year / monthly / daily range),
 Categories screen, Review screen (uncategorised merchants), Goals, fixed vs. flexible detection,
 Debts tab (installment loans, auto-linked payments, interest estimates),
-statement import (CSV/XLSX), demo workspace, import reminders. Full list in `README.md`; keep it updated.
+statement import (CSV/XLSX), demo workspace, import reminders, backup & restore. Full list in `README.md`; keep it updated.
 
 ## Where things live
 - Import: `src/hooks/useStatementImporter.ts` → `src/services/importService.ts` → `src/utils/parser.ts`.
@@ -43,6 +43,9 @@ statement import (CSV/XLSX), demo workspace, import reminders. Full list in `REA
 - Switching currency rewrites stored transaction and debt amounts using hardcoded `DEFAULT_EXCHANGE_RATES`.
 - Debt keyword matching runs in JS (`evaluateDebtKeyword` in `src/utils/debt.ts`, case/accent/punctuation/space-insensitive), not SQL `LIKE`. Only `EXACT` matches (whole words, or word start for keywords of 5+ chars) within 50% of the monthly payment auto-link; near-misses are `POSSIBLE` and linked one by one via `linkDebtTransaction`. `syncDebtPayments` runs on Debts focus, debt save and after import.
 - Removing a debt keyword deletes the auto payments it linked; auto payments whose transaction is gone are removed on sync.
+- Debt suggestions: `buildDebtSuggestions` in `src/utils/debtSuggestion.ts` (unlinked expenses grouped by `merchantKey`; needs a `DEBT_SIGNALS` word, no insurance/credit-card word, 2+ months, steady amount, recent, no existing debt keyword match). `getDebtSuggestions` / `dismissDebtSuggestion` in `src/db/database.ts`; dismissals are a JSON list in `app_meta` (`debt_suggestions_dismissed:<profileId>`). The Debts tab passes a suggestion to `DebtFormModal` as `prefill` (name, type, keyword); the form's keyword effect fills the rest.
+- Backup/restore: `src/services/backupService.ts` + `src/components/modals/BackupRestoreModal.tsx` (opened from Settings). Backup is the whole SQLite file via `serializeAsync` (WAL header bytes 18/19 normalised to 1, otherwise `deserializeDatabaseAsync` cannot read it), shared with RN `Share` on iOS and a directory picker on Android (no `expo-sharing`). Restore validates an in-memory copy, writes `pre-restore.db` to the document directory (used by "Undo Last Restore"), then `replaceDatabaseContents` (`backupDatabaseAsync` + `initDatabase`) and `reloadAfterRestore` in ProfileContext. Backups with `user_version > CLASSIFIER_VERSION` are refused.
+- `app_meta` is a key/value table (last backup date, backup notice seen); it survives "Reset" and is replaced by a restore.
 - Theme choice is not persisted; it resets to the system scheme on launch.
 - Schema changes go in `initDatabase` as `CREATE TABLE IF NOT EXISTS` plus a try/catch `ALTER TABLE`.
 

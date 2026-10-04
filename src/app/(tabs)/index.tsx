@@ -382,6 +382,18 @@ export default function DashboardScreen() {
     setSelectedTransaction(null);
   };
 
+  const fetchListModalItems = async (
+    database: NonNullable<typeof db>,
+    type: 'INCOME' | 'EXPENSE' | 'FIXED' | 'FLEXIBLE'
+  ): Promise<Transaction[]> => {
+    const items =
+      type === 'FIXED' || type === 'FLEXIBLE'
+        ? await getFixedOrFlexibleTransactions(database, periodKey, type === 'FIXED', activeProfileId)
+        : await getFilteredTransactions(database, periodKey, type, activeProfileId);
+
+    return [...(items || [])].sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
+  };
+
   const handleSelectFixedState = async (newState: FixedOverrideState) => {
     if (!db || !selectedTransaction) return;
   
@@ -415,21 +427,10 @@ export default function DashboardScreen() {
           : null
       );
   
-      setListModalTransactions((prevList) =>
-        prevList.map((tx) => {
-          const txKeyword =
-            tx.merchant !== 'Unknown' ? tx.merchant : tx.rawDescription;
-          if (
-            txKeyword.toUpperCase().trim() === keyword.toUpperCase().trim()
-          ) {
-            return {
-              ...tx,
-              is_fixed: updatedIsFixedVal,
-            };
-          }
-          return tx;
-        })
-      );
+      // The override applies to every row the keyword matches, so reload instead of patching by name.
+      if (wasOpenedFromList) {
+        setListModalTransactions(await fetchListModalItems(db, listModalType));
+      }
   
       if (selectedBarCategory) {
         const updatedItems = await getTransactionsByMonthAndCategory(
@@ -457,6 +458,11 @@ export default function DashboardScreen() {
       setCurrentFixedState(explanation.state);
       setFixedAuto(explanation);
 
+      // Category feeds the fixed score, so badges can change with it.
+      if (wasOpenedFromList) {
+        setListModalTransactions(await fetchListModalItems(db, listModalType));
+      }
+
       if (selectedBarCategory) {
         const updatedItems = await getTransactionsByMonthAndCategory(
           db,
@@ -481,18 +487,7 @@ export default function DashboardScreen() {
     try {
       setLoadingListModal(true);
 
-      let items: Transaction[] = [];
-      if (type === 'FIXED' || type === 'FLEXIBLE') {
-        items = await getFixedOrFlexibleTransactions(db, periodKey, type === 'FIXED', activeProfileId);
-      } else {
-        items = await getFilteredTransactions(db, periodKey, type, activeProfileId);
-      }
-
-      const sortedItems = [...(items || [])].sort(
-        (a, b) => Math.abs(b.amount) - Math.abs(a.amount)
-      );
-
-      setListModalTransactions(sortedItems);
+      setListModalTransactions(await fetchListModalItems(db, type));
     } catch (error) {
       console.error(`Failed to load ${type} list:`, error);
     } finally {

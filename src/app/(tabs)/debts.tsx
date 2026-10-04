@@ -1,18 +1,27 @@
 import { DebtProgressBar } from '@/components/debts/DebtProgressBar';
 import { HeaderActions } from '@/components/HeaderActions';
 import { DebtDetailModal } from '@/components/modals/DebtDetailModal';
-import { DebtFormModal } from '@/components/modals/DebtFormModal';
+import { DebtFormModal, DebtPrefill } from '@/components/modals/DebtFormModal';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { DebtSummary, getDebtSummaries, syncDebtPayments } from '@/db/database';
+import {
+  DebtSummary,
+  dismissDebtSuggestion,
+  getDebtSuggestions,
+  getDebtSummaries,
+  syncDebtPayments,
+} from '@/db/database';
 import { formatPayoffMonth, getDebtTypeIcon } from '@/utils/debt';
+import { DebtSuggestion } from '@/utils/debtSuggestion';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+
+const MAX_SUGGESTIONS = 3;
 
 export default function DebtsScreen() {
   const db = useSQLiteContext();
@@ -24,6 +33,8 @@ export default function DebtsScreen() {
   const [loading, setLoading] = useState(true);
   const [formVisible, setFormVisible] = useState(false);
   const [formDebt, setFormDebt] = useState<DebtSummary | null>(null);
+  const [formPrefill, setFormPrefill] = useState<DebtPrefill | null>(null);
+  const [suggestions, setSuggestions] = useState<DebtSuggestion[]>([]);
   const [detailVisible, setDetailVisible] = useState(false);
   const [detailDebt, setDetailDebt] = useState<DebtSummary | null>(null);
 
@@ -33,6 +44,7 @@ export default function DebtsScreen() {
       await syncDebtPayments(db, profileId);
       const rows = await getDebtSummaries(db, profileId);
       setDebts(rows);
+      setSuggestions(await getDebtSuggestions(db, profileId));
       setDetailDebt((prev) => (prev ? rows.find((r) => r.id === prev.id) ?? null : null));
     } catch (error) {
       console.error('Failed to load debts:', error);
@@ -60,7 +72,25 @@ export default function DebtsScreen() {
   const openCreate = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     setFormDebt(null);
+    setFormPrefill(null);
     setFormVisible(true);
+  };
+
+  const openSuggestion = (suggestion: DebtSuggestion) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    setFormDebt(null);
+    setFormPrefill({ name: suggestion.name, type: suggestion.type, keywords: [suggestion.keyword] });
+    setFormVisible(true);
+  };
+
+  const dismissSuggestion = async (suggestion: DebtSuggestion) => {
+    Haptics.selectionAsync().catch(() => {});
+    setSuggestions((prev) => prev.filter((s) => s.key !== suggestion.key));
+    try {
+      await dismissDebtSuggestion(db, profileId, suggestion.key);
+    } catch (error) {
+      console.error('Failed to dismiss debt suggestion:', error);
+    }
   };
 
   const openDetail = (debt: DebtSummary) => {
@@ -72,8 +102,53 @@ export default function DebtsScreen() {
   const handleEditFromDetail = () => {
     setDetailVisible(false);
     setFormDebt(detailDebt);
+    setFormPrefill(null);
     setTimeout(() => setFormVisible(true), 350);
   };
+
+  const suggestionCards =
+    suggestions.length === 0 ? null : (
+      <View style={styles.suggestions}>
+        <Text style={[styles.suggestionsLabel, { color: colors.textSecondary }]}>
+          SUGGESTED FROM YOUR STATEMENTS
+        </Text>
+        {suggestions.slice(0, MAX_SUGGESTIONS).map((suggestion) => (
+          <View
+            key={suggestion.key}
+            style={[styles.suggestionCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+          >
+            <View style={[styles.debtIcon, { backgroundColor: colors.tintBackground }]}>
+              <Ionicons name={getDebtTypeIcon(suggestion.type)} size={18} color={colors.accent} />
+            </View>
+            <View style={styles.debtTitleWrap}>
+              <Text style={[styles.debtName, { color: colors.text }]} numberOfLines={1}>
+                {suggestion.name}
+              </Text>
+              <Text style={[styles.debtSub, { color: colors.textSecondary }]} numberOfLines={1}>
+                {fmt(suggestion.payment)} / month • {suggestion.count} payments • since{' '}
+                {formatPayoffMonth(suggestion.firstDate.slice(0, 7))}
+              </Text>
+            </View>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => openSuggestion(suggestion)}
+              hitSlop={8}
+              style={[styles.suggestionAdd, { backgroundColor: colors.accent }]}
+              accessibilityLabel={`Add ${suggestion.name} as a debt`}
+            >
+              <Text style={styles.suggestionAddText}>Add</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => dismissSuggestion(suggestion)}
+              hitSlop={10}
+              accessibilityLabel={`Dismiss suggestion ${suggestion.name}`}
+            >
+              <Ionicons name="close" size={18} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
+        ))}
+      </View>
+    );
 
   return (
     <ScreenContainer>
@@ -95,7 +170,7 @@ export default function DebtsScreen() {
           <ActivityIndicator size="large" color={colors.accent} />
         </View>
       ) : debts.length === 0 ? (
-        <View style={styles.emptyWrap}>
+        <ScrollView contentContainerStyle={styles.emptyWrap}>
           <View style={[styles.emptyIcon, { backgroundColor: colors.tintBackground }]}>
             <Ionicons name="trending-down-outline" size={32} color={colors.accent} />
           </View>
@@ -104,6 +179,7 @@ export default function DebtsScreen() {
             Add a loan, see your progress and an estimated debt-free date. Payments from your statements are linked
             automatically.
           </Text>
+          {suggestionCards}
           <TouchableOpacity
             activeOpacity={0.85}
             style={[styles.emptyBtn, { backgroundColor: colors.accent }]}
@@ -112,7 +188,7 @@ export default function DebtsScreen() {
             <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" />
             <Text style={styles.emptyBtnText}>Add Your First Debt</Text>
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       ) : (
         <ScrollView contentContainerStyle={styles.content}>
           <View style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -176,6 +252,8 @@ export default function DebtsScreen() {
               </View>
             </TouchableOpacity>
           ))}
+
+          {suggestionCards}
         </ScrollView>
       )}
 
@@ -190,6 +268,7 @@ export default function DebtsScreen() {
       <DebtFormModal
         visible={formVisible}
         debt={formDebt}
+        prefill={formPrefill}
         onClose={() => setFormVisible(false)}
         onSaved={load}
       />
@@ -228,7 +307,26 @@ const styles = StyleSheet.create({
   debtBar: { marginTop: 12 },
   debtFooter: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
   debtFooterText: { fontSize: 11, fontWeight: '600' },
-  emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, gap: 12 },
+  emptyWrap: {
+    flexGrow: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    paddingVertical: 24,
+    gap: 12,
+  },
+  suggestions: { alignSelf: 'stretch', gap: 8, marginTop: 8 },
+  suggestionsLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
+  suggestionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  suggestionAdd: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 14 },
+  suggestionAddText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
   emptyIcon: { width: 68, height: 68, borderRadius: 34, alignItems: 'center', justifyContent: 'center' },
   emptyTitle: { fontSize: 20, fontWeight: '700' },
   emptySub: { fontSize: 14, lineHeight: 20, textAlign: 'center' },

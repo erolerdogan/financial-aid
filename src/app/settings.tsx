@@ -1,3 +1,4 @@
+import { BackupRestoreModal } from '@/components/modals/BackupRestoreModal';
 import { ProfileSwitcherModal } from '@/components/ProfileSwitcherModal';
 import { ImportSummaryHost } from '@/contexts/ImportResultContext';
 import { CURRENCY_SYMBOLS, useProfile } from '@/contexts/ProfileContext';
@@ -45,6 +46,7 @@ export default function SettingsScreen() {
   const [loading, setLoading] = useState(false);
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [currencyModalVisible, setCurrencyModalVisible] = useState(false);
+  const [backupModalVisible, setBackupModalVisible] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
   const { importStatement, importing } = useStatementImporter();
@@ -188,6 +190,23 @@ export default function SettingsScreen() {
           <TouchableOpacity
             style={styles.rowItem}
             activeOpacity={0.7}
+            onPress={() => setBackupModalVisible(true)}
+            disabled={importing || loading}
+          >
+            <View style={styles.rowLeft}>
+              <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
+                <Ionicons name="shield-checkmark-outline" size={18} color={colors.accent} />
+              </View>
+              <Text style={[styles.rowTitle, { color: colors.text }]}>Backup & Restore</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+          </TouchableOpacity>
+
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+          <TouchableOpacity
+            style={styles.rowItem}
+            activeOpacity={0.7}
             onPress={handleResetDatabase}
             disabled={importing || loading}
           >
@@ -323,6 +342,11 @@ export default function SettingsScreen() {
       <ProfileSwitcherModal
         visible={profileModalVisible}
         onClose={() => setProfileModalVisible(false)}
+      />
+
+      <BackupRestoreModal
+        visible={backupModalVisible}
+        onClose={() => setBackupModalVisible(false)}
       />
 
       {/* Currency Picker Sheet Modal */}

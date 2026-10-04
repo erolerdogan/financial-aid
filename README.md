@@ -121,6 +121,7 @@ On first launch the welcome screen offers two paths: import a statement, or open
 - Removing a keyword removes the payments it linked; deleted transactions drop out of the history.
 - Each payment is split into principal and interest.
 - Shows the remaining balance, progress, interest paid so far, estimated future interest and estimated debt-free month.
+- Suggests debts from your statements: a steady monthly payment to a lender (mortgage, student loan, credit) that no debt covers yet appears as a card on the Debts tab. Add opens the form with name, type and keyword prefilled; monthly payment, payment day and start date follow from the matching payments. Dismissed suggestions stay hidden.
 
 ### Profiles
 
@@ -138,6 +139,13 @@ On first launch the welcome screen offers two paths: import a statement, or open
 ### Demo workspace
 
 - A separate demo profile with three months of sample transactions and two sample debts.
+
+### Backup and restore
+
+- Settings → Backup & Restore saves one file with all profiles (transactions, categories, rules, goals, debts). You choose where it goes (Files, iCloud Drive, AirDrop); the app does not upload it. The file is not encrypted.
+- Restore replaces all data on the device with the backup; nothing is merged. Before anything changes, the app shows what is in the backup, what is on the device, and whether the device has newer transactions that would be removed.
+- The data replaced by a restore is kept as a safety copy; "Undo Last Restore" brings it back.
+- Backups from older app versions are upgraded on restore. Files that are damaged, not a backup, or from a newer app version are refused and nothing is changed.
 
 ## Privacy
 

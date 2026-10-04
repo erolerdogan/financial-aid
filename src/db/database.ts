@@ -1,5 +1,6 @@
 import { CATEGORY_COLORS, setCustomCategoryColors } from '@/constants/colors';
 import { DebtMatchStrength, evaluateDebtKeyword } from '@/utils/debt';
+import { buildDebtSuggestions, type DebtSuggestion } from '@/utils/debtSuggestion';
 import {
   buildMerchantProfiles,
   fixedMatchText,
@@ -27,7 +28,7 @@ import {
   normalizeMerchantName,
   UNCATEGORISED,
 } from '@/utils/parser';
-import { type SQLiteDatabase } from 'expo-sqlite';
+import { backupDatabaseAsync, type SQLiteDatabase } from 'expo-sqlite';
 export { type SQLiteDatabase };
 
 export interface Profile {
@@ -232,6 +233,11 @@ export async function initDatabase(db: SQLiteDatabase): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_debt_payments_debt ON debt_payments(debtId, date);
     CREATE UNIQUE INDEX IF NOT EXISTS idx_debt_payments_tx
       ON debt_payments(transactionId) WHERE transactionId IS NOT NULL;
+
+    CREATE TABLE IF NOT EXISTS app_meta (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
   `);
 
   try {
@@ -290,6 +296,25 @@ export async function initDatabase(db: SQLiteDatabase): Promise<void> {
     }
     await db.execAsync(`PRAGMA user_version = ${CLASSIFIER_VERSION};`);
   }
+}
+
+export async function getAppMeta(db: SQLiteDatabase, key: string): Promise<string | null> {
+  const row = await db.getFirstAsync<{ value: string }>(`SELECT value FROM app_meta WHERE key = ?;`, [key]);
+  return row?.value ?? null;
+}
+
+export async function setAppMeta(db: SQLiteDatabase, key: string, value: string): Promise<void> {
+  await db.runAsync(`INSERT OR REPLACE INTO app_meta (key, value) VALUES (?, ?);`, [key, value]);
+}
+
+/**
+ * Replaces every table on the live connection with the contents of `source` (SQLite online backup),
+ * then migrates the result. `total_changes()` does not move for a backup, so the resolver cache is dropped by hand.
+ */
+export async function replaceDatabaseContents(db: SQLiteDatabase, source: SQLiteDatabase): Promise<void> {
+  await backupDatabaseAsync({ sourceDatabase: source, destDatabase: db });
+  fixedResolverCache.clear();
+  await initDatabase(db);
 }
 
 // Rows imported before these columns existed: derive them from the stored bank text.
@@ -562,6 +587,11 @@ async function getFixedResolver(db: SQLiteDatabase, profileId: number): Promise<
   return resolver;
 }
 
+/** Fills `is_fixed` with the resolved value so list badges match the summary cards. */
+function withResolvedFixed(transactions: Transaction[], resolver: FixedResolver): Transaction[] {
+  return transactions.map((tx) => ({ ...tx, is_fixed: resolver.resolve(tx).isFixed ? 1 : 0 }));
+}
+
 function summarizeFixed(transactions: Transaction[], resolver: FixedResolver): FixedCostSummary {
   let fixedTotal = 0;
   let flexibleTotal = 0;
@@ -640,19 +670,8 @@ export async function getFixedOrFlexibleTransactions(
     [...period.params, profileId]
   );
 
-  const resolver = await getFixedResolver(db, profileId);
-  const filteredItems: Transaction[] = [];
-
-  for (const tx of allExpenses) {
-    const isFixed = resolver.resolve(tx).isFixed;
-    tx.is_fixed = isFixed ? 1 : 0;
-
-    if (isFixedTarget === isFixed) {
-      filteredItems.push(tx);
-    }
-  }
-
-  return filteredItems;
+  const resolved = withResolvedFixed(allExpenses, await getFixedResolver(db, profileId));
+  return resolved.filter((tx) => (tx.is_fixed === 1) === isFixedTarget);
 }
 
 export async function getCategoryGoalsWithProgress(
@@ -905,7 +924,7 @@ export async function getFilteredTransactions(
   query += ` ORDER BY date DESC, id DESC;`;
   const transactions = await db.getAllAsync<Transaction>(query, params);
 
-  return transactions;
+  return withResolvedFixed(transactions, await getFixedResolver(db, profileId));
 }
 
 export async function getTransactionsByMonthAndCategory(
@@ -929,17 +948,7 @@ export async function getTransactionsByMonthAndCategory(
 
   const rows = await db.getAllAsync<Transaction>(query, queryParams);
 
-  const needsResolution = rows.some(
-    (tx) => tx.is_fixed !== 1 && tx.is_fixed !== 0
-  );
-  if (!needsResolution) return rows;
-
-  const resolver = await getFixedResolver(db, profileId);
-
-  return rows.map((tx) => {
-    if (tx.is_fixed === 1 || tx.is_fixed === 0) return tx;
-    return { ...tx, is_fixed: resolver.resolve(tx).isFixed ? 1 : 0 };
-  });
+  return withResolvedFixed(rows, await getFixedResolver(db, profileId));
 }
 export async function getAllTransactionsByDate(
   db: SQLiteDatabase,
@@ -2704,4 +2713,49 @@ export async function convertDebtAmounts(
      WHERE profileId = ?;`,
     [factor, factor, factor, profileId]
   );
+}
+const dismissedDebtSuggestionsKey = (profileId: number): string => `debt_suggestions_dismissed:${profileId}`;
+
+async function getDismissedDebtSuggestions(db: SQLiteDatabase, profileId: number): Promise<string[]> {
+  try {
+    const parsed: unknown = JSON.parse((await getAppMeta(db, dismissedDebtSuggestionsKey(profileId))) ?? '[]');
+    return Array.isArray(parsed) ? parsed.filter((k): k is string => typeof k === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Recurring lender payments in the statements that are not tracked as a debt yet. */
+export async function getDebtSuggestions(db: SQLiteDatabase, profileId: number): Promise<DebtSuggestion[]> {
+  const rows = await db.getAllAsync<FixedCostRow>(
+    `SELECT t.date AS date, t.amount AS amount, t.merchant AS merchant,
+            t.rawDescription AS rawDescription, t.category AS category
+     FROM transactions t
+     LEFT JOIN debt_payments p ON p.transactionId = t.id
+     WHERE t.profileId = ? AND t.amount < 0 AND p.id IS NULL;`,
+    [profileId]
+  );
+  if (rows.length === 0) return [];
+
+  const [rules, latest, dismissed] = await Promise.all([
+    db.getAllAsync<{ keyword: string }>(`SELECT keyword FROM debt_rules WHERE profileId = ?;`, [profileId]),
+    db.getFirstAsync<{ date: string | null }>(
+      `SELECT MAX(date) AS date FROM transactions WHERE profileId = ?;`,
+      [profileId]
+    ),
+    getDismissedDebtSuggestions(db, profileId),
+  ]);
+
+  return buildDebtSuggestions(
+    rows,
+    rules.map((r) => r.keyword),
+    dismissed,
+    latest?.date ?? null
+  );
+}
+
+export async function dismissDebtSuggestion(db: SQLiteDatabase, profileId: number, key: string): Promise<void> {
+  const dismissed = await getDismissedDebtSuggestions(db, profileId);
+  if (dismissed.includes(key)) return;
+  await setAppMeta(db, dismissedDebtSuggestionsKey(profileId), JSON.stringify([...dismissed, key]));
 }

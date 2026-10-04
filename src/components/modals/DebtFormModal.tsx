@@ -36,14 +36,21 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+export interface DebtPrefill {
+  name: string;
+  type: DebtType;
+  keywords: string[];
+}
+
 interface DebtFormModalProps {
   visible: boolean;
   debt: DebtSummary | null; // null = create
+  prefill?: DebtPrefill | null; // create only: start from a statement suggestion
   onClose: () => void;
   onSaved: () => void;
 }
 
-export function DebtFormModal({ visible, debt, onClose, onSaved }: DebtFormModalProps) {
+export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: DebtFormModalProps) {
   const db = useSQLiteContext();
   const { colors, isDark } = useTheme();
   const { activeProfile, currencySymbol } = useProfile();
@@ -103,17 +110,17 @@ export function DebtFormModal({ visible, debt, onClose, onSaved }: DebtFormModal
       setColor(debt.color);
       setKeywords(debt.keywords.map((k) => k.toUpperCase()));
     } else {
-      setName('');
-      setType('LOAN');
+      setName(prefill?.name ?? '');
+      setType(prefill?.type ?? 'LOAN');
       setAmount('');
       setApr('');
       setPayment('');
       setPayDay('1');
       setStartDate('');
       setColor(CATEGORY_COLOR_PALETTE[0]);
-      setKeywords([]);
+      setKeywords(prefill?.keywords.map((k) => k.toUpperCase()) ?? []);
     }
-  }, [visible, debt]);
+  }, [visible, debt, prefill]);
 
   const debtId = debt?.id ?? null;
 
