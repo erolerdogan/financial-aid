@@ -205,7 +205,8 @@ export async function initDatabase(db: SQLiteDatabase): Promise<void> {
       paymentDay INTEGER NOT NULL DEFAULT 1,
       startDate TEXT,
       color TEXT NOT NULL DEFAULT '#007AFF',
-      status TEXT NOT NULL DEFAULT 'ACTIVE'
+      status TEXT NOT NULL DEFAULT 'ACTIVE',
+      termMonths INTEGER
     );
 
     CREATE TABLE IF NOT EXISTS debt_payments (
@@ -270,6 +271,10 @@ export async function initDatabase(db: SQLiteDatabase): Promise<void> {
 
   try {
     await db.runAsync(`ALTER TABLE debt_payments ADD COLUMN keyword TEXT;`);
+  } catch (e) {}
+
+  try {
+    await db.runAsync(`ALTER TABLE debts ADD COLUMN termMonths INTEGER;`);
   } catch (e) {}
 
   try {
@@ -2242,6 +2247,7 @@ export interface DebtInput {
   paymentAmount: number;
   paymentDay: number;
   startDate: string | null;
+  termMonths?: number | null;
   color: string;
   keywords: string[];
 }
@@ -2256,6 +2262,7 @@ export interface Debt {
   paymentAmount: number;
   paymentDay: number;
   startDate: string | null;
+  termMonths: number | null;
   color: string;
   status: string;
 }
@@ -2390,8 +2397,8 @@ export async function createDebt(
   input: DebtInput
 ): Promise<number> {
   const result = await db.runAsync(
-    `INSERT INTO debts (profileId, name, type, originalAmount, apr, paymentAmount, paymentDay, startDate, color, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE');`,
+    `INSERT INTO debts (profileId, name, type, originalAmount, apr, paymentAmount, paymentDay, startDate, color, status, termMonths)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?);`,
     [
       profileId,
       input.name.trim(),
@@ -2402,6 +2409,7 @@ export async function createDebt(
       input.paymentDay,
       input.startDate,
       input.color,
+      input.termMonths ?? null,
     ]
   );
   const debtId = result.lastInsertRowId;
@@ -2419,7 +2427,7 @@ export async function updateDebt(
 
   await db.runAsync(
     `UPDATE debts
-     SET name = ?, type = ?, originalAmount = ?, apr = ?, paymentAmount = ?, paymentDay = ?, startDate = ?, color = ?
+     SET name = ?, type = ?, originalAmount = ?, apr = ?, paymentAmount = ?, paymentDay = ?, startDate = ?, color = ?, termMonths = ?
      WHERE id = ?;`,
     [
       input.name.trim(),
@@ -2430,6 +2438,7 @@ export async function updateDebt(
       input.paymentDay,
       input.startDate,
       input.color,
+      input.termMonths ?? null,
       debtId,
     ]
   );

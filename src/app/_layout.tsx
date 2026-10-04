@@ -8,6 +8,8 @@ import { Stack, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { SQLiteProvider, useSQLiteContext } from 'expo-sqlite';
 import React, { Suspense, useEffect, useRef, useState } from 'react';
+import { StyleSheet } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 SplashScreen.preventAutoHideAsync().catch(() => {
   /* ignore error if called multiple times in fast-refresh */
@@ -84,18 +86,24 @@ function AppInitializer() {
 
 export default function RootLayout() {
   return (
-    <Suspense fallback={null}>
-      <SQLiteProvider databaseName="financial_aid.db" onInit={initDatabase} useSuspense>
-        <ThemeProvider>
-          <ProfileProvider>
-            <PeriodProvider>
-              <ImportResultProvider>
-                <AppInitializer />
-              </ImportResultProvider>
-            </PeriodProvider>
-          </ProfileProvider>
-        </ThemeProvider>
-      </SQLiteProvider>
-    </Suspense>
+    <GestureHandlerRootView style={styles.root}>
+      <Suspense fallback={null}>
+        <SQLiteProvider databaseName="financial_aid.db" onInit={initDatabase} useSuspense>
+          <ThemeProvider>
+            <ProfileProvider>
+              <PeriodProvider>
+                <ImportResultProvider>
+                  <AppInitializer />
+                </ImportResultProvider>
+              </PeriodProvider>
+            </ProfileProvider>
+          </ThemeProvider>
+        </SQLiteProvider>
+      </Suspense>
+    </GestureHandlerRootView>
   );
 }
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+});

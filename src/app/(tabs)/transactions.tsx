@@ -16,8 +16,7 @@ import {
     getTransactionFixedExplanation,
     getUncategorisedCount,
     setMerchantFixedOverride,
-    Transaction,
-    TransactionTypeFilter
+    Transaction
 } from '@/db/database';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -40,14 +39,6 @@ import {
 } from 'react-native';
 
 const PAGE_SIZE = 100;
-
-const TYPE_FILTERS: { key: TransactionTypeFilter; label: string }[] = [
-  { key: 'ALL', label: 'All' },
-  { key: 'INCOME', label: 'Income' },
-  { key: 'EXPENSE', label: 'Expenses' },
-  { key: 'FIXED', label: 'Fixed' },
-  { key: 'FLEXIBLE', label: 'Flexible' },
-];
 
 interface DaySection {
   title: string;
@@ -107,9 +98,8 @@ export default function TransactionsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [searchInput, setSearchInput] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const searchTerm = searchInput.trim();
 
-  const [typeFilter, setTypeFilter] = useState<TransactionTypeFilter>('ALL');
   const [availableMonths, setAvailableMonths] = useState<string[]>([]);
   const [bounds, setBounds] = useState<{ minDate: string; maxDate: string } | null>(null);
   const [pickerVisible, setPickerVisible] = useState(false);
@@ -127,6 +117,7 @@ export default function TransactionsScreen() {
   const loadedCountRef = useRef(0);
   const fetchingRef = useRef(false);
   const lastFilterKeyRef = useRef('');
+  const requestRef = useRef(0);
 
   const { dateFrom, dateTo } = useMemo(() => {
     if (filter.kind === 'MONTH') {
@@ -162,18 +153,13 @@ export default function TransactionsScreen() {
       : 'All Transactions';
 
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(searchInput), 250);
-    return () => clearTimeout(timer);
-  }, [searchInput]);
-
-  useEffect(() => {
     setSelectedCategory('All');
-    setTypeFilter('ALL');
   }, [activeProfileId]);
 
   const fetchFirstPage = useCallback(
     async (keepLoadedCount: boolean = false) => {
       if (!db) return;
+      const requestId = ++requestRef.current;
       fetchingRef.current = true;
       try {
         const limit = keepLoadedCount
@@ -182,19 +168,20 @@ export default function TransactionsScreen() {
         const rows = await getAllTransactionsByDate(
           db,
           activeProfileId,
-          debouncedSearch,
+          searchTerm,
           limit,
           0,
           dateFrom,
           dateTo,
-          selectedCategory,
-          typeFilter
+          selectedCategory
         );
+        // A newer keystroke or filter change superseded this query.
+        if (requestId !== requestRef.current) return;
         loadedCountRef.current = rows.length;
         setItems(rows);
         setHasMore(rows.length === limit);
 
-        const filterKey = `${activeProfileId}|${debouncedSearch}|${dateFrom ?? ''}|${dateTo ?? ''}|${selectedCategory}|${typeFilter}`;
+        const filterKey = `${activeProfileId}|${searchTerm}|${dateFrom ?? ''}|${dateTo ?? ''}|${selectedCategory}`;
         if (filterKey !== lastFilterKeyRef.current) {
           lastFilterKeyRef.current = filterKey;
           requestAnimationFrame(() => {
@@ -208,38 +195,41 @@ export default function TransactionsScreen() {
       } catch (error) {
         console.error('Failed to load transactions:', error);
       } finally {
-        fetchingRef.current = false;
-        setLoading(false);
-        setRefreshing(false);
+        if (requestId === requestRef.current) {
+          fetchingRef.current = false;
+          setLoading(false);
+          setRefreshing(false);
+        }
       }
     },
-    [db, activeProfileId, debouncedSearch, dateFrom, dateTo, selectedCategory, typeFilter]
+    [db, activeProfileId, searchTerm, dateFrom, dateTo, selectedCategory]
   );
 
   const fetchNextPage = useCallback(async () => {
     if (!db || fetchingRef.current || !hasMore) return;
+    const requestId = requestRef.current;
     fetchingRef.current = true;
     try {
       const rows = await getAllTransactionsByDate(
         db,
         activeProfileId,
-        debouncedSearch,
+        searchTerm,
         PAGE_SIZE,
         loadedCountRef.current,
         dateFrom,
         dateTo,
-        selectedCategory,
-        typeFilter
+        selectedCategory
       );
+      if (requestId !== requestRef.current) return;
       loadedCountRef.current += rows.length;
       setItems((prev) => [...prev, ...rows]);
       setHasMore(rows.length === PAGE_SIZE);
     } catch (error) {
       console.error('Failed to load more transactions:', error);
     } finally {
-      fetchingRef.current = false;
+      if (requestId === requestRef.current) fetchingRef.current = false;
     }
-  }, [db, activeProfileId, debouncedSearch, dateFrom, dateTo, selectedCategory, typeFilter, hasMore]);
+  }, [db, activeProfileId, searchTerm, dateFrom, dateTo, selectedCategory, hasMore]);
 
   useFocusEffect(
     useCallback(() => {
@@ -250,7 +240,7 @@ export default function TransactionsScreen() {
           const [months, dateBounds, cats, uncategorised] = await Promise.all([
             getAvailableMonths(db, activeProfileId),
             getTransactionDateBounds(db, activeProfileId),
-            getTransactionCategories(db, activeProfileId, dateFrom, dateTo, typeFilter),
+            getTransactionCategories(db, activeProfileId, dateFrom, dateTo),
             getUncategorisedCount(db, activeProfileId),
           ]);
           if (!active) return;
@@ -263,11 +253,17 @@ export default function TransactionsScreen() {
           console.error('Failed to load filter options:', error);
         }
       })();
-      fetchFirstPage();
       return () => {
         active = false;
       };
-    }, [db, activeProfileId, fetchFirstPage, dataVersion, dateFrom, dateTo, typeFilter])
+    }, [db, activeProfileId, dataVersion, dateFrom, dateTo])
+  );
+
+  // Separate from the filter options above so typing only re-runs the list query.
+  useFocusEffect(
+    useCallback(() => {
+      fetchFirstPage();
+    }, [fetchFirstPage, dataVersion])
   );
 
   const sections = useMemo<DaySection[]>(() => {
@@ -448,40 +444,6 @@ export default function TransactionsScreen() {
           )}
         </View>
 
-        <View style={[styles.typeBar, { backgroundColor: colors.track }]}>
-          {TYPE_FILTERS.map((option) => {
-            const isActive = typeFilter === option.key;
-            return (
-              <TouchableOpacity
-                key={option.key}
-                activeOpacity={0.7}
-                accessibilityRole="button"
-                accessibilityState={{ selected: isActive }}
-                style={[
-                  styles.typeSegment,
-                  isActive && [styles.typeSegmentActive, { backgroundColor: colors.raised }],
-                ]}
-                onPress={() => {
-                  if (isActive) return;
-                  Haptics.selectionAsync().catch(() => {});
-                  setTypeFilter(option.key);
-                }}
-              >
-                <Text
-                  style={[
-                    styles.typeSegmentText,
-                    { color: isActive ? colors.text : colors.textSecondary },
-                    isActive && styles.typeSegmentTextActive,
-                  ]}
-                  numberOfLines={1}
-                >
-                  {option.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
         {categories.length > 1 && (
           <View style={styles.categoryBarWrap}>
             <CategoryFilterBar
@@ -542,9 +504,9 @@ export default function TransactionsScreen() {
             <View style={styles.centered}>
               <Ionicons name="receipt-outline" size={40} color={colors.textSecondary} />
               <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                {debouncedSearch.length > 0
+                {searchTerm.length > 0
                   ? 'No matching transactions.'
-                  : filter.kind !== 'ALL' || selectedCategory !== 'All' || typeFilter !== 'ALL'
+                  : filter.kind !== 'ALL' || selectedCategory !== 'All'
                   ? 'No transactions match these filters.'
                   : 'No transactions yet.'}
               </Text>
@@ -705,17 +667,6 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   searchInput: { flex: 1, fontSize: 15, paddingVertical: 0 },
-  typeBar: { flexDirection: 'row', borderRadius: 9, padding: 2, marginTop: 8 },
-  typeSegment: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 6, borderRadius: 7 },
-  typeSegmentActive: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  typeSegmentText: { fontSize: 12, fontWeight: '500' },
-  typeSegmentTextActive: { fontWeight: '600' },
   categoryBarWrap: { marginHorizontal: -20, marginTop: 8, marginBottom: 4 },
   reviewRow: {
     flexDirection: 'row',

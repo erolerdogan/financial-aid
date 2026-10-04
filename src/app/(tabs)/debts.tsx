@@ -8,6 +8,7 @@ import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import {
   DebtSummary,
+  deleteDebt,
   dismissDebtSuggestion,
   getDebtSuggestions,
   getDebtSummaries,
@@ -19,8 +20,9 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import Swipeable, { SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 
 const MAX_SUGGESTIONS = 3;
 
@@ -39,6 +41,7 @@ export default function DebtsScreen() {
   const [suggestions, setSuggestions] = useState<DebtSuggestion[]>([]);
   const [detailVisible, setDetailVisible] = useState(false);
   const [detailDebt, setDetailDebt] = useState<DebtSummary | null>(null);
+  const swipeRefs = useRef(new Map<number, SwipeableMethods>());
 
   const load = useCallback(async () => {
     if (!db) return;
@@ -108,6 +111,69 @@ export default function DebtsScreen() {
     setFormPrefill(null);
     setTimeout(() => setFormVisible(true), 350);
   };
+
+  const closeSwipes = (exceptId?: number) => {
+    swipeRefs.current.forEach((row, id) => {
+      if (id !== exceptId) row.close();
+    });
+  };
+
+  const openEdit = (debt: DebtSummary) => {
+    Haptics.selectionAsync().catch(() => {});
+    closeSwipes();
+    setFormDebt(debt);
+    setFormPrefill(null);
+    setFormVisible(true);
+  };
+
+  const confirmDelete = (debt: DebtSummary) => {
+    Alert.alert(
+      'Delete debt?',
+      `"${debt.name}" and its payment history will be removed. Your bank transactions are not affected.`,
+      [
+        { text: 'Cancel', style: 'cancel', onPress: () => closeSwipes() },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteDebt(db, debt.id);
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+              await load();
+            } catch (error) {
+              console.error('Failed to delete debt:', error);
+              Alert.alert('Error', 'Failed to delete this debt.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const renderSwipeActions = (debt: DebtSummary) => (
+    <View style={styles.swipeActions}>
+      <TouchableOpacity
+        activeOpacity={0.8}
+        style={[styles.swipeAction, { backgroundColor: colors.accent }]}
+        onPress={() => openEdit(debt)}
+        accessibilityRole="button"
+        accessibilityLabel={`Edit ${debt.name}`}
+      >
+        <Ionicons name="pencil" size={18} color="#FFFFFF" />
+        <Text style={styles.swipeActionText}>Edit</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        activeOpacity={0.8}
+        style={[styles.swipeAction, styles.swipeDelete]}
+        onPress={() => confirmDelete(debt)}
+        accessibilityRole="button"
+        accessibilityLabel={`Delete ${debt.name}`}
+      >
+        <Ionicons name="trash-outline" size={18} color="#FFFFFF" />
+        <Text style={styles.swipeActionText}>Delete</Text>
+      </TouchableOpacity>
+    </View>
+  );
 
   const suggestionCards =
     suggestions.length === 0 ? null : (
@@ -211,49 +277,61 @@ export default function DebtsScreen() {
           </View>
 
           {debts.map((debt) => (
-            <TouchableOpacity
+            <Swipeable
               key={debt.id}
-              activeOpacity={0.8}
-              style={[styles.debtCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-              onPress={() => openDetail(debt)}
+              ref={(row) => {
+                if (row) swipeRefs.current.set(debt.id, row);
+                else swipeRefs.current.delete(debt.id);
+              }}
+              friction={2}
+              rightThreshold={40}
+              overshootRight={false}
+              renderRightActions={() => renderSwipeActions(debt)}
+              onSwipeableWillOpen={() => closeSwipes(debt.id)}
             >
-              <View style={styles.debtTop}>
-                <View style={[styles.debtIcon, { backgroundColor: `${debt.color}22` }]}>
-                  <Ionicons name={getDebtTypeIcon(debt.type)} size={18} color={debt.color} />
+              <TouchableOpacity
+                activeOpacity={0.8}
+                style={[styles.debtCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+                onPress={() => openDetail(debt)}
+              >
+                <View style={styles.debtTop}>
+                  <View style={[styles.debtIcon, { backgroundColor: `${debt.color}22` }]}>
+                    <Ionicons name={getDebtTypeIcon(debt.type)} size={18} color={debt.color} />
+                  </View>
+                  <View style={styles.debtTitleWrap}>
+                    <Text style={[styles.debtName, { color: colors.text }]} numberOfLines={1}>
+                      {debt.name}
+                    </Text>
+                    <Text style={[styles.debtSub, { color: colors.textSecondary }]} numberOfLines={1}>
+                      {debt.isPaidOff
+                        ? 'Paid off'
+                        : debt.payoffMonth
+                        ? `Debt-free ~ ${formatPayoffMonth(debt.payoffMonth)}`
+                        : 'Set a monthly payment for an estimate'}
+                    </Text>
+                  </View>
+                  <View style={styles.debtAmountWrap}>
+                    <Text style={[styles.debtBalance, { color: colors.text }]}>{fmt(debt.balance)}</Text>
+                    <Text style={[styles.debtOf, { color: colors.textSecondary }]}>
+                      of {fmt(debt.originalAmount)}
+                    </Text>
+                  </View>
                 </View>
-                <View style={styles.debtTitleWrap}>
-                  <Text style={[styles.debtName, { color: colors.text }]} numberOfLines={1}>
-                    {debt.name}
-                  </Text>
-                  <Text style={[styles.debtSub, { color: colors.textSecondary }]} numberOfLines={1}>
-                    {debt.isPaidOff
-                      ? 'Paid off'
-                      : debt.payoffMonth
-                      ? `Debt-free ~ ${formatPayoffMonth(debt.payoffMonth)}`
-                      : 'Set a monthly payment for an estimate'}
-                  </Text>
-                </View>
-                <View style={styles.debtAmountWrap}>
-                  <Text style={[styles.debtBalance, { color: colors.text }]}>{fmt(debt.balance)}</Text>
-                  <Text style={[styles.debtOf, { color: colors.textSecondary }]}>
-                    of {fmt(debt.originalAmount)}
-                  </Text>
-                </View>
-              </View>
 
-              <View style={styles.debtBar}>
-                <DebtProgressBar percent={debt.percentPaid} color={debt.color} height={8} />
-              </View>
-              <View style={styles.debtFooter}>
-                <Text style={[styles.debtFooterText, { color: colors.textSecondary }]}>
-                  {debt.percentPaid.toFixed(0)}% paid
-                </Text>
-                <Text style={[styles.debtFooterText, { color: colors.textSecondary }]}>
-                  {debt.paymentCount} payment{debt.paymentCount === 1 ? '' : 's'}
-                  {debt.apr > 0 ? ` • ${debt.apr}% APR` : ''}
-                </Text>
-              </View>
-            </TouchableOpacity>
+                <View style={styles.debtBar}>
+                  <DebtProgressBar percent={debt.percentPaid} color={debt.color} height={8} />
+                </View>
+                <View style={styles.debtFooter}>
+                  <Text style={[styles.debtFooterText, { color: colors.textSecondary }]}>
+                    {debt.percentPaid.toFixed(0)}% paid
+                  </Text>
+                  <Text style={[styles.debtFooterText, { color: colors.textSecondary }]}>
+                    {debt.paymentCount} payment{debt.paymentCount === 1 ? '' : 's'}
+                    {debt.apr > 0 ? ` • ${debt.apr}% APR` : ''}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </Swipeable>
           ))}
 
           {suggestionCards}
@@ -310,6 +388,10 @@ const styles = StyleSheet.create({
   debtBar: { marginTop: 12 },
   debtFooter: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
   debtFooterText: { fontSize: 11, fontWeight: '600' },
+  swipeActions: { flexDirection: 'row', alignItems: 'stretch', gap: 8, paddingLeft: 8 },
+  swipeAction: { width: 72, borderRadius: 16, alignItems: 'center', justifyContent: 'center', gap: 4 },
+  swipeDelete: { backgroundColor: '#FF3B30' },
+  swipeActionText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
   emptyWrap: {
     flexGrow: 1,
     alignItems: 'center',

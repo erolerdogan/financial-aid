@@ -10,11 +10,16 @@ import {
     updateDebt
 } from '@/db/database';
 import {
+    DEBT_TERM_UNITS,
     DEBT_TYPE_OPTIONS,
     debtKeywordLength,
+    DebtTermUnit,
+    estimateApr,
     isValidDateKey,
+    MAX_DEBT_TERM_MONTHS,
     MIN_DEBT_KEYWORD_LENGTH,
     suggestDebtTerms,
+    termToMonths,
     normalizeMatchText,
     parseNumber
 } from '@/utils/debt';
@@ -62,6 +67,8 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
   const [apr, setApr] = useState('');
   const [payment, setPayment] = useState('');
   const [payDay, setPayDay] = useState('1');
+  const [term, setTerm] = useState('');
+  const [termUnit, setTermUnit] = useState<DebtTermUnit>('MONTHS');
   const [startDate, setStartDate] = useState('');
   const [color, setColor] = useState(CATEGORY_COLOR_PALETTE[0]);
   const [keywords, setKeywords] = useState<string[]>([]);
@@ -106,6 +113,9 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
       setApr(debt.apr > 0 ? String(debt.apr) : '');
       setPayment(debt.paymentAmount > 0 ? String(debt.paymentAmount) : '');
       setPayDay(String(debt.paymentDay));
+      const wholeYears = !!debt.termMonths && debt.termMonths % 12 === 0;
+      setTerm(debt.termMonths ? String(wholeYears ? debt.termMonths / 12 : debt.termMonths) : '');
+      setTermUnit(wholeYears ? 'YEARS' : 'MONTHS');
       setStartDate(debt.startDate ?? '');
       setColor(debt.color);
       setKeywords(debt.keywords.map((k) => k.toUpperCase()));
@@ -116,6 +126,8 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
       setApr('');
       setPayment('');
       setPayDay('1');
+      setTerm('');
+      setTermUnit('MONTHS');
       setStartDate('');
       setColor(CATEGORY_COLOR_PALETTE[0]);
       setKeywords(prefill?.keywords.map((k) => k.toUpperCase()) ?? []);
@@ -269,6 +281,7 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
     const aprValue = apr.trim() === '' ? 0 : parseNumber(apr);
     const paymentValue = payment.trim() === '' ? 0 : parseNumber(payment);
     const dayValue = payDay.trim() === '' ? 1 : parseInt(payDay, 10);
+    const termValue = termToMonths(term, termUnit);
     const startValue = startDate.trim();
 
     if (!trimmedName) return Alert.alert('Name required', 'Please enter a name for this debt.');
@@ -280,6 +293,11 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
       return Alert.alert('Monthly payment', 'Enter a valid monthly payment amount.');
     if (isNaN(dayValue) || dayValue < 1 || dayValue > 31)
       return Alert.alert('Payment day', 'Enter a day of the month between 1 and 31.');
+    if (termValue !== null && isNaN(termValue))
+      return Alert.alert(
+        'Term',
+        `Enter a term that is a whole number of months, up to ${MAX_DEBT_TERM_MONTHS / 12} years, or leave it empty.`
+      );
     if (startValue !== '' && !isValidDateKey(startValue))
       return Alert.alert('Start date', 'Use the format YYYY-MM-DD, or leave it empty.');
 
@@ -291,6 +309,7 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
       paymentAmount: paymentValue,
       paymentDay: dayValue,
       startDate: startValue === '' ? null : startValue,
+      termMonths: termValue,
       color,
       keywords,
     };
@@ -347,6 +366,18 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
       ]
     );
   };
+
+  // Rate implied by amount, payment and term; offered under the APR field, never written silently.
+  const termNumber = termToMonths(term, termUnit) ?? NaN;
+  const amountNumber = parseNumber(amount);
+  const paymentNumber = parseNumber(payment);
+  const canEstimateApr = !isNaN(termNumber) && amountNumber > 0 && paymentNumber > 0;
+  const estimatedApr = canEstimateApr ? estimateApr(amountNumber, paymentNumber, termNumber) : null;
+  const aprNumber = apr.trim() === '' ? 0 : parseNumber(apr);
+  const showAprEstimate = estimatedApr !== null && Math.abs(aprNumber - estimatedApr) > 0.005;
+  const formatMoney = (value: number) =>
+    `${currencySymbol}${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+  const needsTermForEstimate = term.trim() === '' && apr.trim() === '' && amountNumber > 0 && paymentNumber > 0;
 
   const renderField = (
     label: string,
@@ -500,6 +531,154 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
                 ))}
               </View>
             )}
+
+            <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>TYPE</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.typeRow}>
+              {DEBT_TYPE_OPTIONS.map((option) => {
+                const isActive = option.key === type;
+                return (
+                  <TouchableOpacity
+                    key={option.key}
+                    activeOpacity={0.8}
+                    onPress={() => {
+                      Haptics.selectionAsync().catch(() => {});
+                      setType(option.key);
+                    }}
+                    style={[
+                      styles.typeChip,
+                      { backgroundColor: fieldBg, borderColor: colors.border },
+                      isActive && { backgroundColor: colors.accent, borderColor: colors.accent },
+                    ]}
+                  >
+                    <Ionicons name={option.icon} size={15} color={isActive ? '#FFFFFF' : colors.textSecondary} />
+                    <Text style={[styles.typeText, { color: isActive ? '#FFFFFF' : colors.text }]}>
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            {renderField('ORIGINAL AMOUNT', amount, setAmount, '0.00', {
+              keyboard: 'decimal-pad',
+              prefix: currencySymbol,
+            })}
+            {renderField('MONTHLY PAYMENT', payment, setPayment, '0.00', {
+              keyboard: 'decimal-pad',
+              prefix: currencySymbol,
+            })}
+            <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>TERM (OPTIONAL)</Text>
+            <View style={styles.termRow}>
+              <View style={[styles.inputWrap, styles.flex, { backgroundColor: fieldBg, borderColor: colors.border }]}>
+                <TextInput
+                  style={[styles.input, { color: colors.text }]}
+                  value={term}
+                  onChangeText={setTerm}
+                  placeholder={termUnit === 'YEARS' ? '5' : '60'}
+                  placeholderTextColor={colors.textSecondary}
+                  keyboardType={termUnit === 'YEARS' ? 'decimal-pad' : 'number-pad'}
+                  maxLength={termUnit === 'YEARS' ? 4 : 3}
+                  autoCorrect={false}
+                />
+              </View>
+              <View style={[styles.unitToggle, { backgroundColor: fieldBg, borderColor: colors.border }]}>
+                {DEBT_TERM_UNITS.map((unit) => {
+                  const isActive = unit.key === termUnit;
+                  return (
+                    <TouchableOpacity
+                      key={unit.key}
+                      activeOpacity={0.8}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: isActive }}
+                      onPress={() => {
+                        Haptics.selectionAsync().catch(() => {});
+                        setTermUnit(unit.key);
+                      }}
+                      style={[styles.unitOption, isActive && { backgroundColor: colors.accent }]}
+                    >
+                      <Text style={[styles.typeText, { color: isActive ? '#FFFFFF' : colors.text }]}>
+                        {unit.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+            {renderField('INTEREST RATE (APR, OPTIONAL)', apr, setApr, '0', {
+              keyboard: 'decimal-pad',
+              suffix: '%',
+            })}
+            {showAprEstimate && (
+              <View style={styles.estimateRow}>
+                <Text style={[styles.estimateText, { color: colors.textSecondary }]}>
+                  Estimated rate from amount, payment and term: {estimatedApr}%
+                </Text>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Use estimated rate ${estimatedApr}%`}
+                  onPress={() => {
+                    Haptics.selectionAsync().catch(() => {});
+                    setApr(String(estimatedApr));
+                  }}
+                >
+                  <Text style={[styles.estimateAction, { color: colors.accent }]}>Use</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            {needsTermForEstimate && (
+              <Text style={[styles.footnote, { color: colors.textSecondary }]}>
+                Don&apos;t know the rate? Enter the term above and it is estimated from the amount and monthly payment.
+              </Text>
+            )}
+            {canEstimateApr && estimatedApr === null && (
+              <Text style={[styles.footnote, { color: colors.textSecondary }]}>
+                {paymentNumber * termNumber < amountNumber
+                  ? `No rate can be estimated: ${termNumber} payments of ${formatMoney(paymentNumber)} add up to ${formatMoney(paymentNumber * termNumber)}, less than the ${formatMoney(amountNumber)} borrowed. The term is the total number of payments over the whole loan, not the months left.`
+                  : `No rate can be estimated: ${termNumber} payments of ${formatMoney(paymentNumber)} add up to ${formatMoney(paymentNumber * termNumber)}, which puts the rate above 100% a year on ${formatMoney(amountNumber)} borrowed. Check the original amount.`}
+              </Text>
+            )}
+            {renderField('PAYMENT DAY OF MONTH', payDay, setPayDay, '1', {
+              keyboard: 'number-pad',
+              maxLength: 2,
+            })}
+            {renderField('START DATE (OPTIONAL)', startDate, setStartDate, 'YYYY-MM-DD', {
+              keyboard: 'numbers-and-punctuation',
+              maxLength: 10,
+            })}
+            {autoFilledFrom > 0 && (
+              <Text style={[styles.footnote, { color: colors.accent }]}>
+                Monthly payment, payment day and start date were filled in from {autoFilledFrom} matching payment
+                {autoFilledFrom === 1 ? '' : 's'}. Edit them if they are wrong.
+              </Text>
+            )}
+            <Text style={[styles.footnote, { color: colors.textSecondary }]}>
+              Interest is estimated daily from the start date. Without a start date, interest is counted from the
+              first payment.
+            </Text>
+
+            <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>COLOR</Text>
+            <View style={styles.swatchGrid}>
+              {CATEGORY_COLOR_PALETTE.map((swatch) => {
+                const isSelected = swatch === color;
+                return (
+                  <TouchableOpacity
+                    key={swatch}
+                    activeOpacity={0.8}
+                    style={[styles.swatchRing, isSelected && { borderColor: swatch }]}
+                    onPress={() => {
+                      Haptics.selectionAsync().catch(() => {});
+                      setColor(swatch);
+                    }}
+                  >
+                    <View style={[styles.swatch, { backgroundColor: swatch }]}>
+                      {isSelected && <Ionicons name="checkmark" size={18} color="#FFFFFF" />}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
 
             {keywords.length > 0 && (
               <>
@@ -671,86 +850,6 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
               </>
             )}
 
-            <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>TYPE</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.typeRow}>
-              {DEBT_TYPE_OPTIONS.map((option) => {
-                const isActive = option.key === type;
-                return (
-                  <TouchableOpacity
-                    key={option.key}
-                    activeOpacity={0.8}
-                    onPress={() => {
-                      Haptics.selectionAsync().catch(() => {});
-                      setType(option.key);
-                    }}
-                    style={[
-                      styles.typeChip,
-                      { backgroundColor: fieldBg, borderColor: colors.border },
-                      isActive && { backgroundColor: colors.accent, borderColor: colors.accent },
-                    ]}
-                  >
-                    <Ionicons name={option.icon} size={15} color={isActive ? '#FFFFFF' : colors.textSecondary} />
-                    <Text style={[styles.typeText, { color: isActive ? '#FFFFFF' : colors.text }]}>
-                      {option.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-
-            {renderField('ORIGINAL AMOUNT', amount, setAmount, '0.00', {
-              keyboard: 'decimal-pad',
-              prefix: currencySymbol,
-            })}
-            {renderField('INTEREST RATE (APR, OPTIONAL)', apr, setApr, '0', {
-              keyboard: 'decimal-pad',
-              suffix: '%',
-            })}
-            {renderField('MONTHLY PAYMENT', payment, setPayment, '0.00', {
-              keyboard: 'decimal-pad',
-              prefix: currencySymbol,
-            })}
-            {renderField('PAYMENT DAY OF MONTH', payDay, setPayDay, '1', {
-              keyboard: 'number-pad',
-              maxLength: 2,
-            })}
-            {renderField('START DATE (OPTIONAL)', startDate, setStartDate, 'YYYY-MM-DD', {
-              keyboard: 'numbers-and-punctuation',
-              maxLength: 10,
-            })}
-            {autoFilledFrom > 0 && (
-              <Text style={[styles.footnote, { color: colors.accent }]}>
-                Monthly payment, payment day and start date were filled in from {autoFilledFrom} matching payment
-                {autoFilledFrom === 1 ? '' : 's'}. Edit them if they are wrong.
-              </Text>
-            )}
-            <Text style={[styles.footnote, { color: colors.textSecondary }]}>
-              Interest is estimated daily from the start date. Without a start date, interest is counted from the
-              first payment.
-            </Text>
-
-            <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>COLOR</Text>
-            <View style={styles.swatchGrid}>
-              {CATEGORY_COLOR_PALETTE.map((swatch) => {
-                const isSelected = swatch === color;
-                return (
-                  <TouchableOpacity
-                    key={swatch}
-                    activeOpacity={0.8}
-                    style={[styles.swatchRing, isSelected && { borderColor: swatch }]}
-                    onPress={() => {
-                      Haptics.selectionAsync().catch(() => {});
-                      setColor(swatch);
-                    }}
-                  >
-                    <View style={[styles.swatch, { backgroundColor: swatch }]}>
-                      {isSelected && <Ionicons name="checkmark" size={18} color="#FFFFFF" />}
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
             {debt && (
               <TouchableOpacity
                 activeOpacity={0.8}
@@ -797,6 +896,18 @@ const styles = StyleSheet.create({
   affix: { fontSize: 16, fontWeight: '600' },
   footnote: { fontSize: 12, lineHeight: 17, marginTop: 8 },
   footnoteTop: { marginTop: 0, marginBottom: 10 },
+  termRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  unitToggle: {
+    flexDirection: 'row',
+    height: 46,
+    padding: 3,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  unitOption: { paddingHorizontal: 14, borderRadius: 9, justifyContent: 'center' },
+  estimateRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 8 },
+  estimateText: { flex: 1, fontSize: 12, lineHeight: 17 },
+  estimateAction: { fontSize: 14, fontWeight: '600' },
   typeRow: { gap: 8 },
   typeChip: {
     flexDirection: 'row',

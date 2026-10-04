@@ -52,6 +52,43 @@ export const normalizeMatchText = (text: string): string =>
     .replace(/[\s\-_.,;:/\\|*#'"()[\]+&@!?]+/g, ' ')
     .trim();
 
+export const MAX_DEBT_TERM_MONTHS = 600;
+
+export type DebtTermUnit = 'MONTHS' | 'YEARS';
+
+export const DEBT_TERM_UNITS: { key: DebtTermUnit; label: string }[] = [
+  { key: 'MONTHS', label: 'Months' },
+  { key: 'YEARS', label: 'Years' },
+];
+
+// Typed term as a number of monthly payments; null when empty, NaN when it is not a whole number of months in range.
+export const termToMonths = (value: string, unit: DebtTermUnit): number | null => {
+  if (value.trim() === '') return null;
+  const parsed = parseNumber(value);
+  const months = unit === 'YEARS' ? Math.round(parsed * 12 * 1000) / 1000 : parsed;
+  return Number.isInteger(months) && months >= 1 && months <= MAX_DEBT_TERM_MONTHS ? months : NaN;
+};
+
+// Nominal annual rate (%) of an annuity loan, solved from amount, monthly payment and number of payments.
+// null when the payments do not cover the amount or the rate would exceed 100%.
+export const estimateApr = (originalAmount: number, payment: number, termMonths: number): number | null => {
+  if (!(originalAmount > 0) || !(payment > 0) || !(termMonths >= 1)) return null;
+  const totalPaid = payment * termMonths;
+  if (totalPaid < originalAmount - 0.005 * termMonths) return null;
+  if (totalPaid <= originalAmount) return 0;
+
+  const paymentAt = (rate: number) => (originalAmount * rate) / (1 - Math.pow(1 + rate, -termMonths));
+  let low = 0;
+  let high = 100 / 1200;
+  if (paymentAt(high) < payment) return null;
+  for (let i = 0; i < 60; i++) {
+    const mid = (low + high) / 2;
+    if (paymentAt(mid) < payment) low = mid;
+    else high = mid;
+  }
+  return Math.round(((low + high) / 2) * 1200 * 100) / 100;
+};
+
 export const MIN_DEBT_KEYWORD_LENGTH = 3;
 // Keywords this long may also match the start of a longer word (VODAF -> VODAFONE).
 const PREFIX_KEYWORD_LENGTH = 5;

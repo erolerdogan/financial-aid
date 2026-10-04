@@ -84,8 +84,8 @@ On first launch the welcome screen offers two paths: import a statement, or open
 
 ### Transactions
 
-- Search by merchant, description or category.
-- Filter by date range, by type (income, expenses, fixed, flexible) and by category chips.
+- Live search by merchant, description or category; results update while typing.
+- Filter by date range and by category chips.
 - The month or range you pick is shared with Home.
 - Detail view with the raw bank description and the fixed/flexible classification.
 
@@ -122,11 +122,13 @@ On first launch the welcome screen offers two paths: import a statement, or open
 ### Debts
 
 - Track loans, mortgages, student loans and personal loans.
-- Record the original amount, interest rate, monthly payment, payment day and start date.
+- Record the original amount, interest rate, monthly payment, term (in months or years), payment day and start date.
+- With the amount, monthly payment and term filled in, the form estimates the interest rate and offers it under the rate field.
 - Payments are linked automatically from imported transactions by keyword, and can also be added by hand.
 - Keyword matching ignores case, accents, punctuation and spaces, and runs after every import.
 - Only whole-word matches with an amount close to the monthly payment are linked automatically; near-misses are listed as possible matches to add by hand.
 - The debt form previews the statement payments each keyword matches before saving; unwanted ones can be unlinked there or from the payment history.
+- Swipe a debt left on the Debts tab for Edit and Delete.
 - Payment history shows the merchant and the keyword that linked each payment.
 - Removing a keyword removes the payments it linked; deleted transactions drop out of the history.
 - Each payment is split into principal and interest.
