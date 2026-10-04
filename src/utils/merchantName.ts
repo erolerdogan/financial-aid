@@ -15,6 +15,19 @@ export function containsWord(text: string, word: string): boolean {
   }
 }
 
+/** True when `word` occurs in `text` at the start of a word ("ALBERT" in "ALBERTHEIJN", not "BERT"). */
+export function containsWordStart(text: string, word: string): boolean {
+  if (!word) return false;
+  let from = 0;
+  while (true) {
+    const index = text.indexOf(word, from);
+    if (index === -1) return false;
+    const before = index > 0 ? text[index - 1] : '';
+    if (!(before && isWordChar(before))) return true;
+    from = index + 1;
+  }
+}
+
 /** "JD3001GammaEindhoven" -> "JD3001 Gamma Eindhoven", "TeslaMotorsBV" -> "Tesla Motors BV". */
 export function splitJoinedWords(text: string): string {
   return text
@@ -318,8 +331,13 @@ export function deriveMerchant(source: MerchantSource): string {
   return TX_TYPE_LABELS[source.txType ?? ''] ?? FALLBACK_LABEL;
 }
 
-/** Text the classifier should see: the merchant name (unless it is a generic label) plus the bank text. */
+/** A payment-type label or placeholder, not a real merchant name. */
+export function isGenericMerchant(merchant: string | null | undefined): boolean {
+  return !merchant || GENERIC_NAMES.has(merchant);
+}
+
+/** Text user rules are matched against: the merchant name (unless it is a generic label) plus the bank text. */
 export function classificationText(merchant: string | null | undefined, rawDescription: string): string {
-  const name = merchant && !GENERIC_NAMES.has(merchant) ? merchant : '';
+  const name = isGenericMerchant(merchant) ? '' : merchant;
   return `${name} ${rawDescription ?? ''}`.trim();
 }

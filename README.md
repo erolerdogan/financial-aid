@@ -47,8 +47,13 @@ On first launch the welcome screen offers two paths: import a statement, or open
 
 ### Automatic categorisation
 
-- Each transaction is categorised on import in three steps: your own rules first, then built-in keyword matching. If nothing matches, money coming in becomes "Income" and spending becomes "Uncategorised".
+- Each transaction is categorised on import in this order: your own rules, what you chose before for the same merchant or IBAN, built-in keywords in the merchant name, then built-in keywords in the rest of the bank text. If nothing matches, money coming in becomes "Income" and spending becomes "Uncategorised".
+- Learns from your corrections: once you have categorised a merchant (or its IBAN) by hand at least twice and mostly the same way, new transactions of that merchant follow it.
+- The merchant name counts for more than the memo: generic words such as "market", "shop" or "transfer" only decide the category when they are part of the name.
+- Money coming in is never filed under a spending category by the built-in keywords; it is "Income", or "Financial Transfers" for savings and investment accounts.
+- Your own rules match whole words (or the start of a word for keywords of 5 or more characters); when several match, the longest wins.
 - Review screen: the Transactions tab shows how many transactions are uncategorised at the top of the list. The review list groups them per merchant, largest first; picking a category once applies it to all of that merchant's transactions and to future imports.
+- The review list suggests a category where it can (your earlier choices, a similar merchant, a word in the bank text, or a monthly direct debit) and shows why; one tap accepts it.
 - Reads the counterparty IBAN and payment type (direct debit, card, online, transfer) from the bank's columns or from the description text. A merchant is recognised by its IBAN when it has one of its own (not for card payments, iDEAL or payment processors).
 - The built-in keywords are tuned for Dutch banks and merchants, with some English and Turkish terms. The most specific (longest) keyword wins, and short names such as NS or AH only match as whole words.
 - When the built-in keywords change in an update, existing transactions you have not categorised by hand are re-categorised once on launch.

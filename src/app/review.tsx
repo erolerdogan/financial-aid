@@ -62,9 +62,8 @@ export default function ReviewScreen() {
     setSelected(group);
   };
 
-  const assign = async (category: string) => {
-    if (!db || !selected) return;
-    const group = selected;
+  const assign = async (group: UncategorisedGroup, category: string) => {
+    if (!db) return;
     setSelected(null);
     try {
       await categoriseMerchantGroup(db, group, category, profileId);
@@ -82,6 +81,12 @@ export default function ReviewScreen() {
       `${currencySymbol}${group.total.toLocaleString('en-US', { maximumFractionDigits: 0 })}`,
       `last ${group.lastDate.slice(0, 10)}`,
     ].join(' • ');
+
+  // The suggested category leads the picker.
+  const suggested = selected?.suggestion?.category;
+  const pickerCategories = suggested
+    ? [...categories].sort((a, b) => Number(b.name === suggested) - Number(a.name === suggested))
+    : categories;
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top']}>
@@ -113,8 +118,9 @@ export default function ReviewScreen() {
       ) : (
         <ScrollView contentContainerStyle={styles.content}>
           <Text style={[styles.introText, { color: colors.textSecondary }]}>
-            Merchants the app could not categorise, largest first. Pick a category once and it
-            applies to all of that merchant&apos;s transactions, including future imports.
+            Merchants the app could not categorise, largest first. Pick a category once, or accept
+            the suggestion, and it applies to all of that merchant&apos;s transactions, including
+            future imports.
           </Text>
           <View style={[styles.cardGroup, { backgroundColor: colors.card }]}>
             {groups.map((group, index) => (
@@ -135,6 +141,28 @@ export default function ReviewScreen() {
                     <Text style={[styles.rowRaw, { color: colors.textSecondary }]} numberOfLines={1}>
                       {group.sample}
                     </Text>
+                    {group.suggestion && (
+                      <View style={styles.suggestionRow}>
+                        <TouchableOpacity
+                          style={[styles.suggestionBtn, { backgroundColor: colors.background }]}
+                          activeOpacity={0.7}
+                          onPress={() => assign(group, group.suggestion!.category)}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Categorise as ${group.suggestion.category}`}
+                        >
+                          <Ionicons name="checkmark" size={14} color={colors.accent} />
+                          <Text style={[styles.suggestionText, { color: colors.accent }]} numberOfLines={1}>
+                            {group.suggestion.category}
+                          </Text>
+                        </TouchableOpacity>
+                        <Text
+                          style={[styles.suggestionReason, { color: colors.textSecondary }]}
+                          numberOfLines={1}
+                        >
+                          {group.suggestion.reason}
+                        </Text>
+                      </View>
+                    )}
                   </View>
                   <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
                 </TouchableOpacity>
@@ -160,18 +188,21 @@ export default function ReviewScreen() {
             </Text>
             <Text style={[styles.sheetSub, { color: colors.textSecondary }]}>Choose a category</Text>
             <ScrollView style={styles.sheetList}>
-              {categories.map((category, index) => (
+              {pickerCategories.map((category, index) => (
                 <React.Fragment key={category.id}>
                   {index > 0 && <View style={[styles.divider, { backgroundColor: colors.border }]} />}
                   <TouchableOpacity
                     style={styles.sheetRow}
                     activeOpacity={0.7}
-                    onPress={() => assign(category.name)}
+                    onPress={() => selected && assign(selected, category.name)}
                   >
                     <View style={[styles.colorDot, { backgroundColor: category.color }]} />
-                    <Text style={[styles.rowTitle, { color: colors.text }]} numberOfLines={1}>
+                    <Text style={[styles.rowTitle, styles.sheetRowTitle, { color: colors.text }]} numberOfLines={1}>
                       {category.name}
                     </Text>
+                    {category.name === suggested && (
+                      <Text style={[styles.rowSub, { color: colors.accent }]}>Suggested</Text>
+                    )}
                   </TouchableOpacity>
                 </React.Fragment>
               ))}
@@ -219,6 +250,18 @@ const styles = StyleSheet.create({
   rowTitle: { fontSize: 16, fontWeight: '600' },
   rowSub: { fontSize: 12, marginTop: 2 },
   rowRaw: { fontSize: 11, marginTop: 2 },
+  suggestionRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
+  suggestionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexShrink: 1,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 14,
+  },
+  suggestionText: { fontSize: 13, fontWeight: '600', marginLeft: 4, flexShrink: 1 },
+  suggestionReason: { fontSize: 12, marginLeft: 8, flexShrink: 1 },
+  sheetRowTitle: { flex: 1, marginRight: 8 },
   colorDot: { width: 14, height: 14, borderRadius: 7, marginRight: 14 },
   sheetOverlay: { flex: 1, justifyContent: 'flex-end' },
   sheetBackdrop: {

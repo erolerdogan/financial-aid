@@ -1,5 +1,12 @@
 import type { CategoryRule, Transaction } from '@/db/database';
-import { classificationText, containsWord, deriveMerchant, splitJoinedWords } from '@/utils/merchantName';
+import {
+  classificationText,
+  containsWord,
+  containsWordStart,
+  deriveMerchant,
+  isGenericMerchant,
+  splitJoinedWords,
+} from '@/utils/merchantName';
 import Papa from 'papaparse';
 import XLSX from 'xlsx';
 
@@ -23,7 +30,7 @@ import XLSX from 'xlsx';
 export { containsWord };
 
 /** Bump when the built-in keywords change; stored rows are reclassified once on the next launch. */
-export const CLASSIFIER_VERSION = 4;
+export const CLASSIFIER_VERSION = 5;
 
 /** No rule or keyword matched; these rows show up in the review list. */
 export const UNCATEGORISED = 'Uncategorised';
@@ -260,53 +267,194 @@ const CATEGORY_KEYWORDS: { category: string; parts: string[]; words: string[] }[
   },
 ];
 
+/** Generic words that say something in a merchant name ("Shell Shop") but not in a memo. */
+const NAME_ONLY_KEYWORDS = new Set([
+  'TRANSFER', 'MARKET', 'MARKT', 'SHOP', 'STORE', 'STORES', 'RETAIL', 'FOOD', 'FOODS', 'BAR', 'TEA',
+  'LUNCH', 'DINER', 'WATER', 'GAS', 'PLUS', 'CHARGE', 'FINANCE', 'BABY', 'OUTLET', 'WEBSHOP',
+]);
+
+/** Money coming in only keeps a built-in category when it is one of these; everything else is income. */
+const INCOMING_CATEGORIES = new Set(['Financial Transfers']);
+/** Payment-method words: on incoming money they describe how it arrived, not what it is. */
+const INCOMING_IGNORED_KEYWORDS = new Set(['TRANSFER', 'OVERBOEKING', 'HAVALE', 'EFT']);
+
+export interface KeywordMatch {
+  category: string;
+  keyword: string;
+}
+
 /**
- * Multi-Tiered Classification Engine:
- * 1. Custom User Rules (category_rules); a rule keyword can be a text fragment or a counterparty IBAN
- * 2. Built-in keywords; the longest matching keyword wins, so "UBER EATS" beats "UBER"
- *    and "DISNEY PLUS" beats "PLUS"
- * 3. Fallback: 'Income' for money coming in, otherwise 'Uncategorised'
+ * Longest built-in keyword found in `text`, so "UBER EATS" beats "UBER" and "DISNEY PLUS" beats "PLUS".
+ * Joined names are also tried split ("JD3001GammaEindhoven", "TeslaMotorsBV").
  */
-export function classifyTransaction(
-  description: string,
-  customRules: CategoryRule[] = [],
-  details: { iban?: string | null; amount?: number } = {}
-): string {
-  const fallback = (details.amount ?? 0) > 0 ? INCOME_CATEGORY : UNCATEGORISED;
-  const iban = details.iban ? details.iban.toUpperCase() : '';
-  if (!description && !iban) return fallback;
-  const desc = normalizeMerchantName(description || '');
+export function matchKeywords(
+  rawText: string,
+  options: { allowNameOnly: boolean; incoming?: boolean }
+): KeywordMatch | null {
+  const base = normalizeMerchantName(rawText || '');
+  if (!base) return null;
+  const split = normalizeMerchantName(splitJoinedWords(rawText || ''));
+  const text = split === base ? base : `${base} ${split}`;
 
-  // Tier 1: User-Defined Custom Category Rules
-  for (const rule of customRules) {
-    const cleanRuleKw = rule.keyword.toUpperCase().trim();
-    if (cleanRuleKw && (cleanRuleKw === iban || desc.includes(cleanRuleKw))) {
-      return rule.category;
-    }
-  }
+  const allowed = (keyword: string): boolean =>
+    (options.allowNameOnly || !NAME_ONLY_KEYWORDS.has(keyword)) &&
+    !(options.incoming && INCOMING_IGNORED_KEYWORDS.has(keyword));
 
-  // Tier 2: Built-in Keywords; joined names are also tried split ("JD3001GammaEindhoven", "TeslaMotorsBV")
-  const split = normalizeMerchantName(splitJoinedWords(description || ''));
-  const text = split === desc ? desc : `${desc} ${split}`;
-  let bestCategory = fallback;
-  let bestLength = 0;
+  let best: KeywordMatch | null = null;
   for (const { category, parts, words } of CATEGORY_KEYWORDS) {
+    if (options.incoming && !INCOMING_CATEGORIES.has(category)) continue;
     for (const part of parts) {
-      if (part.length > bestLength && text.includes(part)) {
-        bestCategory = category;
-        bestLength = part.length;
+      if (part.length > (best?.keyword.length ?? 0) && allowed(part) && text.includes(part)) {
+        best = { category, keyword: part };
       }
     }
     for (const word of words) {
-      if (word.length > bestLength && containsWord(text, word)) {
-        bestCategory = category;
-        bestLength = word.length;
+      if (word.length > (best?.keyword.length ?? 0) && allowed(word) && containsWord(text, word)) {
+        best = { category, keyword: word };
       }
     }
   }
+  return best;
+}
 
-  // Tier 3: Fallback Default Category
-  return bestCategory;
+/** Categories the user confirmed before, keyed by `learnedKey`. */
+export interface LearnedCategories {
+  byIban: Map<string, string>;
+  byMerchant: Map<string, string>;
+}
+
+export interface ConfirmedRow {
+  merchant: string | null;
+  category: string;
+  amount: number;
+  counterpartyIban: string | null;
+}
+
+const MIN_CONFIRMED_ROWS = 2;
+const MIN_AGREEMENT = 2 / 3;
+
+/** Income and expenses of one merchant are learned separately. */
+const learnedKey = (amount: number, value: string): string => `${amount > 0 ? '+' : '-'}|${value}`;
+
+const learnedMerchantKeyword = (merchant: string | null | undefined): string => {
+  if (isGenericMerchant(merchant)) return '';
+  const keyword = merchantRuleKeyword(merchant ?? '');
+  return keyword.length >= 3 ? keyword : '';
+};
+
+/**
+ * What the user's own confirmed rows say about an IBAN or merchant. A key only counts with at least
+ * two confirmed rows that mostly agree, so a one-off edit does not recategorise a whole merchant.
+ */
+export function buildLearnedCategories(rows: ConfirmedRow[]): LearnedCategories {
+  const ibanVotes = new Map<string, Map<string, number>>();
+  const merchantVotes = new Map<string, Map<string, number>>();
+  const vote = (votes: Map<string, Map<string, number>>, key: string, category: string) => {
+    const tally = votes.get(key) ?? new Map<string, number>();
+    tally.set(category, (tally.get(category) ?? 0) + 1);
+    votes.set(key, tally);
+  };
+
+  for (const row of rows) {
+    if (!row.category || row.category === UNCATEGORISED) continue;
+    if (row.counterpartyIban) {
+      vote(ibanVotes, learnedKey(row.amount, row.counterpartyIban.toUpperCase()), row.category);
+    }
+    const keyword = learnedMerchantKeyword(row.merchant);
+    if (keyword) vote(merchantVotes, learnedKey(row.amount, keyword), row.category);
+  }
+
+  const settle = (votes: Map<string, Map<string, number>>): Map<string, string> => {
+    const settled = new Map<string, string>();
+    for (const [key, tally] of votes) {
+      let total = 0;
+      let top = '';
+      let topCount = 0;
+      for (const [category, count] of tally) {
+        total += count;
+        if (count > topCount) {
+          top = category;
+          topCount = count;
+        }
+      }
+      if (total >= MIN_CONFIRMED_ROWS && topCount / total >= MIN_AGREEMENT) settled.set(key, top);
+    }
+    return settled;
+  };
+
+  return { byIban: settle(ibanVotes), byMerchant: settle(merchantVotes) };
+}
+
+/** The IBAN is the stronger signal; the merchant name is the fallback. */
+export function lookupLearnedCategory(
+  learned: LearnedCategories | undefined,
+  tx: { merchant?: string | null; iban?: string | null; amount: number }
+): string | null {
+  if (!learned) return null;
+  if (tx.iban) {
+    const byIban = learned.byIban.get(learnedKey(tx.amount, tx.iban.toUpperCase()));
+    if (byIban) return byIban;
+  }
+  const keyword = learnedMerchantKeyword(tx.merchant);
+  return (keyword && learned.byMerchant.get(learnedKey(tx.amount, keyword))) || null;
+}
+
+/** An IBAN rule wins; otherwise the longest text rule that matches a whole word (or a word start for 5+ chars). */
+function matchCustomRule(text: string, iban: string, rules: CategoryRule[]): string | null {
+  let best: string | null = null;
+  let bestLength = 0;
+  for (const rule of rules) {
+    const keyword = rule.keyword.toUpperCase().trim();
+    if (!keyword) continue;
+    if (keyword === iban) return rule.category;
+    if (keyword.length <= bestLength) continue;
+    const matches = keyword.length >= 5 ? containsWordStart(text, keyword) : containsWord(text, keyword);
+    if (matches) {
+      best = rule.category;
+      bestLength = keyword.length;
+    }
+  }
+  return best;
+}
+
+/**
+ * Multi-Tiered Classification Engine:
+ * 1. Custom User Rules (category_rules); a rule keyword can be a text fragment or a counterparty IBAN
+ * 2. What the user confirmed before for the same IBAN or merchant
+ * 3. Built-in keywords in the merchant name
+ * 4. Built-in keywords in the whole bank text, without the name-only words
+ * 5. Fallback: 'Income' for money coming in, otherwise 'Uncategorised'
+ */
+export function classifyTransaction(
+  source: { merchant?: string | null; rawDescription: string },
+  customRules: CategoryRule[] = [],
+  details: { iban?: string | null; amount?: number; learned?: LearnedCategories } = {}
+): string {
+  const amount = details.amount ?? 0;
+  const incoming = amount > 0;
+  const fallback = incoming ? INCOME_CATEGORY : UNCATEGORISED;
+  const iban = details.iban ? details.iban.toUpperCase() : '';
+  const merchant = isGenericMerchant(source.merchant) ? '' : (source.merchant ?? '');
+  const rawDescription = source.rawDescription || '';
+  if (!merchant && !rawDescription && !iban) return fallback;
+
+  const ruled = matchCustomRule(
+    normalizeMerchantName(classificationText(merchant, rawDescription)),
+    iban,
+    customRules
+  );
+  if (ruled) return ruled;
+
+  const learnt = lookupLearnedCategory(details.learned, { merchant, iban, amount });
+  if (learnt) return learnt;
+
+  const byName = merchant ? matchKeywords(merchant, { allowNameOnly: true, incoming }) : null;
+  const byText = matchKeywords(rawDescription, { allowNameOnly: false, incoming });
+  // The bank text may be more specific than the name: "AMAZON PRIME" for the merchant "Amazon".
+  if (byName && byText && byText.keyword.length > byName.keyword.length && byText.keyword.includes(byName.keyword)) {
+    return byText.category;
+  }
+  return (byName ?? byText)?.category ?? fallback;
 }
 
 function parseLocaleAmount(raw: any): { magnitude: number; isNegative: boolean } | null {
@@ -504,7 +652,8 @@ function detectColumns(cells: string[]): ColumnMap | null {
 
 function parseMatrixData(
   rows: any[][],
-  customRules: CategoryRule[] = []
+  customRules: CategoryRule[] = [],
+  learned?: LearnedCategories
 ): ParsedTransaction[] {
   if (!rows || rows.length === 0) return [];
 
@@ -585,9 +734,10 @@ function parseMatrixData(
       memo: cols.memos.map((idx) => cleanCell(row[idx])).filter(Boolean).join(' '),
       txType: bank.txType,
     });
-    const category = classifyTransaction(classificationText(merchant, originalDesc), customRules, {
+    const category = classifyTransaction({ merchant, rawDescription: originalDesc }, customRules, {
       iban: bank.counterpartyIban,
       amount,
+      learned,
     });
 
     transactions.push({
@@ -610,7 +760,8 @@ function parseMatrixData(
 
 export function parseExcelContent(
   fileData: ArrayBuffer | string,
-  customRules: CategoryRule[] = []
+  customRules: CategoryRule[] = [],
+  learned?: LearnedCategories
 ): ParsedTransaction[] {
   if (!fileData) return [];
 
@@ -639,12 +790,13 @@ export function parseExcelContent(
   if (!worksheet) return [];
 
   const rawMatrixRows = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1, raw: true });
-  return parseMatrixData(rawMatrixRows, customRules);
+  return parseMatrixData(rawMatrixRows, customRules, learned);
 }
 
 export function parseCSVContent(
   csvText: string,
-  customRules: CategoryRule[] = []
+  customRules: CategoryRule[] = [],
+  learned?: LearnedCategories
 ): ParsedTransaction[] {
   if (!csvText) return [];
 
@@ -660,5 +812,5 @@ export function parseCSVContent(
     dynamicTyping: false,
   });
 
-  return parseMatrixData(parsed.data || [], customRules);
+  return parseMatrixData(parsed.data || [], customRules, learned);
 }

@@ -9,12 +9,20 @@ import {
   merchantKey,
   scoreFixed,
 } from '@/utils/fixedCost';
-import { classificationText } from '@/utils/merchantName';
 import {
+  buildMerchantIndex,
+  type CategorySuggestion,
+  type KnownMerchant,
+  suggestCategory,
+} from '@/utils/categorySuggestion';
+import {
+  buildLearnedCategories,
   CLASSIFIER_VERSION,
   classifyTransaction,
+  type ConfirmedRow,
   extractBankDetails,
   INCOME_CATEGORY,
+  type LearnedCategories,
   merchantRuleKeyword,
   normalizeMerchantName,
   UNCATEGORISED,
@@ -1690,6 +1698,19 @@ const formatMonthName = (dateStr: string): string => {
   return monthNames[monthIdx] || month;
 };
 
+/** Categories the user confirmed per IBAN and merchant; see `buildLearnedCategories`. */
+export async function getLearnedCategories(
+  db: SQLiteDatabase,
+  profileId: number = 1
+): Promise<LearnedCategories> {
+  const rows = await db.getAllAsync<ConfirmedRow>(
+    `SELECT merchant, category, amount, counterpartyIban
+     FROM transactions WHERE profileId = ? AND userOverridden = 1 AND category != ?;`,
+    [profileId, UNCATEGORISED]
+  );
+  return buildLearnedCategories(rows);
+}
+
 export async function reclassifyAllUnoverriddenTransactions(
   db: SQLiteDatabase,
   profileId: number = 1
@@ -1701,7 +1722,8 @@ export async function reclassifyAllUnoverriddenTransactions(
     `SELECT * FROM category_rules WHERE profileId = ?;`,
     [profileId]
   );
-  
+  const learned = await getLearnedCategories(db, profileId);
+
   const transactions = await db.getAllAsync<{
     id: number;
     rawDescription: string;
@@ -1720,10 +1742,11 @@ export async function reclassifyAllUnoverriddenTransactions(
   await db.withTransactionAsync(async () => {
     for (const tx of transactions) {
       // Run the new classification logic against the clean text
-      const newCategory = classifyTransaction(classificationText(tx.merchant, tx.rawDescription), rules, {
-        iban: tx.counterpartyIban,
-        amount: tx.amount,
-      });
+      const newCategory = classifyTransaction(
+        { merchant: tx.merchant, rawDescription: tx.rawDescription },
+        rules,
+        { iban: tx.counterpartyIban, amount: tx.amount, learned }
+      );
 
       // No rule or keyword hit: keep categories the classifier never produces (custom ones).
       const isFallback = newCategory === UNCATEGORISED || newCategory === INCOME_CATEGORY;
@@ -1774,6 +1797,8 @@ export interface UncategorisedGroup {
   total: number;
   lastDate: string;
   sample: string;
+  /** Best guess for the category, when there is one. */
+  suggestion: CategorySuggestion | null;
 }
 
 export async function getUncategorisedCount(db: SQLiteDatabase, profileId: number): Promise<number> {
@@ -1795,6 +1820,7 @@ export async function getUncategorisedGroups(
   );
 
   const groups = new Map<string, UncategorisedGroup>();
+  const groupRows = new Map<string, Transaction[]>();
   for (const tx of rows) {
     const name = tx.merchant && tx.merchant !== 'Unknown' ? tx.merchant : tx.rawDescription;
     const keyword = merchantRuleKeyword(name);
@@ -1803,6 +1829,7 @@ export async function getUncategorisedGroups(
 
     const group = groups.get(key);
     if (group) {
+      groupRows.get(key)?.push(tx);
       group.transactionIds.push(tx.id);
       group.count++;
       group.total += Math.abs(tx.amount);
@@ -1817,7 +1844,28 @@ export async function getUncategorisedGroups(
         total: Math.abs(tx.amount),
         lastDate: tx.date,
         sample: tx.rawDescription,
+        suggestion: null,
       });
+      groupRows.set(key, [tx]);
+    }
+  }
+
+  if (groups.size > 0) {
+    const [learned, known] = await Promise.all([
+      getLearnedCategories(db, profileId),
+      db.getAllAsync<KnownMerchant>(
+        `SELECT merchant, category, COUNT(*) AS count FROM transactions
+         WHERE profileId = ? AND amount < 0 AND category NOT IN (?, ?)
+         GROUP BY merchant, category;`,
+        [profileId, UNCATEGORISED, INCOME_CATEGORY]
+      ),
+    ]);
+    const context = { learned, index: buildMerchantIndex(known) };
+    for (const [key, group] of groups) {
+      group.suggestion = suggestCategory(
+        { title: group.title, iban: group.iban, sample: group.sample, rows: groupRows.get(key) ?? [] },
+        context
+      );
     }
   }
 

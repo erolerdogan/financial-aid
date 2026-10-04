@@ -1,6 +1,6 @@
 import { useImportResult } from '@/contexts/ImportResultContext';
 import { useProfile } from '@/contexts/ProfileContext';
-import { getCustomRules, getProfiles } from '@/db/database';
+import { getCustomRules, getLearnedCategories, getProfiles } from '@/db/database';
 import { parseFileToTransactions, processBatchImport } from '@/services/importService';
 import { cancelCurrentMonthReminders } from '@/utils/notifications';
 import * as DocumentPicker from 'expo-document-picker';
@@ -62,8 +62,16 @@ export function useStatementImporter(options?: UseStatementImporterOptions) {
       setImporting(true);
 
       const asset = result.assets[0];
-      const customRules = await getCustomRules(db, targetProfileId);
-      const parsedTransactions = await parseFileToTransactions(asset.uri, asset.name || '', customRules);
+      const [customRules, learned] = await Promise.all([
+        getCustomRules(db, targetProfileId),
+        getLearnedCategories(db, targetProfileId),
+      ]);
+      const parsedTransactions = await parseFileToTransactions(
+        asset.uri,
+        asset.name || '',
+        customRules,
+        learned
+      );
 
       if (!parsedTransactions || parsedTransactions.length === 0) {
         Alert.alert('Import Warning', 'No valid transactions found in file.');

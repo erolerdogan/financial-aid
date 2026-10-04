@@ -1,5 +1,5 @@
 import { CategoryRule, insertTransactions, syncDebtPayments, Transaction } from '@/db/database';
-import { parseCSVContent, parseExcelContent } from '@/utils/parser';
+import { type LearnedCategories, parseCSVContent, parseExcelContent } from '@/utils/parser';
 import * as FileSystem from 'expo-file-system/legacy';
 import { SQLiteDatabase } from 'expo-sqlite';
 
@@ -72,7 +72,8 @@ function base64ToArrayBuffer(base64: string): ArrayBuffer {
 export async function parseFileToTransactions(
   fileUri: string,
   fileName: string,
-  customRules: CategoryRule[] = []
+  customRules: CategoryRule[] = [],
+  learned?: LearnedCategories
 ) {
   const cleanName = (fileName || '').toLowerCase();
 
@@ -91,12 +92,12 @@ export async function parseFileToTransactions(
       });
       
       const arrayBuffer = base64ToArrayBuffer(base64Data);
-      return parseExcelContent(arrayBuffer, customRules);
+      return parseExcelContent(arrayBuffer, customRules, learned);
     } else {
       const csvText = await FileSystem.readAsStringAsync(tempDestination, {
         encoding: FileSystem.EncodingType.UTF8,
       });
-      return parseCSVContent(csvText, customRules);
+      return parseCSVContent(csvText, customRules, learned);
     }
   } finally {
     await FileSystem.deleteAsync(tempDestination, { idempotent: true });
