@@ -1,5 +1,6 @@
 import { AllocationChart } from '@/components/dashboard/AllocationChart';
 import { DebtsCard } from '@/components/dashboard/DebtsCard';
+import { FreedomCard } from '@/components/dashboard/FreedomCard';
 import { MonthStepper } from '@/components/dashboard/MonthStepper';
 import { SummaryCards } from '@/components/dashboard/SummaryCards';
 import { HeaderActions } from '@/components/HeaderActions';
@@ -533,6 +534,8 @@ export default function DashboardScreen() {
             />
 
             <DebtsCard />
+
+            <FreedomCard />
           </>
         )}
       </ScrollView>

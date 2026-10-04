@@ -132,7 +132,7 @@ export function InboxHost() {
       case 'DEBT_SUGGESTIONS': {
         // Several are picked from the cards on the Debts tab; a single one goes straight to the form.
         if (item.suggestions.length > 1) {
-          router.navigate('/debts');
+          router.navigate({ pathname: '/debts', params: { segment: 'debts' } });
           break;
         }
         const [suggestion] = item.suggestions;

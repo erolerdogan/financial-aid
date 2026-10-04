@@ -1,4 +1,5 @@
 import { DebtProgressBar } from '@/components/debts/DebtProgressBar';
+import { FreedomScreen } from '@/components/freedom/FreedomScreen';
 import { HeaderActions } from '@/components/HeaderActions';
 import { DebtDetailModal } from '@/components/modals/DebtDetailModal';
 import { DebtFormModal, DebtPrefill } from '@/components/modals/DebtFormModal';
@@ -18,16 +19,40 @@ import { formatPayoffMonth, getDebtTypeIcon } from '@/utils/debt';
 import { DebtSuggestion } from '@/utils/debtSuggestion';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Swipeable, { SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 
 const MAX_SUGGESTIONS = 3;
 
+type PlanSegment = 'DEBTS' | 'FREEDOM';
+
+const SEGMENTS: { key: PlanSegment; label: string }[] = [
+  { key: 'DEBTS', label: 'Debts' },
+  { key: 'FREEDOM', label: 'Future Growth' },
+];
+
 export default function DebtsScreen() {
   const db = useSQLiteContext();
+  const router = useRouter();
+  const { segment: segmentParam } = useLocalSearchParams<{ segment?: string }>();
+  const [segment, setSegment] = useState<PlanSegment>('DEBTS');
+
+  // Links from Home and the inbox ask for a segment; the param is cleared so the next link fires again.
+  useEffect(() => {
+    if (segmentParam !== 'debts' && segmentParam !== 'freedom') return;
+    setSegment(segmentParam === 'freedom' ? 'FREEDOM' : 'DEBTS');
+    router.setParams({ segment: undefined });
+  }, [segmentParam, router]);
+
+  const selectSegment = (next: PlanSegment) => {
+    if (next === segment) return;
+    Haptics.selectionAsync().catch(() => {});
+    setSegment(next);
+  };
+
   const { colors } = useTheme();
   const { activeProfile, dataVersion, currencySymbol } = useProfile();
   const profileId = activeProfile?.id ?? 1;
@@ -43,6 +68,13 @@ export default function DebtsScreen() {
   const [detailDebt, setDetailDebt] = useState<DebtSummary | null>(null);
   const swipeRefs = useRef(new Map<number, SwipeableMethods>());
 
+  // What the list was last built from; a focus with nothing changed skips the reload.
+  const stampRef = useRef('');
+  const changeStamp = useCallback(async () => {
+    const row = await db.getFirstAsync<{ changes: number }>(`SELECT total_changes() AS changes;`);
+    return `${profileId}:${dataVersion}:${row?.changes ?? -1}`;
+  }, [db, profileId, dataVersion]);
+
   const load = useCallback(async () => {
     if (!db) return;
     try {
@@ -51,18 +83,32 @@ export default function DebtsScreen() {
       setDebts(rows);
       setSuggestions(await getDebtSuggestions(db, profileId));
       setDetailDebt((prev) => (prev ? rows.find((r) => r.id === prev.id) ?? null : null));
+      // Taken after the sync, so its own writes do not count as a change.
+      stampRef.current = await changeStamp();
     } catch (error) {
       console.error('Failed to load debts:', error);
     } finally {
       setLoading(false);
       refreshInbox(true);
     }
-  }, [db, profileId, refreshInbox]);
+  }, [db, profileId, refreshInbox, changeStamp]);
 
   useFocusEffect(
     useCallback(() => {
-      load();
-    }, [load, dataVersion])
+      let active = true;
+      (async () => {
+        if (!db) return;
+        try {
+          if ((await changeStamp()) === stampRef.current) return;
+        } catch {
+          // Fall through to a full load.
+        }
+        if (active) load();
+      })();
+      return () => {
+        active = false;
+      };
+    }, [db, load, changeStamp])
   );
 
   const fmt = (value: number) =>
@@ -222,19 +268,51 @@ export default function DebtsScreen() {
   return (
     <ScreenContainer>
       <View style={styles.headerRow}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Debts</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Plan</Text>
         <HeaderActions>
-          <TouchableOpacity
-            style={[styles.addBtn, { backgroundColor: colors.accent }]}
-            onPress={openCreate}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="add" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
+          {segment === 'DEBTS' && (
+            <TouchableOpacity
+              style={[styles.addBtn, { backgroundColor: colors.accent }]}
+              onPress={openCreate}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Add debt"
+            >
+              <Ionicons name="add" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+          )}
         </HeaderActions>
       </View>
 
-      {loading ? (
+      <View style={[styles.segmentedContainer, { backgroundColor: colors.track }]} accessibilityRole="tablist">
+        {SEGMENTS.map(({ key, label }) => {
+          const active = segment === key;
+          return (
+            <TouchableOpacity
+              key={key}
+              activeOpacity={0.8}
+              style={[styles.segmentBtn, active && [styles.segmentBtnActive, { backgroundColor: colors.raised }]]}
+              onPress={() => selectSegment(key)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: active }}
+            >
+              <Text
+                style={[
+                  styles.segmentText,
+                  { color: colors.textSecondary },
+                  active && [styles.segmentTextActive, { color: colors.text }],
+                ]}
+              >
+                {label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {segment === 'FREEDOM' ? (
+        <FreedomScreen />
+      ) : loading ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={colors.accent} />
         </View>
@@ -368,6 +446,23 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 24, fontWeight: '700', letterSpacing: -0.5 },
   addBtn: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  segmentedContainer: {
+    flexDirection: 'row',
+    borderRadius: 10,
+    padding: 2,
+    marginHorizontal: 20,
+    marginBottom: 12,
+  },
+  segmentBtn: { flex: 1, paddingVertical: 7, alignItems: 'center', borderRadius: 8 },
+  segmentBtnActive: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.12,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  segmentText: { fontSize: 13, fontWeight: '500' },
+  segmentTextActive: { fontWeight: '700' },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { paddingHorizontal: 20, paddingBottom: 40, gap: 12 },
   summaryCard: { borderRadius: 18, padding: 18, borderWidth: StyleSheet.hairlineWidth },

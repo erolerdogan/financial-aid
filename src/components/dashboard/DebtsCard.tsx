@@ -50,7 +50,7 @@ export function DebtsCard() {
       <TouchableOpacity
         activeOpacity={0.8}
         style={[styles.card, styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-        onPress={() => router.navigate('/debts')}
+        onPress={() => router.navigate({ pathname: '/debts', params: { segment: 'debts' } })}
       >
         <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
           <Ionicons name="trending-down-outline" size={18} color={colors.accent} />
@@ -76,7 +76,7 @@ export function DebtsCard() {
     <TouchableOpacity
       activeOpacity={0.8}
       style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
-      onPress={() => router.navigate('/debts')}
+      onPress={() => router.navigate({ pathname: '/debts', params: { segment: 'debts' } })}
     >
       <View style={styles.headerRow}>
         <Text style={[styles.title, { color: colors.text }]}>Debts</Text>

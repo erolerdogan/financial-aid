@@ -10,6 +10,7 @@ import {
   merchantKey,
   scoreFixed,
 } from '@/utils/fixedCost';
+import { type FreedomInput, type GoalType } from '@/utils/freedom';
 import {
   buildMerchantIndex,
   type CategorySuggestion,
@@ -239,7 +240,35 @@ export async function initDatabase(db: SQLiteDatabase): Promise<void> {
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS freedom_plans (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      profile_id INTEGER NOT NULL UNIQUE,
+      years INTEGER NOT NULL,
+      lump_sum REAL NOT NULL,
+      monthly REAL NOT NULL,
+      annual_increase REAL NOT NULL,
+      return_pct REAL NOT NULL,
+      fee_pct REAL NOT NULL,
+      inflation_pct REAL NOT NULL DEFAULT 0.025,
+      goal_type TEXT NOT NULL DEFAULT 'BALANCE',
+      goal_balance REAL NOT NULL DEFAULT 0,
+      goal_income REAL NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL
+    );
   `);
+
+  try {
+    await db.runAsync(`ALTER TABLE freedom_plans ADD COLUMN goal_type TEXT NOT NULL DEFAULT 'BALANCE';`);
+  } catch (e) {}
+
+  try {
+    await db.runAsync(`ALTER TABLE freedom_plans ADD COLUMN goal_balance REAL NOT NULL DEFAULT 0;`);
+  } catch (e) {}
+
+  try {
+    await db.runAsync(`ALTER TABLE freedom_plans ADD COLUMN goal_income REAL NOT NULL DEFAULT 0;`);
+  } catch (e) {}
 
   try {
     await db.runAsync(`ALTER TABLE profiles ADD COLUMN currency TEXT NOT NULL DEFAULT 'EUR';`);
@@ -1173,6 +1202,7 @@ export async function clearAllData(
       await db.runAsync(`DELETE FROM debt_payments WHERE profileId = ?;`, [profileId]);
       await db.runAsync(`DELETE FROM debt_rules WHERE profileId = ?;`, [profileId]);
       await db.runAsync(`DELETE FROM debts WHERE profileId = ?;`, [profileId]);
+      await db.runAsync(`DELETE FROM freedom_plans WHERE profile_id = ?;`, [profileId]);
     });
   } else {
     await db.execAsync(`
@@ -1184,6 +1214,7 @@ export async function clearAllData(
       DROP TABLE IF EXISTS debt_payments;
       DROP TABLE IF EXISTS debt_rules;
       DROP TABLE IF EXISTS debts;
+      DROP TABLE IF EXISTS freedom_plans;
       DROP TABLE IF EXISTS profiles;
     `);
     await initDatabase(db);
@@ -2816,4 +2847,108 @@ export async function dismissDebtSuggestion(db: SQLiteDatabase, profileId: numbe
   const dismissed = await getDismissedDebtSuggestions(db, profileId);
   if (dismissed.includes(key)) return;
   await setAppMeta(db, dismissedDebtSuggestionsKey(profileId), JSON.stringify([...dismissed, key]));
+}
+
+// ---------------------------------------------------------------------------
+// Freedom plan
+// ---------------------------------------------------------------------------
+
+export interface FreedomPlan extends FreedomInput {
+  inflationPct: number;
+  goalType: GoalType;
+  /** Target balance; 0 means no goal set. */
+  goalBalance: number;
+  /** Target passive income per month; 0 means no goal set. */
+  goalIncome: number;
+}
+
+export const DEFAULT_FREEDOM_PLAN: FreedomPlan = {
+  years: 35,
+  lumpSum: 10000,
+  monthly: 250,
+  annualIncreasePct: 0.05,
+  returnPct: 0.09,
+  feePct: 0,
+  inflationPct: 0.025,
+  goalType: 'BALANCE',
+  goalBalance: 0,
+  goalIncome: 0,
+};
+
+/** The plan stored for this profile, or null when none has been saved yet. */
+export async function getSavedFreedomPlan(db: SQLiteDatabase, profileId: number): Promise<FreedomPlan | null> {
+  if (!db) return null;
+
+  const row = await db.getFirstAsync<{
+    years: number;
+    lump_sum: number;
+    monthly: number;
+    annual_increase: number;
+    return_pct: number;
+    fee_pct: number;
+    inflation_pct: number;
+    goal_type: string;
+    goal_balance: number;
+    goal_income: number;
+  }>(
+    `SELECT years, lump_sum, monthly, annual_increase, return_pct, fee_pct, inflation_pct,
+            goal_type, goal_balance, goal_income
+     FROM freedom_plans WHERE profile_id = ?;`,
+    [profileId]
+  );
+  if (!row) return null;
+
+  return {
+    years: row.years,
+    lumpSum: row.lump_sum,
+    monthly: row.monthly,
+    annualIncreasePct: row.annual_increase,
+    returnPct: row.return_pct,
+    feePct: row.fee_pct,
+    inflationPct: row.inflation_pct,
+    goalType: row.goal_type === 'INCOME' ? 'INCOME' : 'BALANCE',
+    goalBalance: row.goal_balance,
+    goalIncome: row.goal_income,
+  };
+}
+
+export async function getFreedomPlan(db: SQLiteDatabase, profileId: number): Promise<FreedomPlan> {
+  return (await getSavedFreedomPlan(db, profileId)) ?? { ...DEFAULT_FREEDOM_PLAN };
+}
+
+export async function saveFreedomPlan(db: SQLiteDatabase, profileId: number, plan: FreedomPlan): Promise<void> {
+  if (!db) return;
+
+  await db.runAsync(
+    `INSERT INTO freedom_plans
+       (profile_id, years, lump_sum, monthly, annual_increase, return_pct, fee_pct, inflation_pct,
+        goal_type, goal_balance, goal_income, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(profile_id) DO UPDATE SET
+       years = excluded.years,
+       lump_sum = excluded.lump_sum,
+       monthly = excluded.monthly,
+       annual_increase = excluded.annual_increase,
+       return_pct = excluded.return_pct,
+       fee_pct = excluded.fee_pct,
+       inflation_pct = excluded.inflation_pct,
+       goal_type = excluded.goal_type,
+       goal_balance = excluded.goal_balance,
+       goal_income = excluded.goal_income,
+       updated_at = excluded.updated_at;`,
+    [
+      profileId,
+      plan.years,
+      plan.lumpSum,
+      plan.monthly,
+      plan.annualIncreasePct,
+      plan.returnPct,
+      plan.feePct,
+      plan.inflationPct,
+      plan.goalType,
+      plan.goalBalance,
+      plan.goalIncome,
+      new Date().toISOString(),
+    ]
+  );
 }

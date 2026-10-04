@@ -135,6 +135,20 @@ On first launch the welcome screen offers two paths: import a statement, or open
 - Shows the remaining balance, progress, interest paid so far, estimated future interest and estimated debt-free month.
 - Suggests debts from your statements: a steady monthly payment to a lender (mortgage, student loan, credit) that no debt covers yet appears as a card on the Debts tab. Add opens the form with name, type and keyword prefilled; monthly payment, payment day and start date follow from the matching payments. Dismissed suggestions stay hidden.
 
+### Future Growth Calculator
+
+- Plan tab, Future Growth segment: see how a starting amount and a monthly contribution could grow over time.
+- Three questions up front: monthly amount, years (1 to 60) and starting amount. "More options" (collapsed) holds your own yearly return (up to 30%), yearly increase, fee and inflation.
+- One answer: the final balance with a line saying how much you pay in and how much growth adds, updating as you type, in the profile currency.
+- Growth chart: one stacked bar per year showing the balance split into contributions and profit; the last bar is the final balance.
+- Outlook: Cautious / Expected / Optimistic set the yearly return to 5% / 7% / 9%, with the final balance of all three side by side. Typing your own return under "More options" deselects the outlook.
+- Details (collapsed): a Future prices / Today's prices switch (today's prices shows the final balance, chart, outlooks and table after inflation), what the fee costs (final balance at 0% fee vs your fee, and the difference) and the yearly breakdown table (year, start, contributions, profit, end).
+- Goal (opt-in, an "Add a goal" row until one is set): a target balance or a target passive income per month (converted with the 4% rule, an assumption: income × 12 ÷ 0.04). Shows an on-track / behind status with a progress bar, the years needed at your current monthly amount and the monthly amount needed for your timeframe. Follows the prices switch.
+- The plan is saved per profile on the device and restored on the next launch.
+- Introduction: the first visit shows a short page explaining the calculator with a worked example; "How it works" at the top reopens it.
+- Home card: once a plan is saved, Home shows the estimated balance at the plan's end year and, if a goal is set, the progress towards it. Tapping it opens the Future Growth segment.
+- Projection, not guaranteed. Not financial advice.
+
 ### Profiles
 
 - Keep separate ledgers in one app (for example Personal, Business, Household).
@@ -181,7 +195,7 @@ The app makes no network calls with user data. Statements are read on the device
 ```
 src/
   app/            Routes (Expo Router)
-    (tabs)/       Home, Transactions, Trends, Debts
+    (tabs)/       Home, Transactions, Trends, Plan (Debts | Future Growth)
     welcome.tsx   First-launch screen
     settings.tsx  Settings (modal)
     goals.tsx     Budgets (modal)
