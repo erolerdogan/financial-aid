@@ -28,7 +28,6 @@ import {
   getTransactionDateBounds,
   getTransactionFixedExplanation,
   getTransactionsByMonthAndCategory,
-  getUncategorisedCount,
   makeRangeKey,
   MonthlySummary,
   setMerchantFixedOverride,
@@ -158,7 +157,6 @@ export default function DashboardScreen() {
   const [fixedSummary, setFixedSummary] = useState<FixedCostSummary>(EMPTY_FIXED_SUMMARY);
   const [categoryData, setCategoryData] = useState<CategoryTotal[]>([]);
   const [budgets, setBudgets] = useState<Record<string, number>>(NO_BUDGETS);
-  const [uncategorisedCount, setUncategorisedCount] = useState(0);
   const [debtSuggestionCount, setDebtSuggestionCount] = useState(0);
 
   const currentMonthKey = getCurrentMonthKey();
@@ -204,7 +202,6 @@ export default function DashboardScreen() {
         setSummary({ totalIncome: 0, totalExpenses: 0, netSavings: 0 });
         setCategoryData([]);
         setFixedSummary(EMPTY_FIXED_SUMMARY);
-        setUncategorisedCount(0);
         setDebtSuggestionCount(0);
         return;
       }
@@ -214,13 +211,12 @@ export default function DashboardScreen() {
       const activeRange = period.kind === 'RANGE' ? period : null;
       const activePeriod = activeRange ? makeRangeKey(activeRange.from, activeRange.to) : activeMonth;
 
-      const [summaryRes, categoryRes, fixedRes, goalsRes, uncategorised, debtSuggestions, dateRangeRes] =
+      const [summaryRes, categoryRes, fixedRes, goalsRes, debtSuggestions, dateRangeRes] =
         await Promise.all([
           getMonthlySummary(db, activePeriod, activeProfileId),
           getMonthlyCategoryTotals(db, activePeriod, activeProfileId),
           getFixedVsFlexibleSummary(db, activePeriod, activeProfileId),
           getCategoryGoals(db, activeProfileId),
-          getUncategorisedCount(db, activeProfileId),
           getDebtSuggestions(db, activeProfileId),
           activeRange
             ? Promise.resolve(null)
@@ -234,7 +230,6 @@ export default function DashboardScreen() {
       setCategoryData(categoryRes || []);
       setFixedSummary(fixedRes);
       setBudgets(goalsRes);
-      setUncategorisedCount(uncategorised);
       setDebtSuggestionCount(debtSuggestions.length);
 
       if (activeRange) {
@@ -430,15 +425,6 @@ export default function DashboardScreen() {
     : periodNames;
 
   const attentionItems: AttentionItem[] = [];
-  if (uncategorisedCount > 0) {
-    attentionItems.push({
-      key: 'review',
-      icon: 'pricetags-outline',
-      text: `${uncategorisedCount} uncategorised transaction${uncategorisedCount === 1 ? '' : 's'}`,
-      action: 'Review',
-      onPress: () => router.push('/review'),
-    });
-  }
   if (debtSuggestionCount > 0) {
     attentionItems.push({
       key: 'debts',
