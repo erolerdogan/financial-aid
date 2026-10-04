@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 export default function WelcomeScreen() {
   const db = useSQLiteContext();
   const { setIsDemoMode, refreshProfiles, activeProfile, profiles, switchProfile } = useProfile();
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
 
   const { importStatement, importing } = useStatementImporter({
     onSuccess: async () => {
@@ -34,9 +34,7 @@ export default function WelcomeScreen() {
     }
   };
 
-  const gradientColors = isDark 
-    ? (['#0F172A', '#1E1B4B', '#09090B'] as const)
-    : (['#F8FAFC', '#E2E8F0', '#CBD5E1'] as const);
+  const gradientColors = [colors.background, colors.tintBackground, colors.background] as const;
 
   return (
     <LinearGradient colors={gradientColors} style={styles.container}>
@@ -88,7 +86,7 @@ export default function WelcomeScreen() {
             style={[
               styles.secondaryButton, 
               { 
-                backgroundColor: isDark ? 'rgba(28, 28, 30, 0.7)' : 'rgba(255, 255, 255, 0.8)', 
+                backgroundColor: colors.card,
                 borderColor: colors.border 
               }
             ]} 

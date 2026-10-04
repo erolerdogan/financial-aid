@@ -136,7 +136,7 @@ On first launch the welcome screen offers two paths: import a statement, or open
 ### Settings
 
 - Currency: EUR, USD, GBP, JPY, CHF, CAD or AUD. Switching currency converts existing amounts using fixed built-in rates.
-- Dark mode toggle; follows the system setting at launch.
+- Six colour themes (Aurora, Midnight Gold, Sunset, Forest Mint, Orchid, Classic) with gradient accents, each in light and dark; the choice is remembered. Dark mode follows the system until you toggle it.
 - Import reminders: local notifications on the 15th and 28th of each month. Importing a statement cancels the pending reminders.
 - Reset all data and profiles.
 

@@ -44,7 +44,7 @@ export function FixedFlexibleCard({ summary, onPressFixed, onPressFlexible }: Fi
       <View
         style={[
           styles.barContainer,
-          { backgroundColor: isDark ? '#38383A' : '#E5E5EA' },
+          { backgroundColor: colors.track },
         ]}
       >
         <View style={[styles.fixedBar, { width: `${displayFixedPct}%` }]} />
@@ -70,7 +70,7 @@ export function FixedFlexibleCard({ summary, onPressFixed, onPressFlexible }: Fi
         <View
           style={[
             styles.divider,
-            { backgroundColor: isDark ? '#38383A' : '#E5E5EA' },
+            { backgroundColor: colors.track },
           ]}
         />
 

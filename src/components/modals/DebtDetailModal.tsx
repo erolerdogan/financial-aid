@@ -37,7 +37,7 @@ interface DebtDetailModalProps {
 
 export function DebtDetailModal({ visible, debt, onClose, onEdit, onChanged }: DebtDetailModalProps) {
   const db = useSQLiteContext();
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const { activeProfile, currencySymbol } = useProfile();
   const profileId = activeProfile?.id ?? 1;
 
@@ -75,7 +75,7 @@ export function DebtDetailModal({ visible, debt, onClose, onEdit, onChanged }: D
       maximumFractionDigits: decimals,
     })}`;
 
-  const fieldBg = isDark ? '#2C2C2E' : '#FFFFFF';
+  const fieldBg = colors.field;
 
   const handleAddPayment = async () => {
     const amount = parseNumber(amountInput);

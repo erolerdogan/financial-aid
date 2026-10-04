@@ -278,7 +278,7 @@ export function TransactionListModal({
                 <Text style={[styles.sheetTitle, { color: colors.text }]}>{modalTitle}</Text>
                 <Text style={[styles.sheetSubtitle, { color: colors.textSecondary }]}>{monthLabel}</Text>
               </View>
-              <View style={[styles.totalBadge, { backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7' }]}>
+              <View style={[styles.totalBadge, { backgroundColor: colors.surface }]}>
                 <Text style={[styles.totalBadgeText, { color: colors.text }]}>
                   {currencySymbol}{totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </Text>
@@ -310,7 +310,7 @@ export function TransactionListModal({
                       style={[
                         styles.searchBarContainer,
                         {
-                          backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7',
+                          backgroundColor: colors.surface,
                           borderColor: colors.border,
                         },
                       ]}
@@ -333,11 +333,11 @@ export function TransactionListModal({
                     </View>
 
                     {/* Segmented Filter Control */}
-                    <View style={[styles.segmentedContainer, { backgroundColor: isDark ? '#2C2C2E' : '#E5E5EA' }]}>
+                    <View style={[styles.segmentedContainer, { backgroundColor: colors.track }]}>
                       <TouchableOpacity
                         style={[
                           styles.segmentBtn,
-                          filterMode === 'ALL' && [styles.segmentBtnActive, { backgroundColor: isDark ? '#3A3A3C' : '#FFFFFF' }],
+                          filterMode === 'ALL' && [styles.segmentBtnActive, { backgroundColor: colors.raised }],
                         ]}
                         onPress={() => setFilterMode('ALL')}
                       >
@@ -355,7 +355,7 @@ export function TransactionListModal({
                       <TouchableOpacity
                         style={[
                           styles.segmentBtn,
-                          filterMode === 'FIXED' && [styles.segmentBtnActive, { backgroundColor: isDark ? '#3A3A3C' : '#FFFFFF' }],
+                          filterMode === 'FIXED' && [styles.segmentBtnActive, { backgroundColor: colors.raised }],
                         ]}
                         onPress={() => setFilterMode('FIXED')}
                       >
@@ -373,7 +373,7 @@ export function TransactionListModal({
                       <TouchableOpacity
                         style={[
                           styles.segmentBtn,
-                          filterMode === 'FLEXIBLE' && [styles.segmentBtnActive, { backgroundColor: isDark ? '#3A3A3C' : '#FFFFFF' }],
+                          filterMode === 'FLEXIBLE' && [styles.segmentBtnActive, { backgroundColor: colors.raised }],
                         ]}
                         onPress={() => setFilterMode('FLEXIBLE')}
                       >
@@ -413,7 +413,7 @@ export function TransactionListModal({
 
             {/* Close Button */}
             <TouchableOpacity
-              style={[styles.closeBtn, { backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7' }]}
+              style={[styles.closeBtn, { backgroundColor: colors.surface }]}
               onPress={handleDismiss}
             >
               <Text style={[styles.closeBtnText, { color: colors.accent }]}>Close</Text>

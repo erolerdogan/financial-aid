@@ -242,7 +242,7 @@ export function TransactionDetailModal({
           </View>
 
           {pickerOpen && (
-            <View style={[styles.sectionContainer, { backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7' }]}>
+            <View style={[styles.sectionContainer, { backgroundColor: colors.surface }]}>
               <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>CATEGORY</Text>
               <ScrollView style={styles.categoryScroll} contentContainerStyle={styles.categoryGrid}>
                 {pickerOptions.map((name) => {
@@ -272,14 +272,14 @@ export function TransactionDetailModal({
           )}
 
           {/* Classification Selection */}
-          <View style={[styles.sectionContainer, { backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7' }]}>
+          <View style={[styles.sectionContainer, { backgroundColor: colors.surface }]}>
             <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>COST CLASSIFICATION</Text>
 
             <View style={styles.overrideOptionsRow}>
               <TouchableOpacity
                 style={[
                   styles.overrideOption,
-                  effectiveState === 'FIXED' && [styles.overrideOptionActive, { backgroundColor: isDark ? '#3A3A3C' : '#FFFFFF' }],
+                  effectiveState === 'FIXED' && [styles.overrideOptionActive, { backgroundColor: colors.raised }],
                 ]}
                 onPress={() => onSelectFixedState('FIXED')}
               >
@@ -291,7 +291,7 @@ export function TransactionDetailModal({
               <TouchableOpacity
                 style={[
                   styles.overrideOption,
-                  effectiveState === 'FLEXIBLE' && [styles.overrideOptionActive, { backgroundColor: isDark ? '#3A3A3C' : '#FFFFFF' }],
+                  effectiveState === 'FLEXIBLE' && [styles.overrideOptionActive, { backgroundColor: colors.raised }],
                 ]}
                 onPress={() => onSelectFixedState('FLEXIBLE')}
               >

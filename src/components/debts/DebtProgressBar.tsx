@@ -9,7 +9,7 @@ interface DebtProgressBarProps {
 }
 
 export function DebtProgressBar({ percent, color, height = 10 }: DebtProgressBarProps) {
-  const { isDark } = useTheme();
+  const { colors } = useTheme();
   const anim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -27,7 +27,7 @@ export function DebtProgressBar({ percent, color, height = 10 }: DebtProgressBar
     <View
       style={[
         styles.track,
-        { height, borderRadius: height / 2, backgroundColor: isDark ? '#38383A' : '#E5E5EA' },
+        { height, borderRadius: height / 2, backgroundColor: colors.track },
       ]}
     >
       <Animated.View style={{ height: '100%', width, backgroundColor: color, borderRadius: height / 2 }} />

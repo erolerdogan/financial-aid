@@ -1,5 +1,7 @@
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -49,17 +51,24 @@ export function SummaryCards({
         </TouchableOpacity>
       </View>
 
-      <View style={[styles.netCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Text style={[styles.netCardLabel, { color: colors.textSecondary }]}>NET CASH FLOW</Text>
-        <Text
-          style={[
-            styles.netAmountHorizontal,
-            { color: summary.netSavings >= 0 ? '#34C759' : '#FF3B30' },
-          ]}
-        >
-          {currencySymbol}{summary.netSavings.toFixed(2)}
-        </Text>
-      </View>
+      <LinearGradient
+        colors={colors.gradient}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.netCard}
+      >
+        <Text style={[styles.netCardLabel, { color: colors.onGradient }]}>NET CASH FLOW</Text>
+        <View style={styles.netAmountRow}>
+          <Ionicons
+            name={summary.netSavings >= 0 ? 'trending-up' : 'trending-down'}
+            size={18}
+            color={colors.onGradient}
+          />
+          <Text style={[styles.netAmountHorizontal, { color: colors.onGradient }]}>
+            {currencySymbol}{summary.netSavings.toFixed(2)}
+          </Text>
+        </View>
+      </LinearGradient>
     </View>
   );
 }
@@ -85,15 +94,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 3,
-    elevation: 1,
+    overflow: 'hidden',
   },
+  netAmountRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   label: { fontSize: 12, fontWeight: '600', marginBottom: 4, letterSpacing: 0.3 },
   amount: { fontSize: 20, fontWeight: '700' },
-  netCardLabel: { fontSize: 13, fontWeight: '700', letterSpacing: 0.5 },
-  netAmountHorizontal: { fontSize: 20, fontWeight: '700' },
+  netCardLabel: { fontSize: 13, fontWeight: '700', letterSpacing: 0.5, opacity: 0.85 },
+  netAmountHorizontal: { fontSize: 22, fontWeight: '800' },
 });

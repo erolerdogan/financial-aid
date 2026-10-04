@@ -52,7 +52,7 @@ export function CategoryFormModal({
   onChanged,
 }: CategoryFormModalProps) {
   const db = useSQLiteContext();
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const { activeProfile, refreshProfiles } = useProfile();
   const profileId = activeProfile?.id ?? 1;
 
@@ -251,7 +251,7 @@ export function CategoryFormModal({
     }
   };
 
-  const fieldBg = isDark ? '#2C2C2E' : '#FFFFFF';
+  const fieldBg = colors.field;
 
   const renderDeleteStep = () => (
     <>

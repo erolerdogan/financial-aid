@@ -28,7 +28,7 @@ import { useProfile } from '../contexts/ProfileContext';
 export default function GoalsScreen() {
   const router = useRouter();
   const db = useSQLiteContext();
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const { activeProfile, dataVersion, currencySymbol } = useProfile();
   const activeProfileId = activeProfile?.id ?? 1;
 
@@ -80,7 +80,7 @@ export default function GoalsScreen() {
       <View style={[styles.headerRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <Text style={[styles.headerTitle, { color: colors.text }]}>Budgets</Text>
         <TouchableOpacity
-          style={[styles.closeBtn, { backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7' }]}
+          style={[styles.closeBtn, { backgroundColor: colors.surface }]}
           onPress={() => router.back()}
         >
           <Ionicons name="close" size={20} color={colors.text} />
@@ -132,7 +132,7 @@ export default function GoalsScreen() {
 
                 {/* Progress bar */}
                 {item.monthlyLimit > 0 && (
-                  <View style={[styles.progressTrack, { backgroundColor: isDark ? '#38383A' : '#E5E5EA' }]}>
+                  <View style={[styles.progressTrack, { backgroundColor: colors.track }]}>
                     <View
                       style={[
                         styles.progressBar,
@@ -173,7 +173,7 @@ export default function GoalsScreen() {
                   style={[
                     styles.budgetInput,
                     {
-                      backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7',
+                      backgroundColor: colors.surface,
                       color: colors.text,
                       borderColor: colors.border,
                     },
@@ -187,7 +187,7 @@ export default function GoalsScreen() {
                 />
                 <View style={styles.modalActionRow}>
                   <TouchableOpacity
-                    style={[styles.modalCancelBtn, { backgroundColor: isDark ? '#38383A' : '#E5E5EA' }]}
+                    style={[styles.modalCancelBtn, { backgroundColor: colors.track }]}
                     onPress={() => setModalVisible(false)}
                   >
                     <Text style={[styles.modalCancelText, { color: colors.text }]}>Cancel</Text>

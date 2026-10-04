@@ -97,7 +97,7 @@ const formatDayTitle = (isoDate: string): string => {
 export default function TransactionsScreen() {
   const router = useRouter();
   const db = useSQLiteContext();
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const { activeProfile, dataVersion, currencySymbol } = useProfile();
   const { period: filter, setPeriod: setFilter } = usePeriod();
   const activeProfileId = activeProfile?.id ?? 1;
@@ -448,7 +448,7 @@ export default function TransactionsScreen() {
           )}
         </View>
 
-        <View style={[styles.typeBar, { backgroundColor: isDark ? '#2C2C2E' : '#E5E5EA' }]}>
+        <View style={[styles.typeBar, { backgroundColor: colors.track }]}>
           {TYPE_FILTERS.map((option) => {
             const isActive = typeFilter === option.key;
             return (
@@ -459,7 +459,7 @@ export default function TransactionsScreen() {
                 accessibilityState={{ selected: isActive }}
                 style={[
                   styles.typeSegment,
-                  isActive && [styles.typeSegmentActive, { backgroundColor: isDark ? '#636366' : '#FFFFFF' }],
+                  isActive && [styles.typeSegmentActive, { backgroundColor: colors.raised }],
                 ]}
                 onPress={() => {
                   if (isActive) return;

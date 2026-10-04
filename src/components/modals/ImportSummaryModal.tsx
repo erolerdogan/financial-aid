@@ -30,7 +30,7 @@ const plural = (count: number, singular: string, pluralForm: string): string =>
   `${count} ${count === 1 ? singular : pluralForm}`;
 
 export function ImportSummaryModal({ visible, summary, profileName, onClose }: ImportSummaryModalProps) {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const { currencySymbol } = useProfile();
 
   const hasNewRows = !!summary && summary.insertedCount > 0;
@@ -44,7 +44,7 @@ export function ImportSummaryModal({ visible, summary, profileName, onClose }: I
 
   if (!summary) return null;
 
-  const chipBg = isDark ? '#2C2C2E' : '#F2F2F7';
+  const chipBg = colors.surface;
   const importedLabel = plural(summary.insertedCount, 'transaction', 'transactions');
 
   const title = !hasNewRows

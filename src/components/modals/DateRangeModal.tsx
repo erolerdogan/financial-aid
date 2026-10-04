@@ -39,7 +39,7 @@ export function DateRangeModal({
   onApply,
   onClose,
 }: DateRangeModalProps) {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
 
   const [start, setStart] = useState<string | null>(null);
   const [end, setEnd] = useState<string | null>(null);
@@ -148,7 +148,7 @@ export function DateRangeModal({
     : `${formatKey(start)} – ${formatKey(end)}`;
 
   const monthTitle = cursor.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
-  const chipBg = isDark ? '#2C2C2E' : '#F2F2F7';
+  const chipBg = colors.surface;
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>

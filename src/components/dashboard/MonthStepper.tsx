@@ -46,7 +46,7 @@ export function MonthStepper({
         <TouchableOpacity
           style={[
             styles.navButton,
-            { backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7' },
+            { backgroundColor: colors.surface },
             isPrevDisabled && { opacity: 0.5 },
           ]}
           onPress={onPrevMonth}
@@ -74,7 +74,7 @@ export function MonthStepper({
         <TouchableOpacity
           style={[
             styles.navButton,
-            { backgroundColor: isDark ? '#2C2C2E' : '#F2F2F7' },
+            { backgroundColor: colors.surface },
             isNextDisabled && { opacity: 0.5 },
           ]}
           onPress={onNextMonth}

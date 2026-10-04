@@ -11,7 +11,7 @@ interface CategoryFilterBarProps {
 }
 
 export function CategoryFilterBar({ categories, selected, onSelect }: CategoryFilterBarProps) {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const options = ['All', ...categories];
 
   return (
@@ -36,7 +36,7 @@ export function CategoryFilterBar({ categories, selected, onSelect }: CategoryFi
             }}
             style={[
               styles.chip,
-              { backgroundColor: isDark ? '#2C2C2E' : '#FFFFFF', borderColor: colors.border },
+              { backgroundColor: colors.field, borderColor: colors.border },
               isActive && { backgroundColor: tint, borderColor: tint },
             ]}
           >

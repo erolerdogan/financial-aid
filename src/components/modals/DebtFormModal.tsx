@@ -52,7 +52,7 @@ interface DebtFormModalProps {
 
 export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: DebtFormModalProps) {
   const db = useSQLiteContext();
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const { activeProfile, currencySymbol } = useProfile();
   const profileId = activeProfile?.id ?? 1;
 
@@ -181,7 +181,7 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
     };
   }, [visible, db, profileId, keywords, startDate, payment, payDay, debtId]);
 
-  const fieldBg = isDark ? '#2C2C2E' : '#FFFFFF';
+  const fieldBg = colors.field;
 
   const matches = loadedMatches.filter((m) => keywords.includes(m.keyword));
 

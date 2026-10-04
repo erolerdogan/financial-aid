@@ -2,7 +2,7 @@ import { BackupRestoreModal } from '@/components/modals/BackupRestoreModal';
 import { ProfileSwitcherModal } from '@/components/ProfileSwitcherModal';
 import { ImportSummaryHost } from '@/contexts/ImportResultContext';
 import { CURRENCY_SYMBOLS, useProfile } from '@/contexts/ProfileContext';
-import { useTheme } from '@/contexts/ThemeContext';
+import { THEMES, useTheme } from '@/contexts/ThemeContext';
 import { clearAllData } from '@/db/database';
 import { useStatementImporter } from '@/hooks/useStatementImporter';
 import {
@@ -10,6 +10,8 @@ import {
   requestAndScheduleImportReminders
 } from '@/utils/notifications';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import React, { useState } from 'react';
@@ -39,7 +41,7 @@ const AVAILABLE_CURRENCIES = [
 
 export default function SettingsScreen() {
   const { activeProfile, updateCurrency, refreshProfiles } = useProfile();
-  const { isDark, toggleTheme, colors } = useTheme();
+  const { isDark, toggleTheme, colors, themeName, setThemeName } = useTheme();
   const router = useRouter();
   const db = useSQLiteContext();
 
@@ -312,6 +314,51 @@ export default function SettingsScreen() {
         {/* APPEARANCE SECTION */}
         <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>APPEARANCE</Text>
         <View style={[styles.cardGroup, { backgroundColor: colors.card }]}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.themeRow}
+          >
+            {THEMES.map((theme) => {
+              const selected = theme.name === themeName;
+              const preview = isDark ? theme.dark : theme.light;
+              return (
+                <TouchableOpacity
+                  key={theme.name}
+                  style={styles.themeOption}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${theme.label} theme`}
+                  accessibilityState={{ selected }}
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    setThemeName(theme.name);
+                  }}
+                >
+                  <View style={[styles.themeRing, { borderColor: selected ? colors.accent : 'transparent' }]}>
+                    <LinearGradient
+                      colors={preview.gradient}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.themeSwatch}
+                    >
+                      {selected && <Ionicons name="checkmark" size={20} color={preview.onGradient} />}
+                    </LinearGradient>
+                  </View>
+                  <Text
+                    style={[
+                      styles.themeLabel,
+                      { color: selected ? colors.text : colors.textSecondary },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {theme.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
           <View style={styles.rowItem}>
             <View style={styles.rowLeft}>
               <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
@@ -455,6 +502,17 @@ const styles = StyleSheet.create({
   rowSub: { fontSize: 11, marginTop: 1 },
   actionBadgeText: { fontSize: 12, fontWeight: '600' },
   divider: { height: StyleSheet.hairlineWidth },
+  themeRow: { gap: 14, paddingVertical: 16 },
+  themeOption: { alignItems: 'center', width: 72 },
+  themeRing: { padding: 3, borderRadius: 30, borderWidth: 2 },
+  themeSwatch: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  themeLabel: { fontSize: 11, fontWeight: '600', marginTop: 6 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   sheetContainer: {
     borderTopLeftRadius: 24,

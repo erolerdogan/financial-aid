@@ -21,7 +21,7 @@ export function AllocationChart({
   onCategoryPress,
   onOpenBudgets,
 }: AllocationChartProps) {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const { currencySymbol } = useProfile();
   const [showAllCategories, setShowAllCategories] = useState(false);
 
@@ -93,7 +93,7 @@ export function AllocationChart({
           return (
             <TouchableOpacity
               key={item.category}
-              style={[styles.legendRow, { backgroundColor: isDark ? '#2C2C2E' : '#FAF9F9' }]}
+              style={[styles.legendRow, { backgroundColor: colors.surface }]}
               activeOpacity={0.7}
               onPress={() => onCategoryPress(item.category)}
             >
@@ -118,7 +118,7 @@ export function AllocationChart({
                     style={[
                       styles.percentBadge,
                       {
-                        backgroundColor: isDark ? '#38383A' : '#E5E5EA',
+                        backgroundColor: colors.track,
                         color: colors.textSecondary,
                       },
                     ]}
@@ -130,7 +130,7 @@ export function AllocationChart({
               </View>
 
               {budget > 0 && (
-                <View style={[styles.budgetTrack, { backgroundColor: isDark ? '#38383A' : '#E5E5EA' }]}>
+                <View style={[styles.budgetTrack, { backgroundColor: colors.track }]}>
                   <View
                     style={[
                       styles.budgetBar,
