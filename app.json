@@ -59,6 +59,29 @@
             "android": ["en", "nl", "de", "tr", "es", "fr", "it", "pt-BR", "ru"]
           }
         }
+      ],
+      [
+        "expo-sharing",
+        {
+          "ios": {
+            "enabled": true,
+            "activationRule": {
+              "supportsFileWithMaxCount": 1
+            }
+          },
+          "android": {
+            "enabled": true,
+            "singleShareMimeTypes": [
+              "text/csv",
+              "text/comma-separated-values",
+              "application/csv",
+              "text/tab-separated-values",
+              "application/vnd.ms-excel",
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+              "application/octet-stream"
+            ]
+          }
+        }
       ]
     ],
     "experiments": {

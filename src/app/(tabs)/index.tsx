@@ -485,6 +485,16 @@ export default function DashboardScreen() {
                     {importing ? t('welcome.processing') : t('welcome.import')}
                   </Text>
                 </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.guideLink}
+                  onPress={() => router.push('/export-guide')}
+                  disabled={importing}
+                  activeOpacity={0.7}
+                  accessibilityRole="link"
+                >
+                  <Ionicons name="help-circle-outline" size={16} color={colors.accent} />
+                  <Text style={[styles.guideLinkText, { color: colors.accent }]}>{t('guide.link')}</Text>
+                </TouchableOpacity>
               </View>
             </View>
           )
@@ -741,4 +751,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
   },
+  guideLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    minHeight: 44,
+  },
+  guideLinkText: { fontSize: 15, fontWeight: '600' },
 });

@@ -44,6 +44,7 @@ export const fr: Translations = {
   'welcome.processing': 'Traitement du relevé...',
   'welcome.import': 'Importer un relevé bancaire',
   'welcome.importSub': 'Fichier CSV ou XLSX',
+  'welcome.shareHint': 'Ou exportez depuis l’app de votre banque et choisissez Partager → Financial Aid',
   'welcome.demo': 'Explorer la démo',
   'welcome.demoSub': 'Opérations et analyses d’exemple déjà chargées',
 
@@ -68,6 +69,12 @@ export const fr: Translations = {
   'settings.appearance': 'APPARENCE',
   'settings.themeLabel': 'Thème {name}',
   'settings.darkMode': 'Mode sombre',
+  'settings.allocationChart': 'Graphique des dépenses',
+  'settings.selectAllocationChart': 'Choisir le graphique des dépenses',
+  'chart.donut': 'Anneau',
+  'chart.bars': 'Barres',
+  'chart.stacked': 'Barre empilée',
+  'chart.treemap': 'Carte proportionnelle',
   'settings.selectCurrency': 'Choisir la devise',
   'settings.switchCurrencyTitle': 'Changer de devise',
   'settings.switchCurrencyMessage':
@@ -624,6 +631,7 @@ export const fr: Translations = {
   'import.duplicates_other': '{count} doublons ignorés',
   'import.debtLinked_one': '{count} remboursement associé',
   'import.debtLinked_other': '{count} remboursements associés',
+  'import.recognisedAs': 'Reconnu comme {bank}',
   'import.spending': 'Dépenses',
   'import.viewDashboard': 'Voir le tableau de bord',
 
@@ -716,4 +724,64 @@ export const fr: Translations = {
 
   'freedom.a11yEstimated': '{label}, estimé, {value}',
   'freedom.goal.outOfReachShort': 'hors de portée',
+
+  'guide.link': 'Comment obtenir mon relevé ?',
+  'guide.settingsRow': 'Comment exporter depuis votre banque',
+  'guide.howToExport': 'Comment exporter',
+  'guide.title': 'Exporter depuis votre banque',
+  'guide.subtitle':
+    'Choisissez votre banque pour voir où se trouve le téléchargement du relevé. Cela prend environ 30 secondes.',
+  'guide.search': 'Rechercher une banque',
+  'guide.noResults': 'Aucune banque ne correspond à « {query} ».',
+  'guide.otherBank': 'Ma banque n’est pas dans la liste',
+  'guide.otherBankSub': 'Des étapes générales qui conviennent à la plupart des banques',
+  'guide.otherBankTitle': 'Une autre banque',
+  'guide.allBanks': 'Toutes les banques',
+  'guide.where.app': 'Dans l’application de la banque',
+  'guide.where.web': 'Sur le site de la banque',
+  'guide.where.both': 'Dans l’application ou sur le site',
+  'guide.fileType': 'Fichier {format}',
+  'guide.labelsNote':
+    'Les noms des menus sont affichés dans cette langue : {language}. Votre banque les affiche peut-être dans la vôtre.',
+  'guide.shareTip':
+    'Sur votre téléphone ? Quand le fichier est prêt, choisissez Partager → Financial Aid et il est importé aussitôt.',
+  'guide.checked':
+    'Vérifié avec les pages d’aide de {bank} en {date}. Les banques déplacent leurs menus de temps en temps.',
+  'guide.step.openApp': 'Ouvrez l’application {app} et connectez-vous.',
+  'guide.step.loginWeb': 'Connectez-vous à {site} dans un navigateur.',
+  'guide.step.openEither': 'Ouvrez l’application {app}, ou connectez-vous à {site} dans un navigateur.',
+  'guide.step.open': 'Choisissez {a}.',
+  'guide.step.go2': 'Allez dans {a}, puis dans {b}.',
+  'guide.step.go3': 'Allez dans {a} > {b} > {c}.',
+  'guide.step.profileThen': 'Ouvrez votre profil dans le coin supérieur, puis allez dans {a} > {b}.',
+  'guide.step.under': 'Sous {a}, choisissez {b}.',
+  'guide.step.selectAccountThen': 'Sélectionnez le compte, puis choisissez {a}.',
+  'guide.step.accountPeriod': 'Choisissez le compte et la période.',
+  'guide.step.period': 'Choisissez la période.',
+  'guide.step.dates': 'Sous {a}, saisissez les dates de début et de fin.',
+  'guide.step.format': 'Choisissez {format} comme type de fichier et téléchargez le fichier.',
+  'guide.generic.step1':
+    'Connectez-vous au site de votre banque. L’export complet est souvent absent de l’application mobile.',
+  'guide.generic.step2':
+    'Cherchez « Télécharger les opérations » ou « Exporter » près de la liste des opérations, ou dans Paramètres ou Service.',
+  'guide.generic.step3': 'Choisissez CSV ou Excel, pas PDF, sélectionnez une période et téléchargez le fichier.',
+  'guide.note.abnAmro':
+    'Le format txt fonctionne aussi. Le même téléchargement se trouve dans Internet Banking, sur le site.',
+  'guide.note.revolut': 'Chaque compte en devise a son propre relevé.',
+  'guide.note.n26': 'L’export CSV n’est pas disponible dans l’application mobile.',
+  'guide.note.wise': 'Chaque devise a son propre relevé, et un relevé couvre 365 jours au maximum.',
+  'site.indexTitle': 'Comment exporter votre relevé bancaire en CSV ou Excel',
+  'site.indexDescription':
+    'De courts guides pas à pas pour télécharger vos opérations en fichier CSV ou Excel chez {banks}.',
+  'site.guideTitle': 'Comment exporter un relevé {format} depuis {bank}',
+  'site.guideDescription':
+    'Téléchargez vos opérations {bank} en fichier {format} en quelques étapes : où se trouve l’export et quel type de fichier choisir.',
+  'site.intro':
+    'Financial Aid est une application de budget privée. Vous importez un fichier de relevé de votre banque et tout reste sur votre appareil.',
+  'site.ctaTitle': 'Voyez où va votre argent',
+  'site.ctaText':
+    'Importez le fichier dans Financial Aid. Pas de compte, pas de connexion bancaire, rien n’est envoyé.',
+  'site.cta': 'Obtenir Financial Aid',
+  'site.source': 'Page d’aide de {bank}',
+  'site.languages': 'Langues',
 };

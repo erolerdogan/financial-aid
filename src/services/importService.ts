@@ -1,6 +1,14 @@
 import { CategoryRule, insertTransactions, syncDebtPayments, Transaction } from '@/db/database';
-import { type LearnedCategories, parseCSVContent, parseExcelContent } from '@/utils/parser';
+import type { BankId } from '@/utils/bankFormats';
 import {
+  type LearnedCategories,
+  type ParsedStatement,
+  parseCSVContent,
+  parseExcelContent,
+  type PreviousKey,
+} from '@/utils/parser';
+import {
+  decodeStatementText,
   describeUnsupportedStatement,
   isSpreadsheetFile,
   STATEMENT_HEAD_BYTES,
@@ -15,6 +23,8 @@ export interface ImportTransactionPayload {
   rawDescription: string;
   /** The single cell older versions stored as rawDescription; only used to detect duplicates. */
   legacyRawDescription?: string;
+  /** How earlier versions stored this row, when the bank's format changes its amount or text. */
+  previousKeys?: PreviousKey[];
   merchant: string;
   category: string;
   monthName?: string;
@@ -35,6 +45,8 @@ export interface ImportResultSummary {
   expenseTotal: number;
   ambiguousDateCount: number;
   linkedDebtPayments: number;
+  /** The bank whose export layout was recognised, if any. */
+  bank: BankId | null;
 }
 
 const EMPTY_SUMMARY: ImportResultSummary = {
@@ -48,6 +60,7 @@ const EMPTY_SUMMARY: ImportResultSummary = {
   expenseTotal: 0,
   ambiguousDateCount: 0,
   linkedDebtPayments: 0,
+  bank: null,
 };
 
 export function generateTransactionHash(date: string, amount: number, rawDescription: string): string {
@@ -80,7 +93,7 @@ export async function parseFileToTransactions(
   fileName: string,
   customRules: CategoryRule[] = [],
   learned?: LearnedCategories
-) {
+): Promise<ParsedStatement> {
   const cleanName = (fileName || '').toLowerCase();
 
   const cacheDir = FileSystem.cacheDirectory;
@@ -102,19 +115,16 @@ export async function parseFileToTransactions(
     const unsupported = describeUnsupportedStatement(cleanName, head);
     if (unsupported) throw new UnsupportedFileError(unsupported);
 
+    const base64Data = await FileSystem.readAsStringAsync(tempDestination, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+    const arrayBuffer = base64ToArrayBuffer(base64Data);
+
     if (isSpreadsheetFile(cleanName, head)) {
-      const base64Data = await FileSystem.readAsStringAsync(tempDestination, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-      
-      const arrayBuffer = base64ToArrayBuffer(base64Data);
       return parseExcelContent(arrayBuffer, customRules, learned);
-    } else {
-      const csvText = await FileSystem.readAsStringAsync(tempDestination, {
-        encoding: FileSystem.EncodingType.UTF8,
-      });
-      return parseCSVContent(csvText, customRules, learned);
     }
+    // Read as bytes: not every bank exports UTF-8.
+    return parseCSVContent(decodeStatementText(new Uint8Array(arrayBuffer)), customRules, learned);
   } finally {
     await FileSystem.deleteAsync(tempDestination, { idempotent: true });
   }
@@ -123,10 +133,11 @@ export async function parseFileToTransactions(
 export async function processBatchImport(
   db: SQLiteDatabase,
   items: ImportTransactionPayload[],
-  profileId: number
+  profileId: number,
+  bank: BankId | null = null
 ): Promise<ImportResultSummary> {
   if (!items || items.length === 0 || !profileId) {
-    return { ...EMPTY_SUMMARY };
+    return { ...EMPTY_SUMMARY, bank };
   }
 
   // Safely guarantee all core tables exist in SQLite before issuing query statements
@@ -186,7 +197,11 @@ export async function processBatchImport(
         ? generateTransactionHash(item.date, item.amount, item.legacyRawDescription)
         : hash;
 
-    if (existingHashSet.has(hash) || existingHashSet.has(legacyHash)) {
+    const storedBefore = (item.previousKeys ?? []).some((key) =>
+      existingHashSet.has(generateTransactionHash(key.date, key.amount, key.rawDescription))
+    );
+
+    if (existingHashSet.has(hash) || existingHashSet.has(legacyHash) || storedBefore) {
       skippedCount++;
     } else {
       existingHashSet.add(hash);
@@ -249,5 +264,6 @@ export async function processBatchImport(
     expenseTotal,
     ambiguousDateCount,
     linkedDebtPayments,
+    bank,
   };
 }

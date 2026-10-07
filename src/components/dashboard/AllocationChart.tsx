@@ -7,6 +7,9 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { G, Path } from 'react-native-svg';
+import { ColumnsChart } from './allocation/ColumnsChart';
+import { StackedChart } from './allocation/StackedChart';
+import { TreemapChart } from './allocation/TreemapChart';
 
 interface AllocationChartProps {
   categoryData: CategoryTotal[];
@@ -31,7 +34,7 @@ export function AllocationChart({
   onSelectTransaction,
   onOpenBudgets,
 }: AllocationChartProps) {
-  const { colors } = useTheme();
+  const { colors, allocationChart } = useTheme();
   const { currencySymbol } = useProfile();
   const { t, format, categoryName } = useI18n();
   const [showAllCategories, setShowAllCategories] = useState(false);
@@ -49,6 +52,13 @@ export function AllocationChart({
 
   let accumulatedPercentage = 0;
 
+  const chartProps = {
+    items: displayedCategories,
+    total: totalSpending,
+    expandedCategory,
+    onCategoryPress,
+  };
+
   return (
     <View style={[styles.chartCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
       {/* Header */}
@@ -59,7 +69,20 @@ export function AllocationChart({
         </TouchableOpacity>
       </View>
 
+      {allocationChart !== 'donut' && (
+        <View style={styles.totalHeader}>
+          <Text style={[styles.totalAmount, { color: colors.text }]}>
+            {format.money(totalSpending, currencySymbol)}
+          </Text>
+          <Text style={[styles.totalLabel, { color: colors.textSecondary }]}>{t('home.totalExpenses')}</Text>
+        </View>
+      )}
+      {allocationChart === 'bars' && <ColumnsChart {...chartProps} />}
+      {allocationChart === 'stacked' && <StackedChart {...chartProps} />}
+      {allocationChart === 'treemap' && <TreemapChart {...chartProps} />}
+
       {/* Hero Donut Chart */}
+      {allocationChart === 'donut' && (
       <View style={styles.centerChartWrapper}>
         <View style={styles.svgContainer}>
           <Svg width={center * 2} height={center * 2}>
@@ -95,6 +118,7 @@ export function AllocationChart({
           </View>
         </View>
       </View>
+      )}
 
       {/* Category list; each row expands to the transactions behind it */}
       <View style={styles.bottomLegendList}>
@@ -273,6 +297,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     alignItems: 'center',
   },
+  totalHeader: { marginTop: 4, marginBottom: 14 },
   totalAmount: {
     fontSize: 20,
     fontWeight: '800',

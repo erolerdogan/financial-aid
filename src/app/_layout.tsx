@@ -1,3 +1,4 @@
+import { SharedImportHost } from '@/components/SharedImportHost';
 import { ImportResultProvider } from '@/contexts/ImportResultContext';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { PeriodProvider } from '@/contexts/PeriodContext';
@@ -49,11 +50,19 @@ function AppInitializer() {
   }, [isReady]);
 
   return (
+    <>
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="welcome" options={{ headerShown: false, gestureEnabled: false }} />
       <Stack.Screen
         name="settings"
+        options={{
+          headerShown: false,
+          presentation: 'modal',
+        }}
+      />
+      <Stack.Screen
+        name="export-guide"
         options={{
           headerShown: false,
           presentation: 'modal',
@@ -81,7 +90,8 @@ function AppInitializer() {
         }}
       />
     </Stack>
-    
+    <SharedImportHost />
+    </>
   );
 }
 

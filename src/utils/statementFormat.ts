@@ -75,3 +75,78 @@ export function describeUnsupportedStatement(fileName: string, head: Uint8Array)
 
   return null;
 }
+
+// Windows-1252 differs from Latin-1 only in 0x80-0x9F.
+const WINDOWS_1252_HIGH = [
+  0x20ac, 0x81, 0x201a, 0x0192, 0x201e, 0x2026, 0x2020, 0x2021, 0x02c6, 0x2030, 0x0160, 0x2039, 0x0152, 0x8d,
+  0x017d, 0x8f, 0x90, 0x2018, 0x2019, 0x201c, 0x201d, 0x2022, 0x2013, 0x2014, 0x02dc, 0x2122, 0x0161, 0x203a,
+  0x0153, 0x9d, 0x017e, 0x0178,
+];
+
+const CHUNK = 8192;
+
+function fromCodeUnits(length: number, unitAt: (index: number) => number): string {
+  let out = '';
+  for (let start = 0; start < length; start += CHUNK) {
+    const units: number[] = [];
+    for (let i = start; i < Math.min(length, start + CHUNK); i++) units.push(unitAt(i));
+    out += String.fromCharCode(...units);
+  }
+  return out;
+}
+
+/** `null` when the bytes are not valid UTF-8. */
+function decodeUtf8(bytes: Uint8Array, offset: number): string | null {
+  const units: number[] = [];
+  for (let i = offset; i < bytes.length; ) {
+    const lead = bytes[i++];
+    let extra: number;
+    let point: number;
+    if (lead < 0x80) [extra, point] = [0, lead];
+    else if (lead >= 0xc2 && lead <= 0xdf) [extra, point] = [1, lead & 0x1f];
+    else if (lead >= 0xe0 && lead <= 0xef) [extra, point] = [2, lead & 0x0f];
+    else if (lead >= 0xf0 && lead <= 0xf4) [extra, point] = [3, lead & 0x07];
+    else return null;
+
+    for (; extra > 0; extra--) {
+      const next = bytes[i++];
+      if (next === undefined || (next & 0xc0) !== 0x80) return null;
+      point = (point << 6) | (next & 0x3f);
+    }
+
+    if (point > 0xffff) {
+      point -= 0x10000;
+      units.push(0xd800 + (point >> 10), 0xdc00 + (point & 0x3ff));
+    } else {
+      units.push(point);
+    }
+  }
+  return fromCodeUnits(units.length, (i) => units[i]);
+}
+
+/**
+ * Text of a statement file. Banks export UTF-8 (with or without a byte order mark), UTF-16 or
+ * Windows-1252; the last is assumed when the bytes are not valid UTF-8.
+ */
+export function decodeStatementText(bytes: Uint8Array): string {
+  if (startsWith(bytes, [0xef, 0xbb, 0xbf])) {
+    const utf8 = decodeUtf8(bytes, 3);
+    if (utf8 !== null) return utf8;
+  }
+
+  const littleEndian = startsWith(bytes, [0xff, 0xfe]);
+  if (littleEndian || startsWith(bytes, [0xfe, 0xff])) {
+    return fromCodeUnits(Math.floor((bytes.length - 2) / 2), (i) => {
+      const [a, b] = [bytes[2 + i * 2], bytes[3 + i * 2]];
+      return littleEndian ? a | (b << 8) : (a << 8) | b;
+    });
+  }
+
+  return (
+    decodeUtf8(bytes, 0) ??
+    fromCodeUnits(bytes.length, (i) => {
+      const byte = bytes[i];
+      return byte >= 0x80 && byte <= 0x9f ? WINDOWS_1252_HIGH[byte - 0x80] : byte;
+    })
+  );
+}

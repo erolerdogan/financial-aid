@@ -26,3 +26,9 @@ jobs:
 
       - name: Run TypeScript Compiler Check
         run: npx tsc --noEmit
+
+      - name: Check bank guides
+        run: npx --yes tsx src/content/bankGuides.test.ts
+
+      - name: Build website
+        run: npx --yes tsx scripts/build-site.ts

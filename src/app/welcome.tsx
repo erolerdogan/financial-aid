@@ -105,6 +105,19 @@ export default function WelcomeScreen() {
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.guideLink}
+            onPress={() => router.push('/export-guide')}
+            activeOpacity={0.7}
+            disabled={importing}
+            accessibilityRole="link"
+          >
+            <Ionicons name="help-circle-outline" size={16} color={colors.accent} />
+            <Text style={[styles.guideLinkText, { color: colors.accent }]}>{t('guide.link')}</Text>
+          </TouchableOpacity>
+
+          <Text style={[styles.shareHint, { color: colors.textSecondary }]}>{t('welcome.shareHint')}</Text>
         </View>
       </SafeAreaView>
     </LinearGradient>
@@ -186,4 +199,13 @@ const styles = StyleSheet.create({
   buttonSubtext: { color: 'rgba(255,255,255,0.75)', fontSize: 12, marginTop: 2, fontWeight: '500' },
   secondaryButtonText: { fontSize: 17, fontWeight: '700', letterSpacing: -0.3 },
   buttonSubtextSecondary: { fontSize: 12, marginTop: 2, fontWeight: '500' },
+  guideLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    minHeight: 44,
+  },
+  guideLinkText: { fontSize: 15, fontWeight: '600' },
+  shareHint: { fontSize: 12, fontWeight: '500', textAlign: 'center', paddingHorizontal: 12 },
 });

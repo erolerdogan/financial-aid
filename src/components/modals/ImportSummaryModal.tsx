@@ -2,6 +2,7 @@ import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { ImportResultSummary } from '@/services/importService';
+import { BANK_LABELS } from '@/utils/bankFormats';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
@@ -51,6 +52,12 @@ export function ImportSummaryModal({ visible, summary, profileName, onClose }: I
     : profileName;
 
   const notes: { icon: keyof typeof Ionicons.glyphMap; text: string }[] = [];
+  if (summary.bank) {
+    notes.push({
+      icon: 'business-outline',
+      text: t('import.recognisedAs', { bank: BANK_LABELS[summary.bank] }),
+    });
+  }
   if (hasNewRows) {
     if (summary.ambiguousDateCount > 0) {
       notes.push({

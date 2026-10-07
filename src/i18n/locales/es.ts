@@ -44,6 +44,7 @@ export const es: Translations = {
   'welcome.processing': 'Procesando extracto...',
   'welcome.import': 'Importar extracto bancario',
   'welcome.importSub': 'Archivo CSV o XLSX',
+  'welcome.shareHint': 'O exporta desde la app de tu banco y elige Compartir → Financial Aid',
   'welcome.demo': 'Explorar la demo',
   'welcome.demoSub': 'Movimientos y análisis de ejemplo ya cargados',
 
@@ -68,6 +69,12 @@ export const es: Translations = {
   'settings.appearance': 'APARIENCIA',
   'settings.themeLabel': 'Tema {name}',
   'settings.darkMode': 'Modo oscuro',
+  'settings.allocationChart': 'Gráfico de gastos',
+  'settings.selectAllocationChart': 'Seleccionar gráfico de gastos',
+  'chart.donut': 'Anillo',
+  'chart.bars': 'Barras',
+  'chart.stacked': 'Barra apilada',
+  'chart.treemap': 'Mapa de árbol',
   'settings.selectCurrency': 'Seleccionar moneda',
   'settings.switchCurrencyTitle': 'Cambiar moneda',
   'settings.switchCurrencyMessage':
@@ -623,6 +630,7 @@ export const es: Translations = {
   'import.duplicates_other': '{count} duplicados omitidos',
   'import.debtLinked_one': '{count} pago de deuda vinculado',
   'import.debtLinked_other': '{count} pagos de deuda vinculados',
+  'import.recognisedAs': 'Reconocido como {bank}',
   'import.spending': 'Gastos',
   'import.viewDashboard': 'Ver panel',
 
@@ -714,4 +722,61 @@ export const es: Translations = {
 
   'freedom.a11yEstimated': '{label}, estimado, {value}',
   'freedom.goal.outOfReachShort': 'fuera de alcance',
+
+  'guide.link': '¿Cómo consigo mi extracto?',
+  'guide.settingsRow': 'Cómo exportar desde tu banco',
+  'guide.howToExport': 'Cómo exportar',
+  'guide.title': 'Exporta desde tu banco',
+  'guide.subtitle': 'Elige tu banco para ver dónde está la descarga del extracto. Se tarda unos 30 segundos.',
+  'guide.search': 'Buscar bancos',
+  'guide.noResults': 'Ningún banco coincide con «{query}».',
+  'guide.otherBank': 'Mi banco no está en la lista',
+  'guide.otherBankSub': 'Pasos generales que sirven para la mayoría de los bancos',
+  'guide.otherBankTitle': 'Cualquier otro banco',
+  'guide.allBanks': 'Todos los bancos',
+  'guide.where.app': 'En la app del banco',
+  'guide.where.web': 'En la web del banco',
+  'guide.where.both': 'En la app o en la web',
+  'guide.fileType': 'Archivo {format}',
+  'guide.labelsNote':
+    'Los nombres de los menús se muestran en este idioma: {language}. Puede que tu banco los muestre en el tuyo.',
+  'guide.shareTip':
+    '¿Estás en el móvil? Cuando el archivo esté listo, elige Compartir → Financial Aid y se importa al momento.',
+  'guide.checked':
+    'Comprobado con las páginas de ayuda de {bank} en {date}. Los bancos cambian sus menús de vez en cuando.',
+  'guide.step.openApp': 'Abre la app de {app} e inicia sesión.',
+  'guide.step.loginWeb': 'Inicia sesión en {site} desde un navegador.',
+  'guide.step.openEither': 'Abre la app de {app} o inicia sesión en {site} desde un navegador.',
+  'guide.step.open': 'Elige {a}.',
+  'guide.step.go2': 'Ve a {a} y luego a {b}.',
+  'guide.step.go3': 'Ve a {a} > {b} > {c}.',
+  'guide.step.profileThen': 'Abre tu perfil en la esquina superior y ve a {a} > {b}.',
+  'guide.step.under': 'En {a}, elige {b}.',
+  'guide.step.selectAccountThen': 'Selecciona la cuenta y luego elige {a}.',
+  'guide.step.accountPeriod': 'Elige la cuenta y el periodo.',
+  'guide.step.period': 'Elige el periodo.',
+  'guide.step.dates': 'En {a}, introduce las fechas de inicio y de fin.',
+  'guide.step.format': 'Elige {format} como tipo de archivo y descarga el archivo.',
+  'guide.generic.step1':
+    'Inicia sesión en la web de tu banco. La exportación completa no suele estar en la app móvil.',
+  'guide.generic.step2':
+    'Busca «Descargar movimientos» o «Exportar» junto a la lista de movimientos, o en Ajustes o Servicio.',
+  'guide.generic.step3': 'Elige CSV o Excel, no PDF, selecciona un periodo y descarga el archivo.',
+  'guide.note.abnAmro': 'El formato txt también funciona. La misma descarga está en Internet Banking, en la web.',
+  'guide.note.revolut': 'Cada cuenta en una divisa tiene su propio extracto.',
+  'guide.note.n26': 'La exportación a CSV no está disponible en la app móvil.',
+  'guide.note.wise': 'Cada divisa tiene su propio extracto, y un extracto cubre como máximo 365 días.',
+  'site.indexTitle': 'Cómo exportar tu extracto bancario a CSV o Excel',
+  'site.indexDescription':
+    'Guías breves, paso a paso, para descargar tus movimientos como archivo CSV o Excel en {banks}.',
+  'site.guideTitle': 'Cómo exportar un extracto {format} de {bank}',
+  'site.guideDescription':
+    'Descarga tus movimientos de {bank} como archivo {format} en pocos pasos: dónde está la exportación y qué tipo de archivo elegir.',
+  'site.intro':
+    'Financial Aid es una app de presupuesto privada. Importas un archivo de extracto de tu banco y todo se queda en tu dispositivo.',
+  'site.ctaTitle': 'Descubre adónde va tu dinero',
+  'site.ctaText': 'Importa el archivo en Financial Aid. Sin cuenta, sin acceso a tu banco, sin subir nada.',
+  'site.cta': 'Consigue Financial Aid',
+  'site.source': 'Página de ayuda de {bank}',
+  'site.languages': 'Idiomas',
 };

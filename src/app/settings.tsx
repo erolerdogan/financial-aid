@@ -3,9 +3,9 @@ import { ProfileSwitcherModal } from '@/components/ProfileSwitcherModal';
 import { ImportSummaryHost } from '@/contexts/ImportResultContext';
 import { useI18n } from '@/contexts/LanguageContext';
 import { CURRENCY_SYMBOLS, useProfile } from '@/contexts/ProfileContext';
-import { THEMES, useTheme } from '@/contexts/ThemeContext';
+import { ALLOCATION_CHART_TYPES, AllocationChartType, THEMES, useTheme } from '@/contexts/ThemeContext';
 import { clearAllData } from '@/db/database';
-import { LANGUAGES, LanguageCode } from '@/i18n';
+import { LANGUAGES, LanguageCode, TranslationKey } from '@/i18n';
 import { useStatementImporter } from '@/hooks/useStatementImporter';
 import {
   cancelCurrentMonthReminders,
@@ -33,9 +33,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 const AVAILABLE_CURRENCIES = ['EUR', 'USD', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF'] as const;
 
+const CHART_OPTIONS: Record<AllocationChartType, { label: TranslationKey; icon: keyof typeof Ionicons.glyphMap }> = {
+  donut: { label: 'chart.donut', icon: 'pie-chart-outline' },
+  bars: { label: 'chart.bars', icon: 'bar-chart-outline' },
+  stacked: { label: 'chart.stacked', icon: 'remove-outline' },
+  treemap: { label: 'chart.treemap', icon: 'grid-outline' },
+};
+
 export default function SettingsScreen() {
   const { activeProfile, updateCurrency, refreshProfiles } = useProfile();
-  const { isDark, toggleTheme, colors, themeName, setThemeName } = useTheme();
+  const { isDark, toggleTheme, colors, themeName, setThemeName, allocationChart, setAllocationChart } = useTheme();
   const { t, language, storedLanguage, setLanguage } = useI18n();
   const router = useRouter();
   const db = useSQLiteContext();
@@ -45,6 +52,7 @@ export default function SettingsScreen() {
   const [currencyModalVisible, setCurrencyModalVisible] = useState(false);
   const [backupModalVisible, setBackupModalVisible] = useState(false);
   const [languageModalVisible, setLanguageModalVisible] = useState(false);
+  const [chartModalVisible, setChartModalVisible] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
   const { importStatement, importing } = useStatementImporter();
@@ -62,6 +70,12 @@ export default function SettingsScreen() {
     Haptics.selectionAsync();
     setLanguage(code);
     setLanguageModalVisible(false);
+  };
+
+  const handleSelectChart = (type: AllocationChartType) => {
+    Haptics.selectionAsync();
+    setAllocationChart(type);
+    setChartModalVisible(false);
   };
 
   const handleSelectCurrency = (newCurrencyCode: string) => {
@@ -197,6 +211,23 @@ export default function SettingsScreen() {
             ) : (
               <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
             )}
+          </TouchableOpacity>
+
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+          <TouchableOpacity
+            style={styles.rowItem}
+            activeOpacity={0.7}
+            onPress={() => router.push('/export-guide')}
+            disabled={importing || loading}
+          >
+            <View style={styles.rowLeft}>
+              <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
+                <Ionicons name="help-buoy-outline" size={18} color={colors.accent} />
+              </View>
+              <Text style={[styles.rowTitle, { color: colors.text }]}>{t('guide.settingsRow')}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
           </TouchableOpacity>
 
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
@@ -396,6 +427,25 @@ export default function SettingsScreen() {
             })}
           </ScrollView>
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
+          <TouchableOpacity
+            style={styles.rowItem}
+            activeOpacity={0.7}
+            onPress={() => setChartModalVisible(true)}
+          >
+            <View style={styles.rowLeft}>
+              <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
+                <Ionicons name={CHART_OPTIONS[allocationChart].icon} size={18} color={colors.accent} />
+              </View>
+              <Text style={[styles.rowTitle, { color: colors.text }]}>{t('settings.allocationChart')}</Text>
+            </View>
+            <View style={styles.rowRight}>
+              <Text style={[styles.actionBadgeText, { color: colors.accent }]}>
+                {t(CHART_OPTIONS[allocationChart].label)}
+              </Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+            </View>
+          </TouchableOpacity>
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
           <View style={styles.rowItem}>
             <View style={styles.rowLeft}>
               <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
@@ -467,6 +517,60 @@ export default function SettingsScreen() {
                   );
                 })}
               </ScrollView>
+            </View>
+          </TouchableWithoutFeedback>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Spending Chart Picker Sheet Modal */}
+      <Modal visible={chartModalVisible} transparent animationType="slide">
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setChartModalVisible(false)}
+        >
+          <TouchableWithoutFeedback>
+            <View style={[styles.sheetContainer, { backgroundColor: colors.card }]}>
+              <View style={styles.sheetHeader}>
+                <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
+                <Text style={[styles.sheetTitle, { color: colors.text }]}>
+                  {t('settings.selectAllocationChart')}
+                </Text>
+              </View>
+              {ALLOCATION_CHART_TYPES.map((type) => {
+                const isSelected = allocationChart === type;
+                return (
+                  <TouchableOpacity
+                    key={type}
+                    style={[
+                      styles.sheetItem,
+                      { borderBottomColor: colors.border },
+                      isSelected && { backgroundColor: colors.tintBackground },
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: isSelected }}
+                    onPress={() => handleSelectChart(type)}
+                  >
+                    <View style={styles.rowLeft}>
+                      <Ionicons
+                        name={CHART_OPTIONS[type].icon}
+                        size={20}
+                        color={isSelected ? colors.accent : colors.textSecondary}
+                      />
+                      <Text
+                        style={[
+                          styles.sheetItemText,
+                          { color: colors.text },
+                          isSelected && { fontWeight: '700', color: colors.accent },
+                        ]}
+                      >
+                        {t(CHART_OPTIONS[type].label)}
+                      </Text>
+                    </View>
+                    {isSelected && <Ionicons name="checkmark-circle" size={20} color={colors.accent} />}
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </TouchableWithoutFeedback>
         </TouchableOpacity>

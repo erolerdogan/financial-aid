@@ -33,6 +33,16 @@ npx tsc --noEmit   # type check (also run in CI)
 
 On first launch the welcome screen offers two paths: import a statement, or open the demo workspace to explore the app with sample data.
 
+### Website
+
+The bank export guides are also published as a small static website (one page per bank per language, for search traffic). The pages are generated from the same data and translations as the in-app guides:
+
+```bash
+npm run site       # writes site-dist/
+```
+
+`.github/workflows/site.yml` deploys it to GitHub Pages on pushes to `main` (enable Pages with "GitHub Actions" as the source). Set `SITE_URL` and `APP_URL` when building for another address or once there are store links. To add a bank, add its export layout to `src/utils/bankFormats.ts`, then a guide to `src/content/bankGuides.ts` with the steps from the bank's own help page.
+
 ## Features
 
 ### Statement import
@@ -41,6 +51,10 @@ On first launch the welcome screen offers two paths: import a statement, or open
 - Other files are refused with a hint to use the bank's CSV or Excel export: PDF statements, photos and screenshots, bank formats such as CAMT XML, MT940 and OFX, and other documents. The file's contents are checked as well as its name, so a renamed PDF is still recognised.
 - Detects the date, amount, counterparty name and memo columns automatically, including layouts with a debit/credit indicator (ING "Af Bij") or separate debit and credit columns.
 - Parses amounts in different locale formats and flags dates that could be read two ways.
+- Import from the share sheet: export the statement in your bank app, choose Share and pick Financial Aid. The file is imported into the active profile, the same way as a picked file.
+- Recognises the export layouts of ING, ABN AMRO, Rabobank, bunq, Revolut, Wise and N26 from the header row and reads each with its own column map: pending, reverted and cancelled rows are left out, fees are included in the amount, and day-first dates are not flagged. The summary sheet names the recognised bank. Files from other banks are read by guessing the columns from their headers.
+- Reads text files in UTF-8, UTF-16 or Windows-1252.
+- Export guides: "How do I get my statement?" on the welcome screen, the empty Home screen and in Settings opens a short, numbered guide per bank (ING, Rabobank, ABN AMRO, bunq, Revolut, N26, Wise, plus general steps for any other bank) showing where the bank keeps its CSV or Excel download. The bank's menu names are shown as the bank spells them. The "File Not Supported" and "No Transactions Found" alerts link to the same guides.
 - Skips duplicates, so importing overlapping statements is safe.
 - Shows a summary sheet after each import: transactions added, date range covered, income and spending totals, duplicates skipped, dates that need checking and debt payments linked.
 - Builds a readable merchant name per transaction: prefers the counterparty name, strips payment processor prefixes, card and terminal codes, reference numbers, IBANs and dates, and shows well-known shops under one name (for example "Albert Heijn" for every store). A row with nothing readable gets its payment type as title instead of a code.
@@ -64,7 +78,7 @@ On first launch the welcome screen offers two paths: import a statement, or open
 ### Home
 
 - Total income, total expenses and net cash flow for the selected period.
-- Spending allocation donut chart by category, with budget progress per category when a single month is selected.
+- Spending allocation chart by category, with budget progress per category when a single month is selected. The chart is a donut by default; Settings → Spending Chart switches it to bars, one stacked bar or a treemap, where tapping a bar or tile expands that category.
 - Tapping income or expenses opens a bottom sheet with those transactions (fixed vs. flexible split, search, fixed/flexible and category filters).
 - Tapping a category in the allocation card expands its transactions inline; tapping one opens its detail.
 - Debts summary card.
@@ -167,6 +181,7 @@ On first launch the welcome screen offers two paths: import a statement, or open
 - Currency: EUR, USD, GBP, JPY, CHF, CAD or AUD. Switching currency converts existing amounts using fixed built-in rates.
 - Language: English, Dutch, German, Turkish, Spanish, French, Italian, Portuguese and Russian. The app follows the device language until you pick one in Settings → Language; the choice is remembered. Built-in category names, numbers, dates and reminder notifications follow the language. Translations have not been reviewed by native speakers yet.
 - Six colour themes (Aurora, Midnight Gold, Sunset, Forest Mint, Orchid, Classic; Classic is the default) with gradient accents, each in light and dark; the choice is remembered. Dark mode follows the system until you toggle it.
+- Spending chart: donut, bars, stacked bar or treemap for the allocation card on Home; the choice is remembered.
 - Import reminders: local notifications on the 15th and 28th of each month. Importing a statement cancels the pending reminders.
 - Reset all data and profiles.
 
@@ -194,7 +209,7 @@ The app makes no network calls with user data. Statements are read on the device
 | Navigation | Expo Router |
 | Database | expo-sqlite (WAL mode) |
 | Charts | react-native-gifted-charts, react-native-svg |
-| File import | expo-document-picker, expo-file-system, papaparse, xlsx |
+| File import | expo-document-picker, expo-sharing (share sheet), expo-file-system, papaparse, xlsx |
 | Notifications | expo-notifications |
 | Languages | expo-localization, own dictionary in `src/i18n` |
 | State | React Context (`ProfileContext`, `ThemeContext`, `LanguageContext`) |

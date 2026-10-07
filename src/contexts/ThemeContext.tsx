@@ -5,6 +5,10 @@ import { useColorScheme } from 'react-native';
 
 export type ThemeMode = 'light' | 'dark';
 export type ThemeName = 'aurora' | 'midnightGold' | 'sunset' | 'forestMint' | 'orchid' | 'classic';
+/** How the spending allocation card on Home draws its categories. */
+export type AllocationChartType = 'donut' | 'bars' | 'stacked' | 'treemap';
+
+export const ALLOCATION_CHART_TYPES: AllocationChartType[] = ['donut', 'bars', 'stacked', 'treemap'];
 
 export interface ThemeColors {
   background: string;
@@ -245,6 +249,8 @@ export const THEMES: ThemeDefinition[] = [
 const DEFAULT_THEME: ThemeName = 'classic';
 const THEME_NAME_KEY = 'theme_name';
 const THEME_MODE_KEY = 'theme_mode';
+const DEFAULT_ALLOCATION_CHART: AllocationChartType = 'donut';
+const ALLOCATION_CHART_KEY = 'allocation_chart';
 
 const findTheme = (name: ThemeName): ThemeDefinition =>
   THEMES.find((theme) => theme.name === name) ?? THEMES[0];
@@ -256,6 +262,8 @@ interface ThemeContextType {
   isDark: boolean;
   themeName: ThemeName;
   setThemeName: (name: ThemeName) => void;
+  allocationChart: AllocationChartType;
+  setAllocationChart: (type: AllocationChartType) => void;
 }
 
 const ThemeContext = createContext<ThemeContextType>({
@@ -265,6 +273,8 @@ const ThemeContext = createContext<ThemeContextType>({
   isDark: false,
   themeName: DEFAULT_THEME,
   setThemeName: () => {},
+  allocationChart: DEFAULT_ALLOCATION_CHART,
+  setAllocationChart: () => {},
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
@@ -288,6 +298,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [storedMode, setStoredMode] = useState<ThemeMode | null>(() => {
     const stored = readMeta(THEME_MODE_KEY);
     return stored === 'light' || stored === 'dark' ? stored : null;
+  });
+  const [allocationChart, setAllocationChartState] = useState<AllocationChartType>(() => {
+    const stored = readMeta(ALLOCATION_CHART_KEY);
+    return ALLOCATION_CHART_TYPES.some((type) => type === stored)
+      ? (stored as AllocationChartType)
+      : DEFAULT_ALLOCATION_CHART;
   });
 
   const mode: ThemeMode = storedMode ?? (systemScheme === 'dark' ? 'dark' : 'light');
@@ -314,6 +330,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     [persist]
   );
 
+  const setAllocationChart = useCallback(
+    (type: AllocationChartType) => {
+      setAllocationChartState(type);
+      persist(ALLOCATION_CHART_KEY, type);
+    },
+    [persist]
+  );
+
   const value = useMemo<ThemeContextType>(() => {
     const theme = findTheme(themeName);
     return {
@@ -323,8 +347,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       isDark,
       themeName,
       setThemeName,
+      allocationChart,
+      setAllocationChart,
     };
-  }, [mode, isDark, themeName, toggleTheme, setThemeName]);
+  }, [mode, isDark, themeName, toggleTheme, setThemeName, allocationChart, setAllocationChart]);
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }

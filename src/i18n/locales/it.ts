@@ -44,6 +44,7 @@ export const it: Translations = {
   'welcome.processing': 'Elaborazione dell’estratto...',
   'welcome.import': 'Importa estratto conto',
   'welcome.importSub': 'File CSV o XLSX',
+  'welcome.shareHint': 'Oppure esporta dall’app della tua banca e scegli Condividi → Financial Aid',
   'welcome.demo': 'Esplora la demo',
   'welcome.demoSub': 'Movimenti e analisi di esempio già caricati',
 
@@ -68,6 +69,12 @@ export const it: Translations = {
   'settings.appearance': 'ASPETTO',
   'settings.themeLabel': 'Tema {name}',
   'settings.darkMode': 'Modalità scura',
+  'settings.allocationChart': 'Grafico delle spese',
+  'settings.selectAllocationChart': 'Seleziona grafico delle spese',
+  'chart.donut': 'Anello',
+  'chart.bars': 'Barre',
+  'chart.stacked': 'Barra in pila',
+  'chart.treemap': 'Mappa ad albero',
   'settings.selectCurrency': 'Seleziona valuta',
   'settings.switchCurrencyTitle': 'Cambia valuta',
   'settings.switchCurrencyMessage':
@@ -623,6 +630,7 @@ export const it: Translations = {
   'import.duplicates_other': '{count} duplicati saltati',
   'import.debtLinked_one': '{count} rata di debito collegata',
   'import.debtLinked_other': '{count} rate di debito collegate',
+  'import.recognisedAs': 'Riconosciuto come {bank}',
   'import.spending': 'Uscite',
   'import.viewDashboard': 'Vai alla panoramica',
 
@@ -714,4 +722,63 @@ export const it: Translations = {
 
   'freedom.a11yEstimated': '{label}, stimato, {value}',
   'freedom.goal.outOfReachShort': 'fuori portata',
+
+  'guide.link': 'Come ottengo il mio estratto conto?',
+  'guide.settingsRow': 'Come esportare dalla tua banca',
+  'guide.howToExport': 'Come esportare',
+  'guide.title': 'Esporta dalla tua banca',
+  'guide.subtitle':
+    'Scegli la tua banca per vedere dove si scarica l’estratto conto. Ci vogliono circa 30 secondi.',
+  'guide.search': 'Cerca banche',
+  'guide.noResults': 'Nessuna banca corrisponde a «{query}».',
+  'guide.otherBank': 'La mia banca non è in elenco',
+  'guide.otherBankSub': 'Passaggi generali validi per la maggior parte delle banche',
+  'guide.otherBankTitle': 'Un’altra banca',
+  'guide.allBanks': 'Tutte le banche',
+  'guide.where.app': 'Nell’app della banca',
+  'guide.where.web': 'Sul sito della banca',
+  'guide.where.both': 'Nell’app o sul sito',
+  'guide.fileType': 'File {format}',
+  'guide.labelsNote':
+    'I nomi dei menu sono mostrati in questa lingua: {language}. La tua banca potrebbe mostrarli nella tua.',
+  'guide.shareTip':
+    'Sei sul telefono? Quando il file è pronto, scegli Condividi → Financial Aid e viene importato subito.',
+  'guide.checked':
+    'Verificato con le pagine di aiuto di {bank}: {date}. Le banche spostano i menu di tanto in tanto.',
+  'guide.step.openApp': 'Apri l’app {app} e accedi.',
+  'guide.step.loginWeb': 'Accedi a {site} da un browser.',
+  'guide.step.openEither': 'Apri l’app {app}, oppure accedi a {site} da un browser.',
+  'guide.step.open': 'Scegli {a}.',
+  'guide.step.go2': 'Vai su {a}, poi su {b}.',
+  'guide.step.go3': 'Vai su {a} > {b} > {c}.',
+  'guide.step.profileThen': 'Apri il tuo profilo nell’angolo in alto, poi vai su {a} > {b}.',
+  'guide.step.under': 'In {a}, scegli {b}.',
+  'guide.step.selectAccountThen': 'Seleziona il conto, poi scegli {a}.',
+  'guide.step.accountPeriod': 'Scegli il conto e il periodo.',
+  'guide.step.period': 'Scegli il periodo.',
+  'guide.step.dates': 'In {a}, inserisci le date di inizio e di fine.',
+  'guide.step.format': 'Scegli {format} come tipo di file e scarica il file.',
+  'guide.generic.step1':
+    'Accedi al sito della tua banca. L’esportazione completa spesso manca nell’app mobile.',
+  'guide.generic.step2':
+    'Cerca «Scarica movimenti» o «Esporta» vicino alla lista dei movimenti, oppure in Impostazioni o Servizio.',
+  'guide.generic.step3': 'Scegli CSV o Excel, non PDF, seleziona un periodo e scarica il file.',
+  'guide.note.abnAmro': 'Anche il formato txt funziona. Lo stesso download si trova in Internet Banking, sul sito.',
+  'guide.note.revolut': 'Ogni conto in valuta ha il proprio estratto conto.',
+  'guide.note.n26': 'L’esportazione CSV non è disponibile nell’app mobile.',
+  'guide.note.wise': 'Ogni valuta ha il proprio estratto conto, e un estratto copre al massimo 365 giorni.',
+  'site.indexTitle': 'Come esportare l’estratto conto in CSV o Excel',
+  'site.indexDescription':
+    'Brevi guide passo passo per scaricare i tuoi movimenti come file CSV o Excel da {banks}.',
+  'site.guideTitle': 'Come esportare un estratto conto {format} da {bank}',
+  'site.guideDescription':
+    'Scarica i tuoi movimenti {bank} come file {format} in pochi passaggi: dove si trova l’esportazione e quale tipo di file scegliere.',
+  'site.intro':
+    'Financial Aid è un’app di budget privata. Importi un file di estratto conto dalla tua banca e tutto resta sul tuo dispositivo.',
+  'site.ctaTitle': 'Scopri dove vanno i tuoi soldi',
+  'site.ctaText':
+    'Importa il file in Financial Aid. Nessun account, nessun accesso alla banca, niente viene caricato.',
+  'site.cta': 'Scarica Financial Aid',
+  'site.source': 'Pagina di aiuto di {bank}',
+  'site.languages': 'Lingue',
 };

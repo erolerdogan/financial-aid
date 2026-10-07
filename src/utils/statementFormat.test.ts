@@ -1,5 +1,10 @@
 // Run with: npx tsx src/utils/statementFormat.test.ts
-import { describeUnsupportedStatement, isSpreadsheetFile, UnsupportedFileError } from './statementFormat';
+import {
+  decodeStatementText,
+  describeUnsupportedStatement,
+  isSpreadsheetFile,
+  UnsupportedFileError,
+} from './statementFormat';
 
 let failures = 0;
 
@@ -68,6 +73,21 @@ accepts('empty csv', 'empty.csv', EMPTY, false);
 const error = new UnsupportedFileError('nope');
 check('error is an UnsupportedFileError', error instanceof UnsupportedFileError);
 check('error is an Error', error instanceof Error && error.message === 'nope');
+
+const decodes = (label: string, input: Uint8Array, expected: string): void => {
+  const actual = decodeStatementText(input);
+  check(`decode ${label}`, actual === expected, `got ${JSON.stringify(actual)}`);
+};
+
+decodes('ascii', text('Date,Amount'), 'Date,Amount');
+decodes('utf-8', bytes(0x69, 0x6e, 0x69, 0x74, 0x69, 0xc3, 0xab, 0x72, 0x65, 0x6e, 0x64, 0x65), 'initiërende');
+decodes('utf-8 with byte order mark', bytes(0xef, 0xbb, 0xbf, 0x44, 0x61, 0x74, 0x75, 0x6d), 'Datum');
+decodes('utf-8 euro and emoji', bytes(0xe2, 0x82, 0xac, 0x20, 0xf0, 0x9f, 0x92, 0xb6), '€ 💶');
+decodes('windows-1252', bytes(0x45, 0x6d, 0x70, 0x66, 0xe4, 0x6e, 0x67, 0x65, 0x72, 0x20, 0x80), 'Empfänger €');
+decodes('utf-16 little endian', bytes(0xff, 0xfe, 0x44, 0x00, 0xeb, 0x00), 'Dë');
+decodes('utf-16 big endian', bytes(0xfe, 0xff, 0x00, 0x44, 0x00, 0xeb), 'Dë');
+decodes('empty', EMPTY, '');
+decodes('long text', text('a,b\n'.repeat(5000)), 'a,b\n'.repeat(5000));
 
 console.log(failures === 0 ? '\nAll tests passed.' : `\n${failures} test(s) failed.`);
 if (failures > 0) process.exit(1);

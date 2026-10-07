@@ -1,5 +1,12 @@
 import type { CategoryRule, Transaction } from '@/db/database';
 import {
+  type BankId,
+  type ColumnMap,
+  detectBankFormat,
+  detectHeaderlessBank,
+  normalizeHeaderCell,
+} from '@/utils/bankFormats';
+import {
   classificationText,
   containsWord,
   containsWordStart,
@@ -516,7 +523,7 @@ function parseLocaleAmount(raw: any): { magnitude: number; isNegative: boolean }
   return { magnitude, isNegative: parenNegative || explicitNegative };
 }
 
-function resolveDate(raw: any): { iso: string; ambiguous: boolean } | null {
+function resolveDate(raw: any, dayFirst = false): { iso: string; ambiguous: boolean } | null {
   if (raw === null || raw === undefined) return null;
   const str = String(raw)
     .replace(/\\/g, '')
@@ -561,7 +568,7 @@ function resolveDate(raw: any): { iso: string; ambiguous: boolean } | null {
       return { iso: `${y}-${a.padStart(2, '0')}-${b.padStart(2, '0')}`, ambiguous: false };
     }
     if (numA <= 12 && numB <= 12) {
-      return { iso: `${y}-${b.padStart(2, '0')}-${a.padStart(2, '0')}`, ambiguous: true };
+      return { iso: `${y}-${b.padStart(2, '0')}-${a.padStart(2, '0')}`, ambiguous: !dayFirst };
     }
     return null;
   }
@@ -569,22 +576,23 @@ function resolveDate(raw: any): { iso: string; ambiguous: boolean } | null {
   return null;
 }
 
+/** How a row was stored before its bank's format was recognised; only used to detect duplicates. */
+export interface PreviousKey {
+  date: string;
+  amount: number;
+  rawDescription: string;
+}
+
 export type ParsedTransaction = Omit<Transaction, 'id'> & {
   /** The single cell older versions stored as rawDescription; only used to detect duplicates. */
   legacyRawDescription?: string;
+  previousKeys?: PreviousKey[];
 };
 
-interface ColumnMap {
-  date: number;
-  amount: number;
-  debit: number;
-  credit: number;
-  sign: number;
-  iban: number;
-  type: number;
-  name: number;
-  memos: number[];
-  legacyDesc: number;
+export interface ParsedStatement {
+  transactions: ParsedTransaction[];
+  /** The bank whose export layout was recognised, `null` when the columns were guessed. */
+  bank: BankId | null;
 }
 
 const DATE_HEADER = /transactiondate|trans_date|datum|date|tarih/i;
@@ -650,92 +658,189 @@ function detectColumns(cells: string[]): ColumnMap | null {
   };
 }
 
+/** Column positions for a file without a recognisable header row. */
+function positionalColumns(rows: any[][]): ColumnMap {
+  const maxCols = Math.max(...rows.slice(0, 10).map((r) => r?.length || 0));
+  const [date, amount, desc] = maxCols >= 8 ? [2, 6, 7] : [0, 1, 2];
+  return {
+    date, amount, debit: -1, credit: -1, sign: -1, iban: -1, type: -1, name: -1,
+    memos: [desc], legacyDesc: desc,
+  };
+}
+
+function readAmount(row: any[], cols: ColumnMap): number | null {
+  const fee = cols.fee !== undefined ? parseLocaleAmount(row[cols.fee])?.magnitude ?? 0 : 0;
+
+  if (cols.direction !== undefined) {
+    const direction = cleanCell(row[cols.direction]).toUpperCase();
+    if (direction === 'OUT') {
+      const sent = parseLocaleAmount(row[cols.amount]);
+      return sent ? -(sent.magnitude + fee) : null;
+    }
+    if (direction === 'IN') {
+      const received = parseLocaleAmount(row[cols.amountIn ?? cols.amount]);
+      return received ? received.magnitude : null;
+    }
+    // Anything else is a conversion between the user's own balances.
+    return null;
+  }
+
+  if (cols.amount !== -1) {
+    const amountResult = parseLocaleAmount(row[cols.amount]);
+    if (!amountResult) return null;
+    const isDebit =
+      amountResult.isNegative || (cols.sign !== -1 && DEBIT_MARK.test(cleanCell(row[cols.sign])));
+    return (isDebit ? -amountResult.magnitude : amountResult.magnitude) - fee;
+  }
+
+  const debit = parseLocaleAmount(row[cols.debit]);
+  const credit = parseLocaleAmount(row[cols.credit]);
+  if (!debit && !credit) return null;
+  return (credit?.magnitude ?? 0) - (debit?.magnitude ?? 0);
+}
+
+interface RowReading {
+  date: { iso: string; ambiguous: boolean };
+  amount: number;
+  name: string;
+  memo: string;
+  description: string;
+  legacyDesc: string;
+}
+
+/** One statement row read through a column map, or `null` when it is not a transaction. */
+function readRow(row: any[], cols: ColumnMap): RowReading | null {
+  const rawDate = row[cols.date];
+  if (rawDate === undefined) return null;
+
+  const cleanedHeaderCheck = String(rawDate).replace(/[\"\\]/g, '').trim();
+  if (DATE_HEADER.test(cleanedHeaderCheck) || AMOUNT_HEADER.test(cleanedHeaderCheck)) return null;
+
+  if (cols.status !== undefined && cols.keepStatus) {
+    const status = cleanCell(row[cols.status]);
+    if (status && !cols.keepStatus.test(status)) return null;
+  }
+
+  const signedAmount = readAmount(row, cols);
+  if (signedAmount === null) return null;
+  const amount = Number(signedAmount.toFixed(2));
+
+  const date = resolveDate(rawDate, cols.dayFirst);
+  if (!date) return null;
+
+  const memoCells = cols.memos.map((idx) => cleanCell(row[idx])).filter(Boolean);
+  const sideColumns = amount < 0 ? cols.nameOut : cols.nameIn;
+  // Columns in file order, or the counterparty of this row's side in front of the memo.
+  const textColumns = sideColumns
+    ? [sideColumns.find((idx) => cleanCell(row[idx])) ?? -1, ...cols.memos]
+    : [cols.name, ...cols.memos].sort((a, b) => a - b);
+
+  let name = cleanCell(row[sideColumns ? textColumns[0] : cols.name]);
+  if (!name && cols.nameFromMemo) {
+    for (const memo of memoCells) {
+      name = memo.match(cols.nameFromMemo)?.[1]?.trim() ?? '';
+      if (name) break;
+    }
+  }
+
+  const texts: string[] = [];
+  for (const idx of textColumns) {
+    const text = idx === -1 ? '' : cleanCell(row[idx]);
+    if (text && !texts.some((t) => t.toUpperCase() === text.toUpperCase())) texts.push(text);
+  }
+
+  return {
+    date,
+    amount,
+    name,
+    memo: memoCells.join(' '),
+    description: texts.join(' '),
+    legacyDesc: cleanCell(row[cols.legacyDesc]),
+  };
+}
+
 function parseMatrixData(
   rows: any[][],
   customRules: CategoryRule[] = [],
   learned?: LearnedCategories
-): ParsedTransaction[] {
-  if (!rows || rows.length === 0) return [];
+): ParsedStatement {
+  if (!rows || rows.length === 0) return { transactions: [], bank: null };
 
   let cols: ColumnMap | null = null;
+  // What the header guess of earlier versions made of a bank's file, to recognise rows they stored.
+  let previousCols: ColumnMap | null = null;
+  let bank: BankId | null = null;
   let startRowIndex = 0;
 
-  for (let r = 0; r < Math.min(rows.length, 20); r++) {
+  const headerRows = Math.min(rows.length, 20);
+  const genericCells = (r: number) =>
     // Header cells are short labels; long cells are data or preamble text.
-    const rowCells = Array.from(rows[r] || [], (c) => {
+    Array.from(rows[r] || [], (c) => {
       const cell = String(c ?? '').replace(/[\"\\]/g, '').toLowerCase().replace(/\u0307/g, '').trim();
       return cell.length <= 40 ? cell : '';
     });
 
-    cols = detectColumns(rowCells);
-    if (cols) {
+  for (let r = 0; r < headerRows; r++) {
+    const detected = detectBankFormat(Array.from(rows[r] || [], normalizeHeaderCell));
+    if (detected) {
+      previousCols = detectColumns(genericCells(r)) ?? positionalColumns(rows);
+      cols = { ...detected.columns, legacyDesc: previousCols.legacyDesc };
+      bank = detected.bank;
       startRowIndex = r + 1;
       break;
     }
   }
 
-  if (!cols) {
-    const maxCols = Math.max(...rows.slice(0, 10).map((r) => r?.length || 0));
-    const [date, amount, desc] = maxCols >= 8 ? [2, 6, 7] : [0, 1, 2];
-    cols = {
-      date, amount, debit: -1, credit: -1, sign: -1, iban: -1, type: -1, name: -1,
-      memos: [desc], legacyDesc: desc,
-    };
+  for (let r = 0; !cols && r < headerRows; r++) {
+    cols = detectColumns(genericCells(r));
+    if (cols) startRowIndex = r + 1;
   }
 
-  const textColumns = [cols.name, ...cols.memos].filter((idx) => idx !== -1).sort((a, b) => a - b);
+  if (!cols) {
+    const headerless = detectHeaderlessBank(rows);
+    cols = headerless?.columns ?? positionalColumns(rows);
+    bank = headerless?.bank ?? null;
+  }
+
   const transactions: ParsedTransaction[] = [];
 
   for (let i = startRowIndex; i < rows.length; i++) {
     const row = rows[i];
     if (!row || row.length === 0) continue;
 
-    const rawDate = row[cols.date];
-    if (rawDate === undefined) continue;
+    const reading = readRow(row, cols);
+    if (!reading) continue;
 
-    const cleanedHeaderCheck = String(rawDate).replace(/[\"\\]/g, '').trim();
-    if (DATE_HEADER.test(cleanedHeaderCheck) || AMOUNT_HEADER.test(cleanedHeaderCheck)) continue;
+    const { amount, name } = reading;
+    const originalDesc = reading.description;
+    const dateResult = reading.date;
 
-    let signedAmount: number;
-    if (cols.amount !== -1) {
-      const amountResult = parseLocaleAmount(row[cols.amount]);
-      if (!amountResult) continue;
-      const isDebit =
-        amountResult.isNegative || (cols.sign !== -1 && DEBIT_MARK.test(cleanCell(row[cols.sign])));
-      signedAmount = isDebit ? -amountResult.magnitude : amountResult.magnitude;
-    } else {
-      const debit = parseLocaleAmount(row[cols.debit]);
-      const credit = parseLocaleAmount(row[cols.credit]);
-      if (!debit && !credit) continue;
-      signedAmount = (credit?.magnitude ?? 0) - (debit?.magnitude ?? 0);
+    const previous = previousCols ? readRow(row, previousCols) : null;
+    const previousKeys: PreviousKey[] = [];
+    if (
+      previous &&
+      (previous.amount !== amount ||
+        previous.description !== originalDesc ||
+        previous.date.iso !== dateResult.iso)
+    ) {
+      for (const rawDescription of new Set([previous.description, previous.legacyDesc])) {
+        previousKeys.push({ date: previous.date.iso, amount: previous.amount, rawDescription });
+      }
     }
-
-    const dateResult = resolveDate(rawDate);
-    if (!dateResult) continue;
-
-    const name = cols.name !== -1 ? cleanCell(row[cols.name]) : '';
-    const texts: string[] = [];
-    for (const idx of textColumns) {
-      const text = cleanCell(row[idx]);
-      if (text && !texts.some((t) => t.toUpperCase() === text.toUpperCase())) texts.push(text);
-    }
-    const originalDesc = texts.join(' ');
-    const legacyDesc = cleanCell(row[cols.legacyDesc]);
 
     const monthName = dateResult.iso.substring(0, 7);
-    const amount = Number(signedAmount.toFixed(2));
-    const bank = extractBankDetails(originalDesc, {
+    const bankDetails = extractBankDetails(originalDesc, {
       iban: cols.iban !== -1 ? row[cols.iban] : undefined,
       type: cols.type !== -1 ? row[cols.type] : undefined,
     });
     const merchant = deriveMerchant({
       description: originalDesc,
       name,
-      memo: cols.memos.map((idx) => cleanCell(row[idx])).filter(Boolean).join(' '),
-      txType: bank.txType,
+      memo: reading.memo,
+      txType: bankDetails.txType,
     });
     const category = classifyTransaction({ merchant, rawDescription: originalDesc }, customRules, {
-      iban: bank.counterpartyIban,
+      iban: bankDetails.counterpartyIban,
       amount,
       learned,
     });
@@ -744,26 +849,28 @@ function parseMatrixData(
       date: dateResult.iso,
       amount,
       rawDescription: originalDesc,
-      legacyRawDescription: legacyDesc,
+      legacyRawDescription: reading.legacyDesc,
+      ...(previousKeys.length > 0 ? { previousKeys } : {}),
       merchant,
       category,
       monthName,
-      counterpartyIban: bank.counterpartyIban,
-      txType: bank.txType,
+      counterpartyIban: bankDetails.counterpartyIban,
+      txType: bankDetails.txType,
       isZeroFlagged: amount === 0 ? 1 : 0,
       dateAmbiguous: dateResult.ambiguous ? 1 : 0,
     });
   }
 
-  return transactions;
+  return { transactions, bank };
 }
 
 export function parseExcelContent(
   fileData: ArrayBuffer | string,
   customRules: CategoryRule[] = [],
   learned?: LearnedCategories
-): ParsedTransaction[] {
-  if (!fileData) return [];
+): ParsedStatement {
+  const empty: ParsedStatement = { transactions: [], bank: null };
+  if (!fileData) return empty;
 
   let workbook: XLSX.WorkBook | null = null;
 
@@ -781,13 +888,13 @@ export function parseExcelContent(
     }
   } catch (e) {
     console.error('Failed to parse Excel workbook:', e);
-    return [];
+    return empty;
   }
 
-  if (!workbook || !workbook.SheetNames || workbook.SheetNames.length === 0) return [];
+  if (!workbook || !workbook.SheetNames || workbook.SheetNames.length === 0) return empty;
 
   const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-  if (!worksheet) return [];
+  if (!worksheet) return empty;
 
   const rawMatrixRows = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1, raw: true });
   return parseMatrixData(rawMatrixRows, customRules, learned);
@@ -797,8 +904,8 @@ export function parseCSVContent(
   csvText: string,
   customRules: CategoryRule[] = [],
   learned?: LearnedCategories
-): ParsedTransaction[] {
-  if (!csvText) return [];
+): ParsedStatement {
+  if (!csvText) return { transactions: [], bank: null };
 
   let cleaned = csvText
     .replace(/[\uFEFF\uFFFD\0]/g, '')
