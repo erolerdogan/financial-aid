@@ -78,7 +78,7 @@ npm run site       # writes site-dist/
 ### Home
 
 - Total income, total expenses and net cash flow for the selected period.
-- Spending allocation chart by category, with budget progress per category when a single month is selected. The chart is a donut by default; Settings → Spending Chart switches it to bars, one stacked bar or a treemap, where tapping a bar or tile expands that category.
+- Spending allocation chart by category, with budget progress per category when a single month is selected. The chart is a donut by default; the chart icon in the card header steps through bars, one stacked bar and a treemap, where tapping a bar or tile expands that category. The choice is remembered.
 - Tapping income or expenses opens a bottom sheet with those transactions (fixed vs. flexible split, search, fixed/flexible and category filters).
 - Tapping a category in the allocation card expands its transactions inline; tapping one opens its detail.
 - Debts summary card.
@@ -181,7 +181,6 @@ npm run site       # writes site-dist/
 - Currency: EUR, USD, GBP, JPY, CHF, CAD or AUD. Switching currency converts existing amounts using fixed built-in rates.
 - Language: English, Dutch, German, Turkish, Spanish, French, Italian, Portuguese and Russian. The app follows the device language until you pick one in Settings → Language; the choice is remembered. Built-in category names, numbers, dates and reminder notifications follow the language. Translations have not been reviewed by native speakers yet.
 - Six colour themes (Aurora, Midnight Gold, Sunset, Forest Mint, Orchid, Classic; Classic is the default) with gradient accents, each in light and dark; the choice is remembered. Dark mode follows the system until you toggle it.
-- Spending chart: donut, bars, stacked bar or treemap for the allocation card on Home; the choice is remembered.
 - Import reminders: local notifications on the 15th and 28th of each month. Importing a statement cancels the pending reminders.
 - Reset all data and profiles.
 

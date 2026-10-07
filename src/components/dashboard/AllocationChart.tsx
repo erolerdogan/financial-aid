@@ -1,15 +1,24 @@
 import { getCategoryColor } from '@/constants/colors';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
-import { useTheme } from '@/contexts/ThemeContext';
+import { ALLOCATION_CHART_TYPES, AllocationChartType, useTheme } from '@/contexts/ThemeContext';
 import { CategoryTotal, Transaction } from '@/db/database';
+import type { TranslationKey } from '@/i18n';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import React, { useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { G, Path } from 'react-native-svg';
 import { ColumnsChart } from './allocation/ColumnsChart';
 import { StackedChart } from './allocation/StackedChart';
 import { TreemapChart } from './allocation/TreemapChart';
+
+const CHART_OPTIONS: Record<AllocationChartType, { label: TranslationKey; icon: keyof typeof Ionicons.glyphMap }> = {
+  donut: { label: 'chart.donut', icon: 'pie-chart-outline' },
+  bars: { label: 'chart.bars', icon: 'bar-chart-outline' },
+  stacked: { label: 'chart.stacked', icon: 'remove-outline' },
+  treemap: { label: 'chart.treemap', icon: 'grid-outline' },
+};
 
 interface AllocationChartProps {
   categoryData: CategoryTotal[];
@@ -34,7 +43,7 @@ export function AllocationChart({
   onSelectTransaction,
   onOpenBudgets,
 }: AllocationChartProps) {
-  const { colors, allocationChart } = useTheme();
+  const { colors, allocationChart, setAllocationChart } = useTheme();
   const { currencySymbol } = useProfile();
   const { t, format, categoryName } = useI18n();
   const [showAllCategories, setShowAllCategories] = useState(false);
@@ -52,6 +61,12 @@ export function AllocationChart({
 
   let accumulatedPercentage = 0;
 
+  const handleNextChart = () => {
+    Haptics.selectionAsync().catch(() => {});
+    const index = ALLOCATION_CHART_TYPES.indexOf(allocationChart);
+    setAllocationChart(ALLOCATION_CHART_TYPES[(index + 1) % ALLOCATION_CHART_TYPES.length]);
+  };
+
   const chartProps = {
     items: displayedCategories,
     total: totalSpending,
@@ -64,9 +79,21 @@ export function AllocationChart({
       {/* Header */}
       <View style={styles.chartHeaderRow}>
         <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('home.allocation')}</Text>
-        <TouchableOpacity activeOpacity={0.7} onPress={onOpenBudgets} hitSlop={8}>
-          <Text style={[styles.resetFilterText, { color: colors.accent }]}>{t('settings.budgets')}</Text>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={[styles.chartTypeBtn, { backgroundColor: colors.tintBackground }]}
+            activeOpacity={0.7}
+            onPress={handleNextChart}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={t('home.chartTypeA11y', { name: t(CHART_OPTIONS[allocationChart].label) })}
+          >
+            <Ionicons name={CHART_OPTIONS[allocationChart].icon} size={15} color={colors.accent} />
+          </TouchableOpacity>
+          <TouchableOpacity activeOpacity={0.7} onPress={onOpenBudgets} hitSlop={8}>
+            <Text style={[styles.resetFilterText, { color: colors.accent }]}>{t('settings.budgets')}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {allocationChart !== 'donut' && (
@@ -279,6 +306,14 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   sectionTitle: { fontSize: 16, fontWeight: '600' },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  chartTypeBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   resetFilterText: { fontSize: 12, fontWeight: '600' },
 
   centerChartWrapper: {
