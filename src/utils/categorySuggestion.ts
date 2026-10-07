@@ -1,3 +1,4 @@
+import type { Message } from '@/i18n';
 import { buildMerchantProfiles, type FixedCostRow } from '@/utils/fixedCost';
 import { isGenericMerchant, looksLikeCode } from '@/utils/merchantName';
 import {
@@ -10,7 +11,7 @@ import {
 export interface CategorySuggestion {
   category: string;
   /** Short explanation shown next to the suggestion. */
-  reason: string;
+  reason: Message;
 }
 
 /** A merchant that already has a real category, with how many transactions carry it. */
@@ -82,7 +83,7 @@ function similarMerchant(title: string, index: MerchantIndex): CategorySuggestio
   const example = bucket
     .filter((entry) => entry.category === category)
     .sort((a, b) => b.count - a.count)[0];
-  return { category, reason: `Like ${example.merchant}` };
+  return { category, reason: { key: 'suggest.like', params: { merchant: example.merchant } } };
 }
 
 /**
@@ -97,19 +98,19 @@ export function suggestCategory(
   const amount = group.rows[0]?.amount ?? -1;
 
   const learnt = lookupLearnedCategory(context.learned, { merchant: group.title, iban: group.iban, amount });
-  if (learnt) return { category: learnt, reason: 'You chose this before' };
+  if (learnt) return { category: learnt, reason: { key: 'suggest.learned' } };
 
   const similar = similarMerchant(group.title, context.index);
   if (similar) return similar;
 
   const mention = matchKeywords(group.sample, { allowNameOnly: true });
-  if (mention) return { category: mention.category, reason: `Mentions "${mention.keyword.toLowerCase()}"` };
+  if (mention) return { category: mention.category, reason: { key: 'suggest.mentions', params: { keyword: mention.keyword.toLowerCase() } } };
 
   const allDirectDebit = group.rows.length > 0 && group.rows.every((row) => row.txType === 'DIRECT_DEBIT');
   if (allDirectDebit) {
     for (const profile of buildMerchantProfiles(group.rows).values()) {
       if (profile.cadence === 'MONTHLY') {
-        return { category: 'Utilities & Telecom', reason: 'Monthly direct debit' };
+        return { category: 'Utilities & Telecom', reason: { key: 'suggest.directDebit' } };
       }
     }
   }

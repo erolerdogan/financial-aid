@@ -1,4 +1,5 @@
 import { ImportResultProvider } from '@/contexts/ImportResultContext';
+import { LanguageProvider } from '@/contexts/LanguageContext';
 import { PeriodProvider } from '@/contexts/PeriodContext';
 import { ProfileProvider, useProfile } from '@/contexts/ProfileContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
@@ -89,15 +90,17 @@ export default function RootLayout() {
     <GestureHandlerRootView style={styles.root}>
       <Suspense fallback={null}>
         <SQLiteProvider databaseName="financial_aid.db" onInit={initDatabase} useSuspense>
-          <ThemeProvider>
-            <ProfileProvider>
-              <PeriodProvider>
-                <ImportResultProvider>
-                  <AppInitializer />
-                </ImportResultProvider>
-              </PeriodProvider>
-            </ProfileProvider>
-          </ThemeProvider>
+          <LanguageProvider>
+            <ThemeProvider>
+              <ProfileProvider>
+                <PeriodProvider>
+                  <ImportResultProvider>
+                    <AppInitializer />
+                  </ImportResultProvider>
+                </PeriodProvider>
+              </ProfileProvider>
+            </ThemeProvider>
+          </LanguageProvider>
         </SQLiteProvider>
       </Suspense>
     </GestureHandlerRootView>

@@ -50,7 +50,16 @@
         }
       ],
       "expo-sqlite",
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-localization",
+        {
+          "supportedLocales": {
+            "ios": ["en", "nl", "de", "tr", "es", "fr", "it", "pt-BR", "ru"],
+            "android": ["en", "nl", "de", "tr", "es", "fr", "it", "pt-BR", "ru"]
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

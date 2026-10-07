@@ -1,4 +1,6 @@
 import { getCategoryColor } from '@/constants/colors';
+import { useI18n } from '@/contexts/LanguageContext';
+import { useBlockTabSwipe } from '@/contexts/TabSwipeContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import * as Haptics from 'expo-haptics';
 import React from 'react';
@@ -12,13 +14,16 @@ interface CategoryFilterBarProps {
 
 export function CategoryFilterBar({ categories, selected, onSelect }: CategoryFilterBarProps) {
   const { colors } = useTheme();
+  const { t, categoryName } = useI18n();
   const options = ['All', ...categories];
+  const blockTabSwipe = useBlockTabSwipe();
 
   return (
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
+      onTouchStart={blockTabSwipe}
       contentContainerStyle={styles.container}
     >
       {options.map((cat) => {
@@ -42,7 +47,7 @@ export function CategoryFilterBar({ categories, selected, onSelect }: CategoryFi
           >
             <View style={[styles.dot, { backgroundColor: isActive ? '#FFFFFF' : tint }]} />
             <Text style={[styles.chipText, { color: isActive ? '#FFFFFF' : colors.text }]}>
-              {cat}
+              {cat === 'All' ? t('common.all') : categoryName(cat)}
             </Text>
           </TouchableOpacity>
         );

@@ -1,9 +1,11 @@
 import { BackupRestoreModal } from '@/components/modals/BackupRestoreModal';
 import { ProfileSwitcherModal } from '@/components/ProfileSwitcherModal';
 import { ImportSummaryHost } from '@/contexts/ImportResultContext';
+import { useI18n } from '@/contexts/LanguageContext';
 import { CURRENCY_SYMBOLS, useProfile } from '@/contexts/ProfileContext';
 import { THEMES, useTheme } from '@/contexts/ThemeContext';
 import { clearAllData } from '@/db/database';
+import { LANGUAGES, LanguageCode } from '@/i18n';
 import { useStatementImporter } from '@/hooks/useStatementImporter';
 import {
   cancelCurrentMonthReminders,
@@ -29,19 +31,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const AVAILABLE_CURRENCIES = [
-  { code: 'EUR', label: 'Euro (€)' },
-  { code: 'USD', label: 'US Dollar ($)' },
-  { code: 'GBP', label: 'British Pound (£)' },
-  { code: 'JPY', label: 'Japanese Yen (¥)' },
-  { code: 'CAD', label: 'Canadian Dollar (CA$)' },
-  { code: 'AUD', label: 'Australian Dollar (A$)' },
-  { code: 'CHF', label: 'Swiss Franc (CHF)' },
-];
+const AVAILABLE_CURRENCIES = ['EUR', 'USD', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF'] as const;
 
 export default function SettingsScreen() {
   const { activeProfile, updateCurrency, refreshProfiles } = useProfile();
   const { isDark, toggleTheme, colors, themeName, setThemeName } = useTheme();
+  const { t, language, storedLanguage, setLanguage } = useI18n();
   const router = useRouter();
   const db = useSQLiteContext();
 
@@ -49,12 +44,25 @@ export default function SettingsScreen() {
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [currencyModalVisible, setCurrencyModalVisible] = useState(false);
   const [backupModalVisible, setBackupModalVisible] = useState(false);
+  const [languageModalVisible, setLanguageModalVisible] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
   const { importStatement, importing } = useStatementImporter();
 
   const activeCurrencyCode = activeProfile?.currency || 'EUR';
   const activeCurrencySymbol = CURRENCY_SYMBOLS[activeCurrencyCode] || '€';
+
+  const activeLanguageLabel = LANGUAGES.find((item) => item.code === language)?.label ?? '';
+  const languageOptions: { code: LanguageCode | null; label: string }[] = [
+    { code: null, label: t('settings.languageSystem') },
+    ...LANGUAGES,
+  ];
+
+  const handleSelectLanguage = (code: LanguageCode | null) => {
+    Haptics.selectionAsync();
+    setLanguage(code);
+    setLanguageModalVisible(false);
+  };
 
   const handleSelectCurrency = (newCurrencyCode: string) => {
     if (newCurrencyCode === activeCurrencyCode) {
@@ -63,12 +71,16 @@ export default function SettingsScreen() {
     }
 
     Alert.alert(
-      'Switch Currency',
-      `Convert all transaction amounts and update the display symbol from ${activeCurrencyCode} (${activeCurrencySymbol}) to ${newCurrencyCode}?`,
+      t('settings.switchCurrencyTitle'),
+      t('settings.switchCurrencyMessage', {
+        from: activeCurrencyCode,
+        symbol: activeCurrencySymbol,
+        to: newCurrencyCode,
+      }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Convert & Update Symbol',
+          text: t('settings.switchCurrencyConfirm'),
           onPress: async () => {
             await updateCurrency(newCurrencyCode);
             setCurrencyModalVisible(false);
@@ -80,12 +92,12 @@ export default function SettingsScreen() {
 
   const handleResetDatabase = () => {
     Alert.alert(
-      'Reset All Data & Profiles',
-      'Are you sure you want to delete all profiles, transactions, and settings? This will completely reset the app to a clean state.',
+      t('settings.resetTitle'),
+      t('settings.resetMessage'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Reset Everything',
+          text: t('settings.resetConfirm'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -96,7 +108,7 @@ export default function SettingsScreen() {
               router.replace('/welcome');
             } catch (error) {
               console.error('Reset error:', error);
-              Alert.alert('Error', 'Failed to clear database.');
+              Alert.alert(t('common.error'), t('settings.resetFailed'));
             } finally {
               setLoading(false);
             }
@@ -110,17 +122,17 @@ export default function SettingsScreen() {
     setNotificationsEnabled(value);
     if (value) {
       await requestAndScheduleImportReminders();
-      Alert.alert('Notifications Enabled', 'Scheduled reminders for the 1st, 15th, and 28th are active.');
+      Alert.alert(t('settings.notificationsOnTitle'), t('settings.notificationsOnMessage'));
     } else {
       await cancelCurrentMonthReminders();
-      Alert.alert('Notifications Disabled', 'All upcoming statement import reminders have been canceled.');
+      Alert.alert(t('settings.notificationsOffTitle'), t('settings.notificationsOffMessage'));
     }
   };
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top']}>
       <View style={[styles.headerRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Settings</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>{t('settings.title')}</Text>
         <TouchableOpacity
           style={[styles.closeBtn, { backgroundColor: colors.background }]}
           onPress={() => router.back()}
@@ -131,7 +143,7 @@ export default function SettingsScreen() {
 
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         {/* PROFILES SECTION */}
-        <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>PROFILES</Text>
+        <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>{t('settings.profiles')}</Text>
         <View style={[styles.cardGroup, { backgroundColor: colors.card }]}>
           <TouchableOpacity
             style={styles.rowItem}
@@ -151,22 +163,22 @@ export default function SettingsScreen() {
               </View>
               <View>
                 <Text style={[styles.rowTitle, { color: colors.text }]}>
-                  {activeProfile?.name || 'Personal'}
+                  {activeProfile?.name || t('profile.defaultName')}
                 </Text>
                 <Text style={[styles.rowSub, { color: colors.textSecondary }]}>
-                  Active Account Profile
+                  {t('settings.activeProfile')}
                 </Text>
               </View>
             </View>
             <View style={styles.rowRight}>
-              <Text style={[styles.actionBadgeText, { color: colors.accent }]}>Switch</Text>
+              <Text style={[styles.actionBadgeText, { color: colors.accent }]}>{t('settings.switch')}</Text>
               <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
             </View>
           </TouchableOpacity>
         </View>
 
         {/* DATA & STORAGE SECTION */}
-        <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>DATA & STORAGE</Text>
+        <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>{t('settings.data')}</Text>
         <View style={[styles.cardGroup, { backgroundColor: colors.card }]}>
           <TouchableOpacity
             style={styles.rowItem}
@@ -178,7 +190,7 @@ export default function SettingsScreen() {
               <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
                 <Ionicons name="document-text-outline" size={18} color={colors.accent} />
               </View>
-              <Text style={[styles.rowTitle, { color: colors.text }]}>Import Bank Statement</Text>
+              <Text style={[styles.rowTitle, { color: colors.text }]}>{t('settings.import')}</Text>
             </View>
             {importing ? (
               <ActivityIndicator size="small" color={colors.accent} />
@@ -199,7 +211,7 @@ export default function SettingsScreen() {
               <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
                 <Ionicons name="shield-checkmark-outline" size={18} color={colors.accent} />
               </View>
-              <Text style={[styles.rowTitle, { color: colors.text }]}>Backup & Restore</Text>
+              <Text style={[styles.rowTitle, { color: colors.text }]}>{t('settings.backup')}</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
           </TouchableOpacity>
@@ -217,7 +229,7 @@ export default function SettingsScreen() {
                 <Ionicons name="trash-outline" size={18} color="#FF3B30" />
               </View>
               <Text style={[styles.rowTitle, { color: '#FF3B30' }]}>
-                Reset Profile Database
+                {t('settings.reset')}
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
@@ -225,7 +237,7 @@ export default function SettingsScreen() {
         </View>
 
         {/* PREFERENCES SECTION */}
-        <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>PREFERENCES</Text>
+        <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>{t('settings.preferences')}</Text>
         <View style={[styles.cardGroup, { backgroundColor: colors.card }]}>
           {/* CURRENCY SELECTION ROW */}
           <TouchableOpacity
@@ -238,7 +250,7 @@ export default function SettingsScreen() {
                 <Ionicons name="cash-outline" size={18} color={colors.accent} />
               </View>
               <View>
-                <Text style={[styles.rowTitle, { color: colors.text }]}>Currency</Text>
+                <Text style={[styles.rowTitle, { color: colors.text }]}>{t('settings.currency')}</Text>
                 <Text style={[styles.rowSub, { color: colors.textSecondary }]}>
                   {activeCurrencyCode} ({activeCurrencySymbol})
                 </Text>
@@ -248,6 +260,31 @@ export default function SettingsScreen() {
               <Text style={[styles.actionBadgeText, { color: colors.accent }]}>
                 {activeCurrencyCode}
               </Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+            </View>
+          </TouchableOpacity>
+
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+          {/* LANGUAGE SELECTION ROW */}
+          <TouchableOpacity
+            style={styles.rowItem}
+            activeOpacity={0.7}
+            onPress={() => setLanguageModalVisible(true)}
+          >
+            <View style={styles.rowLeft}>
+              <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
+                <Ionicons name="language-outline" size={18} color={colors.accent} />
+              </View>
+              <View>
+                <Text style={[styles.rowTitle, { color: colors.text }]}>{t('settings.language')}</Text>
+                <Text style={[styles.rowSub, { color: colors.textSecondary }]}>
+                  {storedLanguage ? activeLanguageLabel : t('settings.languageSystem')}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.rowRight}>
+              <Text style={[styles.actionBadgeText, { color: colors.accent }]}>{activeLanguageLabel}</Text>
               <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
             </View>
           </TouchableOpacity>
@@ -264,7 +301,7 @@ export default function SettingsScreen() {
               <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
                 <Ionicons name="pricetags-outline" size={18} color={colors.accent} />
               </View>
-              <Text style={[styles.rowTitle, { color: colors.text }]}>Categories</Text>
+              <Text style={[styles.rowTitle, { color: colors.text }]}>{t('settings.categories')}</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
           </TouchableOpacity>
@@ -280,14 +317,14 @@ export default function SettingsScreen() {
               <View style={[styles.iconCircle, { backgroundColor: '#EAF8E6' }]}>
                 <Ionicons name="disc-outline" size={18} color="#34C759" />
               </View>
-              <Text style={[styles.rowTitle, { color: colors.text }]}>Budgets</Text>
+              <Text style={[styles.rowTitle, { color: colors.text }]}>{t('settings.budgets')}</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
         {/* NOTIFICATIONS SECTION */}
-        <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>NOTIFICATIONS</Text>
+        <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>{t('settings.notifications')}</Text>
         <View style={[styles.cardGroup, { backgroundColor: colors.card }]}>
           <View style={styles.rowItem}>
             <View style={styles.rowLeft}>
@@ -295,9 +332,9 @@ export default function SettingsScreen() {
                 <Ionicons name="notifications-outline" size={18} color={colors.accent} />
               </View>
               <View>
-                <Text style={[styles.rowTitle, { color: colors.text }]}>Import Reminders</Text>
+                <Text style={[styles.rowTitle, { color: colors.text }]}>{t('settings.importReminders')}</Text>
                 <Text style={[styles.rowSub, { color: colors.textSecondary }]}>
-                  Monthly alerts on 1st, 15th, 28th
+                  {t('settings.importRemindersSub')}
                 </Text>
               </View>
             </View>
@@ -312,7 +349,7 @@ export default function SettingsScreen() {
         </View>
 
         {/* APPEARANCE SECTION */}
-        <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>APPEARANCE</Text>
+        <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>{t('settings.appearance')}</Text>
         <View style={[styles.cardGroup, { backgroundColor: colors.card }]}>
           <ScrollView
             horizontal
@@ -328,7 +365,7 @@ export default function SettingsScreen() {
                   style={styles.themeOption}
                   activeOpacity={0.8}
                   accessibilityRole="button"
-                  accessibilityLabel={`${theme.label} theme`}
+                  accessibilityLabel={t('settings.themeLabel', { name: theme.label })}
                   accessibilityState={{ selected }}
                   onPress={() => {
                     Haptics.selectionAsync();
@@ -364,7 +401,7 @@ export default function SettingsScreen() {
               <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
                 <Ionicons name={isDark ? 'moon' : 'sunny'} size={18} color={colors.accent} />
               </View>
-              <Text style={[styles.rowTitle, { color: colors.text }]}>Dark Mode</Text>
+              <Text style={[styles.rowTitle, { color: colors.text }]}>{t('settings.darkMode')}</Text>
             </View>
             <Switch
               value={isDark}
@@ -401,20 +438,20 @@ export default function SettingsScreen() {
             <View style={[styles.sheetContainer, { backgroundColor: colors.card }]}>
               <View style={styles.sheetHeader}>
                 <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
-                <Text style={[styles.sheetTitle, { color: colors.text }]}>Select Currency</Text>
+                <Text style={[styles.sheetTitle, { color: colors.text }]}>{t('settings.selectCurrency')}</Text>
               </View>
               <ScrollView style={{ maxHeight: 320 }}>
-                {AVAILABLE_CURRENCIES.map((curr) => {
-                  const isSelected = activeCurrencyCode === curr.code;
+                {AVAILABLE_CURRENCIES.map((code) => {
+                  const isSelected = activeCurrencyCode === code;
                   return (
                     <TouchableOpacity
-                      key={curr.code}
+                      key={code}
                       style={[
                         styles.sheetItem,
                         { borderBottomColor: colors.border },
                         isSelected && { backgroundColor: colors.tintBackground },
                       ]}
-                      onPress={() => handleSelectCurrency(curr.code)}
+                      onPress={() => handleSelectCurrency(code)}
                     >
                       <Text
                         style={[
@@ -423,7 +460,54 @@ export default function SettingsScreen() {
                           isSelected && { fontWeight: '700', color: colors.accent },
                         ]}
                       >
-                        {curr.label}
+                        {t(`currency.${code}`)}
+                      </Text>
+                      {isSelected && <Ionicons name="checkmark-circle" size={20} color={colors.accent} />}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          </TouchableWithoutFeedback>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Language Picker Sheet Modal */}
+      <Modal visible={languageModalVisible} transparent animationType="slide">
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setLanguageModalVisible(false)}
+        >
+          <TouchableWithoutFeedback>
+            <View style={[styles.sheetContainer, { backgroundColor: colors.card }]}>
+              <View style={styles.sheetHeader}>
+                <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
+                <Text style={[styles.sheetTitle, { color: colors.text }]}>{t('settings.selectLanguage')}</Text>
+              </View>
+              <ScrollView style={{ maxHeight: 420 }}>
+                {languageOptions.map((option) => {
+                  const isSelected = storedLanguage === option.code;
+                  return (
+                    <TouchableOpacity
+                      key={option.code ?? 'system'}
+                      style={[
+                        styles.sheetItem,
+                        { borderBottomColor: colors.border },
+                        isSelected && { backgroundColor: colors.tintBackground },
+                      ]}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: isSelected }}
+                      onPress={() => handleSelectLanguage(option.code)}
+                    >
+                      <Text
+                        style={[
+                          styles.sheetItemText,
+                          { color: colors.text },
+                          isSelected && { fontWeight: '700', color: colors.accent },
+                        ]}
+                      >
+                        {option.label}
                       </Text>
                       {isSelected && <Ionicons name="checkmark-circle" size={20} color={colors.accent} />}
                     </TouchableOpacity>

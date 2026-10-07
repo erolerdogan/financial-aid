@@ -1,22 +1,20 @@
 import type { DebtType } from '@/db/database';
+import type { TranslationKey } from '@/i18n';
 import type { Ionicons } from '@expo/vector-icons';
 import type { ComponentProps } from 'react';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 
-export const DEBT_TYPE_OPTIONS: { key: DebtType; label: string; icon: IconName }[] = [
-  { key: 'LOAN', label: 'Loan', icon: 'cash-outline' },
-  { key: 'MORTGAGE', label: 'Mortgage', icon: 'home-outline' },
-  { key: 'STUDENT', label: 'Student', icon: 'school-outline' },
-  { key: 'PERSONAL', label: 'Personal', icon: 'person-outline' },
-  { key: 'OTHER', label: 'Other', icon: 'ellipsis-horizontal-circle-outline' },
+export const DEBT_TYPE_OPTIONS: { key: DebtType; label: TranslationKey; icon: IconName }[] = [
+  { key: 'LOAN', label: 'debt.type.loan', icon: 'cash-outline' },
+  { key: 'MORTGAGE', label: 'debt.type.mortgage', icon: 'home-outline' },
+  { key: 'STUDENT', label: 'debt.type.student', icon: 'school-outline' },
+  { key: 'PERSONAL', label: 'debt.type.personal', icon: 'person-outline' },
+  { key: 'OTHER', label: 'debt.type.other', icon: 'ellipsis-horizontal-circle-outline' },
 ];
 
 export const getDebtTypeIcon = (type: DebtType): IconName =>
   DEBT_TYPE_OPTIONS.find((o) => o.key === type)?.icon ?? 'cash-outline';
-
-export const getDebtTypeLabel = (type: DebtType): string =>
-  DEBT_TYPE_OPTIONS.find((o) => o.key === type)?.label ?? 'Loan';
 
 export const formatPayoffMonth = (monthKey: string | null): string => {
   if (!monthKey) return '—';
@@ -56,9 +54,9 @@ export const MAX_DEBT_TERM_MONTHS = 600;
 
 export type DebtTermUnit = 'MONTHS' | 'YEARS';
 
-export const DEBT_TERM_UNITS: { key: DebtTermUnit; label: string }[] = [
-  { key: 'MONTHS', label: 'Months' },
-  { key: 'YEARS', label: 'Years' },
+export const DEBT_TERM_UNITS: { key: DebtTermUnit; label: TranslationKey }[] = [
+  { key: 'MONTHS', label: 'debt.term.months' },
+  { key: 'YEARS', label: 'debt.term.years' },
 ];
 
 // Typed term as a number of monthly payments; null when empty, NaN when it is not a whole number of months in range.

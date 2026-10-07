@@ -1,3 +1,4 @@
+import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { ImportResultSummary } from '@/services/importService';
@@ -14,23 +15,9 @@ interface ImportSummaryModalProps {
   onClose: () => void;
 }
 
-const formatDate = (key: string): string => {
-  const [y, m, d] = key.split('-').map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-};
-
-const formatAmount = (value: number): string =>
-  value.toLocaleString(undefined, { maximumFractionDigits: 0 });
-
-const plural = (count: number, singular: string, pluralForm: string): string =>
-  `${count} ${count === 1 ? singular : pluralForm}`;
-
 export function ImportSummaryModal({ visible, summary, profileName, onClose }: ImportSummaryModalProps) {
   const { colors } = useTheme();
+  const { t, format } = useI18n();
   const { currencySymbol } = useProfile();
 
   const hasNewRows = !!summary && summary.insertedCount > 0;
@@ -45,27 +32,22 @@ export function ImportSummaryModal({ visible, summary, profileName, onClose }: I
   if (!summary) return null;
 
   const chipBg = colors.surface;
-  const importedLabel = plural(summary.insertedCount, 'transaction', 'transactions');
 
   const title = !hasNewRows
-    ? 'Nothing new to import'
+    ? t('import.nothingNew')
     : summary.isFirstImport
-    ? "You're all set"
-    : `${importedLabel} imported`;
+    ? t('import.allSet')
+    : t('import.imported', { count: summary.insertedCount });
 
   const dateRange =
     summary.dateFrom && summary.dateTo
-      ? summary.dateFrom === summary.dateTo
-        ? formatDate(summary.dateFrom)
-        : `${formatDate(summary.dateFrom)} – ${formatDate(summary.dateTo)}`
+      ? format.range(summary.dateFrom, summary.dateTo)
       : null;
 
   const subtitle = !hasNewRows
-    ? `All ${plural(summary.totalProcessed, 'transaction', 'transactions')} in this file ${
-        summary.totalProcessed === 1 ? 'is' : 'are'
-      } already in ${profileName}.`
+    ? t('import.allAlready', { count: summary.totalProcessed, profile: profileName })
     : summary.isFirstImport
-    ? `${importedLabel} imported into ${profileName}`
+    ? t('import.importedInto', { count: summary.insertedCount, profile: profileName })
     : profileName;
 
   const notes: { icon: keyof typeof Ionicons.glyphMap; text: string }[] = [];
@@ -73,19 +55,19 @@ export function ImportSummaryModal({ visible, summary, profileName, onClose }: I
     if (summary.ambiguousDateCount > 0) {
       notes.push({
         icon: 'calendar-outline',
-        text: `${plural(summary.ambiguousDateCount, 'date needs', 'dates need')} checking`,
+        text: t('import.datesCheck', { count: summary.ambiguousDateCount }),
       });
     }
     if (summary.skippedCount > 0) {
       notes.push({
         icon: 'copy-outline',
-        text: `${plural(summary.skippedCount, 'duplicate', 'duplicates')} skipped`,
+        text: t('import.duplicates', { count: summary.skippedCount }),
       });
     }
     if (summary.linkedDebtPayments > 0) {
       notes.push({
         icon: 'link-outline',
-        text: `${plural(summary.linkedDebtPayments, 'debt payment', 'debt payments')} linked`,
+        text: t('import.debtLinked', { count: summary.linkedDebtPayments }),
       });
     }
   }
@@ -125,17 +107,15 @@ export function ImportSummaryModal({ visible, summary, profileName, onClose }: I
             {hasNewRows && (
               <View style={styles.statRow}>
                 <View style={[styles.statTile, { backgroundColor: chipBg }]}>
-                  <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Income</Text>
+                  <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{t('category.income')}</Text>
                   <Text style={[styles.statValue, { color: colors.text }]} numberOfLines={1} adjustsFontSizeToFit>
-                    {currencySymbol}
-                    {formatAmount(summary.incomeTotal)}
+                    {format.money(summary.incomeTotal, currencySymbol, { maximumFractionDigits: 0 })}
                   </Text>
                 </View>
                 <View style={[styles.statTile, { backgroundColor: chipBg }]}>
-                  <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Spending</Text>
+                  <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{t('import.spending')}</Text>
                   <Text style={[styles.statValue, { color: colors.text }]} numberOfLines={1} adjustsFontSizeToFit>
-                    {currencySymbol}
-                    {formatAmount(summary.expenseTotal)}
+                    {format.money(summary.expenseTotal, currencySymbol, { maximumFractionDigits: 0 })}
                   </Text>
                 </View>
               </View>
@@ -159,7 +139,7 @@ export function ImportSummaryModal({ visible, summary, profileName, onClose }: I
                   style={[styles.footerBtn, { backgroundColor: chipBg }]}
                   onPress={handleReview}
                 >
-                  <Text style={[styles.footerBtnText, { color: colors.text }]}>Review</Text>
+                  <Text style={[styles.footerBtnText, { color: colors.text }]}>{t('transactions.review')}</Text>
                 </TouchableOpacity>
               )}
               <TouchableOpacity
@@ -168,7 +148,7 @@ export function ImportSummaryModal({ visible, summary, profileName, onClose }: I
                 onPress={handleDone}
               >
                 <Text style={[styles.footerBtnText, { color: '#FFFFFF' }]}>
-                  {hasNewRows && summary.isFirstImport ? 'View Dashboard' : 'Done'}
+                  {hasNewRows && summary.isFirstImport ? t('import.viewDashboard') : t('common.done')}
                 </Text>
               </TouchableOpacity>
             </View>

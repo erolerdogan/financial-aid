@@ -8,6 +8,7 @@ import { DateRangeModal } from '@/components/modals/DateRangeModal';
 import { TransactionDetailModal } from '@/components/modals/TransactionDetailModal';
 import { TransactionListModal } from '@/components/modals/TransactionListModal';
 import { ScreenContainer } from '@/components/ScreenContainer';
+import { useI18n } from '@/contexts/LanguageContext';
 import { usePeriod } from '@/contexts/PeriodContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import {
@@ -32,6 +33,7 @@ import {
   Transaction
 } from '@/db/database';
 import { useStatementImporter } from '@/hooks/useStatementImporter';
+import type { Message, TranslationKey } from '@/i18n';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -60,52 +62,33 @@ const getCurrentMonthKey = (): string => {
   return `${year}-${month}`;
 };
 
-const formatMonthKey = (monthKey: string): string => {
-  const [y, m] = monthKey.split('-').map(Number);
-  if (!y || !m) return monthKey;
-  return new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
-};
-
-const formatRangeLabel = (from: string, to: string): string => {
-  const fmt = (key: string) => {
-    const [y, m, d] = key.split('-').map(Number);
-    return new Date(y, m - 1, d).toLocaleDateString(undefined, {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
-  };
-  return from === to ? fmt(from) : `${fmt(from)} – ${fmt(to)}`;
-};
-
-const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-// '2026-09-01', '2026-09-28' → '1 – 28 Sep'
-const formatCoverageDays = (minDate: string, maxDate: string): string => {
-  const month = SHORT_MONTHS[Number(maxDate.slice(5, 7)) - 1] ?? '';
-  return `${Number(minDate.slice(8, 10))} – ${Number(maxDate.slice(8, 10))} ${month}`;
-};
-
 interface MonthCoverageStatus {
   status: 'IN_PROGRESS' | 'PARTIAL' | 'COMPLETE' | 'EMPTY';
   minDate?: string;
   maxDate?: string;
-  label: string;
 }
+
+const COVERAGE_LABELS: Record<MonthCoverageStatus['status'], TranslationKey | null> = {
+  IN_PROGRESS: 'coverage.inProgress',
+  PARTIAL: 'coverage.partial',
+  COMPLETE: 'coverage.full',
+  EMPTY: null,
+};
 
 type ListType = 'INCOME' | 'EXPENSE' | 'FIXED' | 'FLEXIBLE';
 
-const LIST_TITLES: Record<ListType, string> = {
-  INCOME: 'Income Items',
-  EXPENSE: 'Expenses',
-  FIXED: 'Fixed Transactions',
-  FLEXIBLE: 'Flexible Transactions',
+const LIST_TITLES: Record<ListType, TranslationKey> = {
+  INCOME: 'list.income',
+  EXPENSE: 'list.expense',
+  FIXED: 'list.fixed',
+  FLEXIBLE: 'list.flexible',
 };
 
 export default function DashboardScreen() {
   const router = useRouter();
   const db = useSQLiteContext();
   const { colors } = useTheme();
+  const { t, format, categoryName } = useI18n();
 
   const { activeProfile, dataVersion, refreshProfiles } = useProfile();
   const activeProfileId = activeProfile?.id ?? 1;
@@ -128,7 +111,7 @@ export default function DashboardScreen() {
   const [loadingListModal, setLoadingListModal] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [currentFixedState, setCurrentFixedState] = useState<FixedOverrideState>('AUTO');
-  const [fixedAuto, setFixedAuto] = useState({ autoIsFixed: false, reason: '' });
+  const [fixedAuto, setFixedAuto] = useState<{ autoIsFixed: boolean; reason: Message[] }>({ autoIsFixed: false, reason: [] });
   // False when the detail was opened from an expanded category row instead of the list sheet.
   const [detailFromList, setDetailFromList] = useState(true);
 
@@ -142,7 +125,6 @@ export default function DashboardScreen() {
   const [dateBounds, setDateBounds] = useState<{ minDate: string; maxDate: string } | null>(null);
   const [coverageStatus, setCoverageStatus] = useState<MonthCoverageStatus>({
     status: 'EMPTY',
-    label: '',
   });
 
   // Dashboard Data
@@ -169,16 +151,13 @@ export default function DashboardScreen() {
   const periodNames = useMemo<Record<string, string>>(() => {
     const names: Record<string, string> = {};
     availableMonths.forEach((m) => {
-      names[m] = formatMonthKey(m);
+      names[m] = format.monthYear(m);
     });
     if (rangeFilter) {
-      names[makeRangeKey(rangeFilter.from, rangeFilter.to)] = formatRangeLabel(
-        rangeFilter.from,
-        rangeFilter.to
-      );
+      names[makeRangeKey(rangeFilter.from, rangeFilter.to)] = format.range(rangeFilter.from, rangeFilter.to);
     }
     return names;
-  }, [availableMonths, rangeFilter]);
+  }, [availableMonths, rangeFilter, format]);
 
   const loadDashboardData = useCallback(async () => {
     if (!db) return;
@@ -193,7 +172,7 @@ export default function DashboardScreen() {
       setDateBounds(bounds);
 
       if (dbMonths.length === 0) {
-        setCoverageStatus({ status: 'EMPTY', label: 'Statement Pending' });
+        setCoverageStatus({ status: 'EMPTY' });
         setSummary({ totalIncome: 0, totalExpenses: 0, netSavings: 0 });
         setCategoryData([]);
         return;
@@ -222,9 +201,9 @@ export default function DashboardScreen() {
       setBudgets(goalsRes);
 
       if (activeRange) {
-        setCoverageStatus({ status: 'EMPTY', label: '' });
+        setCoverageStatus({ status: 'EMPTY' });
       } else if (!dateRangeRes || !dateRangeRes.minDate) {
-        setCoverageStatus({ status: 'EMPTY', label: 'Statement Pending' });
+        setCoverageStatus({ status: 'EMPTY' });
       } else {
         const isCurrentMonth = activeMonth === currentMonthKey;
         const maxDay = parseInt(dateRangeRes.maxDate.slice(-2), 10);
@@ -234,21 +213,18 @@ export default function DashboardScreen() {
             status: 'IN_PROGRESS',
             minDate: dateRangeRes.minDate,
             maxDate: dateRangeRes.maxDate,
-            label: `In Progress (${formatCoverageDays(dateRangeRes.minDate, dateRangeRes.maxDate)})`,
           });
         } else if (maxDay < 25) {
           setCoverageStatus({
             status: 'PARTIAL',
             minDate: dateRangeRes.minDate,
             maxDate: dateRangeRes.maxDate,
-            label: `Partial Statement (${formatCoverageDays(dateRangeRes.minDate, dateRangeRes.maxDate)})`,
           });
         } else {
           setCoverageStatus({
             status: 'COMPLETE',
             minDate: dateRangeRes.minDate,
             maxDate: dateRangeRes.maxDate,
-            label: `Full Statement (${formatCoverageDays(dateRangeRes.minDate, dateRangeRes.maxDate)})`,
           });
         }
       }
@@ -445,8 +421,17 @@ export default function DashboardScreen() {
   };
 
   const listModalNames = listModalCategory
-    ? { ...periodNames, [periodKey]: `${listModalCategory} · ${periodNames[periodKey] ?? periodKey}` }
+    ? { ...periodNames, [periodKey]: `${categoryName(listModalCategory)} · ${periodNames[periodKey] ?? periodKey}` }
     : periodNames;
+
+  // '2026-09-01', '2026-09-28' → '1 – 28 Sep'
+  const coverageKey = COVERAGE_LABELS[coverageStatus.status];
+  const coverageLabel =
+    coverageKey && coverageStatus.minDate && coverageStatus.maxDate
+      ? t(coverageKey, {
+          range: `${Number(coverageStatus.minDate.slice(8, 10))} – ${format.day(coverageStatus.maxDate, false)}`,
+        })
+      : '';
 
   const totalTransactions = categoryData.reduce((a, b) => a + (b.count || 0), 0);
 
@@ -466,7 +451,7 @@ export default function DashboardScreen() {
       >
         {/* Top Header Bar */}
         <View style={styles.headerRow}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>Home</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>{t('tabs.home')}</Text>
           <HeaderActions />
         </View>
 
@@ -478,10 +463,10 @@ export default function DashboardScreen() {
                 <Ionicons name="wallet-outline" size={32} color={colors.accent} />
               </View>
               <Text style={[styles.emptyHeroTitle, { color: colors.text }]}>
-                No Transactions in {activeProfile?.name || 'this profile'}
+                {t('home.emptyTitle', { name: activeProfile?.name || t('home.thisProfile') })}
               </Text>
               <Text style={[styles.emptyHeroSubtitle, { color: colors.textSecondary }]}>
-                Your financial data stays 100% private on this device. Import a statement to start tracking your finances.
+                {t('home.emptySubtitle')}
               </Text>
 
               <View style={styles.emptyActionStack}>
@@ -497,7 +482,7 @@ export default function DashboardScreen() {
                     <Ionicons name="download-outline" size={18} color="#FFF" />
                   )}
                   <Text style={styles.primaryImportText}>
-                    {importing ? 'Processing Statement...' : 'Import Bank Statement'}
+                    {importing ? t('welcome.processing') : t('welcome.import')}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -509,7 +494,7 @@ export default function DashboardScreen() {
               selectedMonth={periodKey}
               availableMonths={rangeFilter ? NO_MONTHS : availableMonths}
               monthNames={periodNames}
-              coverageStatus={coverageStatus}
+              coverageStatus={{ ...coverageStatus, label: coverageLabel }}
               onPrevMonth={handlePrevMonth}
               onNextMonth={handleNextMonth}
               onOpenMonthPicker={() => setMonthPickerVisible(true)}
@@ -558,7 +543,13 @@ export default function DashboardScreen() {
         fixedState={currentFixedState}
         autoIsFixed={fixedAuto.autoIsFixed}
         autoReason={fixedAuto.reason}
-        parentTitle={detailFromList ? listModalCategory ?? LIST_TITLES[listModalType] : 'Home'}
+        parentTitle={
+          detailFromList
+            ? listModalCategory
+              ? categoryName(listModalCategory)
+              : t(LIST_TITLES[listModalType])
+            : t('tabs.home')
+        }
         onClose={handleBackFromDetail}
         onDismiss={() => setSelectedTransaction(null)}
         onSelectFixedState={handleSelectFixedState}
@@ -585,7 +576,7 @@ export default function DashboardScreen() {
             <View style={[styles.sheetContainer, { backgroundColor: colors.card }]}>
               <View style={styles.sheetHeader}>
                 <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
-                <Text style={[styles.sheetTitle, { color: colors.text }]}>Select Period</Text>
+                <Text style={[styles.sheetTitle, { color: colors.text }]}>{t('period.select')}</Text>
               </View>
               <ScrollView style={{ maxHeight: 360 }}>
                 <TouchableOpacity
@@ -608,7 +599,7 @@ export default function DashboardScreen() {
                         rangeFilter !== null && styles.sheetItemTextActive,
                       ]}
                     >
-                      Custom Range…
+                      {t('period.customRange')}
                     </Text>
                   </View>
                   {rangeFilter ? (

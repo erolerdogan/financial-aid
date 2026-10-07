@@ -1,3 +1,4 @@
+import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { getAppMeta, getProfiles, setAppMeta, syncDebtPayments } from '@/db/database';
@@ -14,6 +15,7 @@ import {
   pickBackup,
   summarizeDatabase,
 } from '@/services/backupService';
+import type { TranslationKey } from '@/i18n';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSQLiteContext } from 'expo-sqlite';
@@ -37,37 +39,30 @@ interface BackupRestoreModalProps {
 type BusyAction = 'backup' | 'restore' | 'undo';
 
 const NOTICE_SEEN_KEY = 'backupNoticeSeen';
-const UNCHANGED = 'Your data was not changed.';
 
-const ERROR_MESSAGES: Record<BackupError['code'], string> = {
-  NOT_BACKUP: `This file is not a Financial Aid backup. ${UNCHANGED}`,
-  DAMAGED: `This backup file is damaged and cannot be read. ${UNCHANGED}`,
-  NEWER_VERSION: `This backup was made with a newer version of the app. Update the app, then try again. ${UNCHANGED}`,
+const ERROR_MESSAGES: Record<BackupError['code'], TranslationKey> = {
+  NOT_BACKUP: 'backup.error.notBackup',
+  DAMAGED: 'backup.error.damaged',
+  NEWER_VERSION: 'backup.error.newer',
 };
 
 const DATE_OPTIONS: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' };
 
-const formatDate = (date: Date): string => date.toLocaleDateString(undefined, DATE_OPTIONS);
-
-const formatDateKey = (key: string): string => {
-  const [y, m, d] = key.slice(0, 10).split('-').map(Number);
-  return formatDate(new Date(y, m - 1, d));
-};
-
-const plural = (count: number, singular: string, pluralForm: string): string =>
-  `${count.toLocaleString()} ${count === 1 ? singular : pluralForm}`;
-
-const describeCounts = (summary: BackupSummary): string =>
-  `${plural(summary.profiles, 'profile', 'profiles')}, ${plural(summary.transactions, 'transaction', 'transactions')}`;
-
-const describeRange = (summary: BackupSummary): string =>
-  summary.firstDate && summary.lastDate
-    ? ` (${formatDateKey(summary.firstDate)} – ${formatDateKey(summary.lastDate)})`
-    : '';
-
 export function BackupRestoreModal({ visible, onClose }: BackupRestoreModalProps) {
   const db = useSQLiteContext();
   const { colors } = useTheme();
+  const { t, format } = useI18n();
+
+  const formatDate = (date: Date): string => format.date(date, DATE_OPTIONS);
+  const formatDateKey = format.day;
+
+  const describeCounts = (summary: BackupSummary): string =>
+    `${t('backup.profiles', { count: summary.profiles })}, ${t('common.transactions', { count: summary.transactions })}`;
+
+  const describeRange = (summary: BackupSummary): string =>
+    summary.firstDate && summary.lastDate
+      ? ` (${formatDateKey(summary.firstDate)} – ${formatDateKey(summary.lastDate)})`
+      : '';
   const { isDemoMode, reloadAfterRestore } = useProfile();
 
   const [busy, setBusy] = useState<BusyAction | null>(null);
@@ -88,7 +83,7 @@ export function BackupRestoreModal({ visible, onClose }: BackupRestoreModalProps
   const showError = (title: string, error: unknown) => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     const message =
-      error instanceof BackupError ? ERROR_MESSAGES[error.code] : `Something went wrong. ${UNCHANGED}`;
+      `${error instanceof BackupError ? t(ERROR_MESSAGES[error.code]) : t('backup.error.generic')} ${t('backup.unchanged')}`;
     if (!(error instanceof BackupError)) console.error(`${title}:`, error);
     Alert.alert(title, message);
   };
@@ -102,7 +97,7 @@ export function BackupRestoreModal({ visible, onClose }: BackupRestoreModalProps
         await refreshStatus();
       }
     } catch (error) {
-      showError('Backup Failed', error);
+      showError(t('backup.failedTitle'), error);
     } finally {
       setBusy(null);
     }
@@ -115,12 +110,12 @@ export function BackupRestoreModal({ visible, onClose }: BackupRestoreModalProps
       return;
     }
     Alert.alert(
-      'Before You Back Up',
-      'The backup file contains all profiles and is not encrypted. Store it somewhere only you can access.',
+      t('backup.noticeTitle'),
+      t('backup.noticeMessage'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Continue',
+          text: t('common.continue'),
           onPress: async () => {
             await setAppMeta(db, NOTICE_SEEN_KEY, '1');
             runBackup();
@@ -141,12 +136,11 @@ export function BackupRestoreModal({ visible, onClose }: BackupRestoreModalProps
       await refreshStatus();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert(
-        action === 'undo' ? 'Restore Undone' : 'Restore Complete',
-        `${describeCounts(backup.summary)} are now on this device.\n\n` +
-          'The data that was replaced was kept as a safety copy. Use "Undo Last Restore" to bring it back.'
+        action === 'undo' ? t('backup.undoneTitle') : t('backup.completeTitle'),
+        `${t('backup.nowOnDevice', { counts: describeCounts(backup.summary) })}\n\n${t('backup.safetyKept')}`
       );
     } catch (error) {
-      showError('Restore Failed', error);
+      showError(t('backup.restoreFailedTitle'), error);
     } finally {
       setBusy(null);
     }
@@ -155,34 +149,41 @@ export function BackupRestoreModal({ visible, onClose }: BackupRestoreModalProps
   /** Tells the user exactly what is in the backup and what will be lost before anything changes. */
   const confirmReplace = async (backup: PendingBackup, action: BusyAction) => {
     const device = await summarizeDatabase(db);
-    const source = action === 'undo' ? 'Safety copy' : 'Backup';
-    const madeOn = backup.createdAt ? ` from ${formatDate(backup.createdAt)}` : '';
-    const backupLine = `${source}${madeOn}: ${describeCounts(backup.summary)}${describeRange(backup.summary)}.`;
-    const cancel = { text: 'Cancel', style: 'cancel' as const, onPress: () => discardBackup(backup) };
+    const source = action === 'undo' ? t('backup.sourceSafety') : t('backup.sourceBackup');
+    const contents = `${describeCounts(backup.summary)}${describeRange(backup.summary)}`;
+    const backupLine = backup.createdAt
+      ? t('backup.lineFrom', { source, date: formatDate(backup.createdAt), contents })
+      : t('backup.line', { source, contents });
+    const cancel = { text: t('common.cancel'), style: 'cancel' as const, onPress: () => discardBackup(backup) };
 
     if (device.transactions === 0) {
-      Alert.alert('Restore Backup?', backupLine, [
+      Alert.alert(t('backup.restoreTitle'), backupLine, [
         cancel,
-        { text: 'Restore', onPress: () => apply(backup, action) },
+        { text: t('backup.restore'), onPress: () => apply(backup, action) },
       ], { cancelable: false });
       return;
     }
 
-    const lines = [backupLine, `This device: ${describeCounts(device)}${describeRange(device)}.`];
+    const lines = [
+      backupLine,
+      t('backup.deviceLine', { contents: `${describeCounts(device)}${describeRange(device)}` }),
+    ];
     const backupNewest = backup.summary.lastDate;
     if (device.lastDate && (!backupNewest || device.lastDate > backupNewest)) {
       lines.push(
-        `This device has transactions newer than the ${source.toLowerCase()} (up to ${formatDateKey(device.lastDate)}). They will be removed.`
+        t(action === 'undo' ? 'backup.newerThanSafety' : 'backup.newerThanBackup', {
+          date: formatDateKey(device.lastDate),
+        })
       );
     }
     lines.push(
-      'Everything currently in the app, in all profiles, will be replaced. Transactions, categories, rules, goals and debts that are not in this file will be lost. Nothing is merged.'
+      t('backup.replaceWarning')
     );
 
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    Alert.alert('Replace All Data?', lines.join('\n\n'), [
+    Alert.alert(t('backup.replaceTitle'), lines.join('\n\n'), [
       cancel,
-      { text: 'Replace All Data', style: 'destructive', onPress: () => apply(backup, action) },
+      { text: t('backup.replaceConfirm'), style: 'destructive', onPress: () => apply(backup, action) },
     ], { cancelable: false });
   };
 
@@ -193,7 +194,7 @@ export function BackupRestoreModal({ visible, onClose }: BackupRestoreModalProps
       const backup = await pickBackup();
       if (backup) await confirmReplace(backup, 'restore');
     } catch (error) {
-      showError('Cannot Restore', error);
+      showError(t('backup.cannotRestoreTitle'), error);
     } finally {
       setBusy(null);
     }
@@ -206,7 +207,7 @@ export function BackupRestoreModal({ visible, onClose }: BackupRestoreModalProps
       const backup = await openSafetyCopy();
       if (backup) await confirmReplace(backup, 'undo');
     } catch (error) {
-      showError('Cannot Undo Restore', error);
+      showError(t('backup.cannotUndoTitle'), error);
     } finally {
       setBusy(null);
     }
@@ -247,14 +248,14 @@ export function BackupRestoreModal({ visible, onClose }: BackupRestoreModalProps
           <View style={[styles.sheet, { backgroundColor: colors.card }]}>
             <View style={styles.header}>
               <View style={[styles.handle, { backgroundColor: colors.border }]} />
-              <Text style={[styles.title, { color: colors.text }]}>Backup & Restore</Text>
+              <Text style={[styles.title, { color: colors.text }]}>{t('settings.backup')}</Text>
             </View>
 
             {renderRow(
               'backup',
               'cloud-upload-outline',
-              'Back Up Data',
-              lastBackup ? `Last backup: ${formatDate(lastBackup)}` : 'Never backed up',
+              t('backup.backUp'),
+              lastBackup ? t('backup.lastBackup', { date: formatDate(lastBackup) }) : t('backup.never'),
               handleBackup
             )}
 
@@ -263,8 +264,8 @@ export function BackupRestoreModal({ visible, onClose }: BackupRestoreModalProps
             {renderRow(
               'restore',
               'cloud-download-outline',
-              'Restore from Backup',
-              'Replaces all data on this device with the contents of a backup file.',
+              t('backup.restoreFrom'),
+              t('backup.restoreSub'),
               handleRestore
             )}
 
@@ -274,8 +275,8 @@ export function BackupRestoreModal({ visible, onClose }: BackupRestoreModalProps
                 {renderRow(
                   'undo',
                   'arrow-undo-outline',
-                  'Undo Last Restore',
-                  `Brings back the data replaced on ${formatDate(safetyCopy)}.`,
+                  t('backup.undo'),
+                  t('backup.undoSub', { date: formatDate(safetyCopy) }),
                   handleUndo
                 )}
               </>
@@ -283,8 +284,8 @@ export function BackupRestoreModal({ visible, onClose }: BackupRestoreModalProps
 
             <Text style={[styles.footer, { color: colors.textSecondary }]}>
               {isDemoMode
-                ? 'Backup and restore are not available in the demo workspace.'
-                : 'A backup contains all profiles and is not encrypted. It is saved only where you choose; the app never uploads it.'}
+                ? t('backup.demoNote')
+                : t('backup.footer')}
             </Text>
           </View>
         </TouchableWithoutFeedback>

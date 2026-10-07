@@ -1,3 +1,4 @@
+import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useStatementImporter } from '@/hooks/useStatementImporter';
@@ -14,6 +15,7 @@ export default function WelcomeScreen() {
   const db = useSQLiteContext();
   const { setIsDemoMode, refreshProfiles, activeProfile, profiles, switchProfile } = useProfile();
   const { colors } = useTheme();
+  const { t } = useI18n();
 
   const { importStatement, importing } = useStatementImporter({
     onSuccess: async () => {
@@ -48,16 +50,16 @@ export default function WelcomeScreen() {
           
           <View style={styles.badgeRow}>
             <Ionicons name="shield-checkmark" size={13} color="#34C759" />
-            <Text style={styles.badgeText}>100% LOCAL-FIRST & PRIVATE</Text>
+            <Text style={styles.badgeText}>{t('welcome.badge')}</Text>
           </View>
         </View>
 
         <View style={styles.header}>
           <Text style={[styles.title, { color: colors.text }]}>
-            Your Wealth,{'\n'}Your Device.
+            {t('welcome.title')}
           </Text>
           <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-            Take absolute control of your financial records with zero cloud trackers. Import statements or explore instantly.
+            {t('welcome.subtitle')}
           </Text>
         </View>
 
@@ -75,9 +77,9 @@ export default function WelcomeScreen() {
             )}
             <View style={styles.buttonTextWrapper}>
               <Text style={styles.primaryButtonText}>
-                {importing ? 'Processing Statement...' : 'Import Bank Statement'}
+                {importing ? t('welcome.processing') : t('welcome.import')}
               </Text>
-              <Text style={styles.buttonSubtext}>CSV or XLSX file format</Text>
+              <Text style={styles.buttonSubtext}>{t('welcome.importSub')}</Text>
             </View>
             {!importing && <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.7)" />}
           </TouchableOpacity>
@@ -96,9 +98,9 @@ export default function WelcomeScreen() {
           >
             <Ionicons name="sparkles-outline" size={20} color={colors.accent} style={styles.buttonIcon} />
             <View style={styles.buttonTextWrapper}>
-              <Text style={[styles.secondaryButtonText, { color: colors.text }]}>Explore Demo Workspace</Text>
+              <Text style={[styles.secondaryButtonText, { color: colors.text }]}>{t('welcome.demo')}</Text>
               <Text style={[styles.buttonSubtextSecondary, { color: colors.textSecondary }]}>
-                Pre-loaded sample transactions & analytics
+                {t('welcome.demoSub')}
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />

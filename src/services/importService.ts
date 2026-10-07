@@ -1,5 +1,11 @@
 import { CategoryRule, insertTransactions, syncDebtPayments, Transaction } from '@/db/database';
 import { type LearnedCategories, parseCSVContent, parseExcelContent } from '@/utils/parser';
+import {
+  describeUnsupportedStatement,
+  isSpreadsheetFile,
+  STATEMENT_HEAD_BYTES,
+  UnsupportedFileError,
+} from '@/utils/statementFormat';
 import * as FileSystem from 'expo-file-system/legacy';
 import { SQLiteDatabase } from 'expo-sqlite';
 
@@ -86,7 +92,17 @@ export async function parseFileToTransactions(
   });
 
   try {
-    if (cleanName.endsWith('.xlsx') || cleanName.endsWith('.xls')) {
+    const headBase64 = await FileSystem.readAsStringAsync(tempDestination, {
+      encoding: FileSystem.EncodingType.Base64,
+      position: 0,
+      length: STATEMENT_HEAD_BYTES,
+    });
+    const head = new Uint8Array(base64ToArrayBuffer(headBase64));
+
+    const unsupported = describeUnsupportedStatement(cleanName, head);
+    if (unsupported) throw new UnsupportedFileError(unsupported);
+
+    if (isSpreadsheetFile(cleanName, head)) {
       const base64Data = await FileSystem.readAsStringAsync(tempDestination, {
         encoding: FileSystem.EncodingType.Base64,
       });

@@ -1,3 +1,4 @@
+import { tNow } from '@/i18n';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
@@ -28,7 +29,7 @@ export async function requestAndScheduleImportReminders() {
 
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('import-reminders', {
-        name: 'Import Reminders',
+        name: tNow('notifications.channel'),
         importance: Notifications.AndroidImportance.HIGH,
         vibrationPattern: [0, 250, 250, 250],
       });
@@ -37,8 +38,8 @@ export async function requestAndScheduleImportReminders() {
     // Clear previous scheduled notifications
     await Notifications.cancelAllScheduledNotificationsAsync();
 
-    const title = 'Time to Import Transactions 📊';
-    const body = 'Keep your expense tracker up to date! Tap to upload your latest bank statement.';
+    const title = tNow('notifications.title');
+    const body = tNow('notifications.body');
 
     // Middle of the month: 15th at 09:00 AM
     await Notifications.scheduleNotificationAsync({
@@ -70,6 +71,12 @@ export async function requestAndScheduleImportReminders() {
     console.error('Failed to setup import notifications:', error);
     return false;
   }
+}
+
+/** Re-schedules the reminders in the active language; does nothing when none are scheduled. */
+export async function refreshImportReminderText() {
+  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+  if (scheduled.length > 0) await requestAndScheduleImportReminders();
 }
 
 /**

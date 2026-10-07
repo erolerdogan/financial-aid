@@ -37,7 +37,8 @@ On first launch the welcome screen offers two paths: import a statement, or open
 
 ### Statement import
 
-- Imports CSV (`.csv`) and Excel (`.xlsx`, `.xls`) bank statements.
+- Imports CSV (`.csv`), tab or semicolon separated text (`.txt`, `.tsv`) and Excel (`.xlsx`, `.xls`) bank statements.
+- Other files are refused with a hint to use the bank's CSV or Excel export: PDF statements, photos and screenshots, bank formats such as CAMT XML, MT940 and OFX, and other documents. The file's contents are checked as well as its name, so a renamed PDF is still recognised.
 - Detects the date, amount, counterparty name and memo columns automatically, including layouts with a debit/credit indicator (ING "Af Bij") or separate debit and credit columns.
 - Parses amounts in different locale formats and flags dates that could be read two ways.
 - Skips duplicates, so importing overlapping statements is safe.
@@ -100,6 +101,7 @@ On first launch the welcome screen offers two paths: import a statement, or open
 ### Trends
 
 - Line chart of spending over a year, a range of months, or day by day.
+- In the year view a dashed grey line shows the same months of the previous year when there is data for it; selecting a month shows how much more or less was spent than in the same month a year earlier.
 - View all expenses or a single category.
 - Shows the category's budget goal as a reference line and highlights points over the limit.
 - Set or change a category's monthly goal directly from the chart.
@@ -149,6 +151,11 @@ On first launch the welcome screen offers two paths: import a statement, or open
 - Home card: once a plan is saved, Home shows the estimated balance at the plan's end year and, if a goal is set, the progress towards it. Tapping it opens the Future Growth segment.
 - Projection, not guaranteed. Not financial advice.
 
+### Swipe between tabs
+
+- Swipe left or right anywhere on a screen to move to the next or previous tab: Home, Transactions, Trends, Plan. On the Plan tab the swipe steps through Debts and Future Growth first.
+- Areas with their own horizontal gesture keep it: the Trends chart, the category filter rows and the debt cards.
+
 ### Profiles
 
 - Keep separate ledgers in one app (for example Personal, Business, Household).
@@ -158,6 +165,7 @@ On first launch the welcome screen offers two paths: import a statement, or open
 ### Settings
 
 - Currency: EUR, USD, GBP, JPY, CHF, CAD or AUD. Switching currency converts existing amounts using fixed built-in rates.
+- Language: English, Dutch, German, Turkish, Spanish, French, Italian, Portuguese and Russian. The app follows the device language until you pick one in Settings → Language; the choice is remembered. Built-in category names, numbers, dates and reminder notifications follow the language. Translations have not been reviewed by native speakers yet.
 - Six colour themes (Aurora, Midnight Gold, Sunset, Forest Mint, Orchid, Classic; Classic is the default) with gradient accents, each in light and dark; the choice is remembered. Dark mode follows the system until you toggle it.
 - Import reminders: local notifications on the 15th and 28th of each month. Importing a statement cancels the pending reminders.
 - Reset all data and profiles.
@@ -188,7 +196,8 @@ The app makes no network calls with user data. Statements are read on the device
 | Charts | react-native-gifted-charts, react-native-svg |
 | File import | expo-document-picker, expo-file-system, papaparse, xlsx |
 | Notifications | expo-notifications |
-| State | React Context (`ProfileContext`, `ThemeContext`) |
+| Languages | expo-localization, own dictionary in `src/i18n` |
+| State | React Context (`ProfileContext`, `ThemeContext`, `LanguageContext`) |
 
 ## Project structure
 
@@ -201,10 +210,11 @@ src/
     goals.tsx     Budgets (modal)
     categories.tsx  Categories (modal)
   components/     Shared components, dashboard cards and modals
-  contexts/       Profile, period and theme contexts
+  contexts/       Profile, period, theme and language contexts
   db/             Schema, queries and demo seed data
   services/       Statement import
   hooks/          Shared hooks
+  i18n/           Translations (`locales/*.ts`), number and date formatting
   utils/          Parsing, notifications and debt helpers
 ```
 

@@ -1,13 +1,15 @@
+import { useI18n } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import type { TranslationKey } from '@/i18n';
 import { type FeeImpact } from '@/utils/freedom';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export type ValueMode = 'NOMINAL' | 'REAL';
 
-const MODES: { key: ValueMode; label: string }[] = [
-  { key: 'NOMINAL', label: 'Future prices' },
-  { key: 'REAL', label: "Today's prices" },
+const MODES: { key: ValueMode; label: TranslationKey }[] = [
+  { key: 'NOMINAL', label: 'freedom.mode.nominal' },
+  { key: 'REAL', label: 'freedom.mode.real' },
 ];
 
 interface ImpactSectionProps {
@@ -34,14 +36,14 @@ export function ImpactSection({
   stale = false,
 }: ImpactSectionProps) {
   const { colors } = useTheme();
+  const { t, format } = useI18n();
 
-  const fmt = (value: number) =>
-    `${currencySymbol}${Math.round(value).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+  const fmt = (value: number) => format.money(Math.round(value), currencySymbol);
 
   const cost = Math.round(fee.cost);
 
   const renderRow = (label: string, value: string, strong = false) => (
-    <View style={styles.row} accessible accessibilityLabel={`${label}, estimated, ${value}`}>
+    <View style={styles.row} accessible accessibilityLabel={t('freedom.a11yEstimated', { label, value })}>
       <Text style={[styles.rowLabel, { color: strong ? colors.text : colors.textSecondary }]} numberOfLines={1}>
         {label}
       </Text>
@@ -58,7 +60,7 @@ export function ImpactSection({
 
   return (
     <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-      <Text style={[styles.title, { color: colors.textSecondary }]}>PRICES AND FEES (EST.)</Text>
+      <Text style={[styles.title, { color: colors.textSecondary }]}>{t('freedom.impact.title')}</Text>
 
       <View style={[styles.segmentedContainer, { backgroundColor: colors.track }]} accessibilityRole="radiogroup">
         {MODES.map((item) => {
@@ -71,7 +73,7 @@ export function ImpactSection({
               onPress={() => onModeChange(item.key)}
               accessibilityRole="radio"
               accessibilityState={{ selected }}
-              accessibilityLabel={`Amounts in ${item.label.toLowerCase()}`}
+              accessibilityLabel={t('freedom.impact.a11yMode', { mode: t(item.label) })}
             >
               <Text
                 style={[
@@ -81,7 +83,7 @@ export function ImpactSection({
                 ]}
                 numberOfLines={1}
               >
-                {item.label}
+                {t(item.label)}
               </Text>
             </TouchableOpacity>
           );
@@ -89,17 +91,17 @@ export function ImpactSection({
       </View>
       <Text style={[styles.note, { color: colors.textSecondary }]}>
         {mode === 'REAL'
-          ? `Every amount on this screen shows what it buys today, after ${percent(inflationPct)} inflation a year.`
-          : 'Every amount on this screen reads as it will in the future. Prices will be higher by then.'}
+          ? t('freedom.impact.noteReal', { percent: percent(inflationPct) })
+          : t('freedom.impact.noteNominal')}
       </Text>
 
       <View style={[styles.fees, { borderTopColor: colors.border }, stale && styles.stale]}>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          FEES · FINAL BALANCE{mode === 'REAL' ? " (TODAY'S PRICES)" : ''}
+          {t(mode === 'REAL' ? 'freedom.impact.feesReal' : 'freedom.impact.fees')}
         </Text>
-        {renderRow('With 0% fee', fmt(fee.withoutFee))}
-        {renderRow(`With ${percent(feePct)} fee`, fmt(fee.withFee))}
-        {renderRow('Cost of fees', cost > 0 ? `-${fmt(cost)}` : fmt(0), true)}
+        {renderRow(t('freedom.impact.withZeroFee'), fmt(fee.withoutFee))}
+        {renderRow(t('freedom.impact.withFee', { percent: percent(feePct) }), fmt(fee.withFee))}
+        {renderRow(t('freedom.impact.cost'), cost > 0 ? `-${fmt(cost)}` : fmt(0), true)}
       </View>
     </View>
   );

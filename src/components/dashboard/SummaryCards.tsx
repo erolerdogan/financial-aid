@@ -1,3 +1,4 @@
+import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import React from 'react';
@@ -22,6 +23,7 @@ export function SummaryCards({
 }: SummaryCardsProps) {
   const { colors } = useTheme();
   const { currencySymbol } = useProfile();
+  const { t, format } = useI18n();
 
   return (
     <View style={styles.container}>
@@ -31,9 +33,9 @@ export function SummaryCards({
           activeOpacity={0.8}
           onPress={() => onPressCard('INCOME')}
         >
-          <Text style={[styles.label, { color: colors.textSecondary }]}>Total Income</Text>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>{t('home.totalIncome')}</Text>
           <Text style={[styles.amount, { color: '#34C759' }]}>
-            {currencySymbol}{summary.totalIncome.toFixed(2)}
+            {format.money(summary.totalIncome, currencySymbol, 2)}
           </Text>
         </TouchableOpacity>
 
@@ -42,22 +44,22 @@ export function SummaryCards({
           activeOpacity={0.8}
           onPress={() => onPressCard('EXPENSE')}
         >
-          <Text style={[styles.label, { color: colors.textSecondary }]}>Total Expenses</Text>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>{t('home.totalExpenses')}</Text>
           <Text style={[styles.amount, { color: '#FF3B30' }]}>
-            {currencySymbol}{summary.totalExpenses.toFixed(2)}
+            {format.money(summary.totalExpenses, currencySymbol, 2)}
           </Text>
         </TouchableOpacity>
       </View>
 
       <View style={[styles.netCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Text style={[styles.netCardLabel, { color: colors.textSecondary }]}>NET CASH FLOW</Text>
+        <Text style={[styles.netCardLabel, { color: colors.textSecondary }]}>{t('home.netCashFlow')}</Text>
         <Text
           style={[
             styles.netAmountHorizontal,
             { color: summary.netSavings >= 0 ? '#34C759' : '#FF3B30' },
           ]}
         >
-          {currencySymbol}{summary.netSavings.toFixed(2)}
+          {format.money(summary.netSavings, currencySymbol, 2)}
         </Text>
       </View>
     </View>

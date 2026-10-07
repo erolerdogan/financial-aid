@@ -1,4 +1,5 @@
 import { CATEGORY_COLOR_PALETTE } from '@/constants/colors';
+import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import {
@@ -58,6 +59,7 @@ interface DebtFormModalProps {
 export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: DebtFormModalProps) {
   const db = useSQLiteContext();
   const { colors } = useTheme();
+  const { t, format } = useI18n();
   const { activeProfile, currencySymbol } = useProfile();
   const profileId = activeProfile?.id ?? 1;
 
@@ -198,7 +200,7 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
   const matches = loadedMatches.filter((m) => keywords.includes(m.keyword));
 
   const fmt = (value: number) =>
-    `${currencySymbol}${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    format.money(value, currencySymbol, 2);
 
   const countByStatus = (status: DebtKeywordMatch['status']) =>
     matches.filter((m) => m.status === status).length;
@@ -221,9 +223,9 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
   const ignoredCount = countByStatus('IGNORED');
   const unmatchedKeywords = keywords.filter((k) => !matches.some((m) => m.keyword === k));
   const previewHints = [
-    beforeStartCount > 0 ? `${beforeStartCount} before the start date` : null,
-    otherDebtCount > 0 ? `${otherDebtCount} already linked to another debt` : null,
-    ignoredCount > 0 ? `${ignoredCount} unlinked by you` : null,
+    beforeStartCount > 0 ? t('debt.form.hintBeforeStart', { count: beforeStartCount }) : null,
+    otherDebtCount > 0 ? t('debt.form.hintOtherDebt', { count: otherDebtCount }) : null,
+    ignoredCount > 0 ? t('debt.form.hintIgnored', { count: ignoredCount }) : null,
   ].filter((hint): hint is string => hint !== null);
 
   const handleAddKeyword = () => {
@@ -232,8 +234,8 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
     const normalized = normalizeMatchText(keyword);
     if (debtKeywordLength(keyword) < MIN_DEBT_KEYWORD_LENGTH) {
       Alert.alert(
-        'Keyword too short',
-        `Use at least ${MIN_DEBT_KEYWORD_LENGTH} letters or digits so unrelated transactions are not linked.`
+        t('debt.form.keywordShortTitle'),
+        t('debt.form.keywordShortMessage', { min: MIN_DEBT_KEYWORD_LENGTH })
       );
       return;
     }
@@ -284,22 +286,22 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
     const termValue = termToMonths(term, termUnit);
     const startValue = startDate.trim();
 
-    if (!trimmedName) return Alert.alert('Name required', 'Please enter a name for this debt.');
+    if (!trimmedName) return Alert.alert(t('categoryForm.nameRequiredTitle'), t('debt.form.nameRequired'));
     if (isNaN(originalAmount) || originalAmount <= 0)
-      return Alert.alert('Original amount', 'Enter the original amount borrowed (greater than 0).');
+      return Alert.alert(t('debt.form.originalTitle'), t('debt.form.originalMessage'));
     if (isNaN(aprValue) || aprValue < 0 || aprValue > 100)
-      return Alert.alert('Interest rate', 'Enter an annual interest rate between 0 and 100.');
+      return Alert.alert(t('debt.detail.interestRate'), t('debt.form.aprMessage'));
     if (isNaN(paymentValue) || paymentValue < 0)
-      return Alert.alert('Monthly payment', 'Enter a valid monthly payment amount.');
+      return Alert.alert(t('debt.detail.monthlyPayment'), t('debt.form.paymentMessage'));
     if (isNaN(dayValue) || dayValue < 1 || dayValue > 31)
-      return Alert.alert('Payment day', 'Enter a day of the month between 1 and 31.');
+      return Alert.alert(t('debt.form.payDayTitle'), t('debt.form.payDayMessage'));
     if (termValue !== null && isNaN(termValue))
       return Alert.alert(
-        'Term',
-        `Enter a term that is a whole number of months, up to ${MAX_DEBT_TERM_MONTHS / 12} years, or leave it empty.`
+        t('debt.form.termTitle'),
+        t('debt.form.termMessage', { years: MAX_DEBT_TERM_MONTHS / 12 })
       );
     if (startValue !== '' && !isValidDateKey(startValue))
-      return Alert.alert('Start date', 'Use the format YYYY-MM-DD, or leave it empty.');
+      return Alert.alert(t('debt.form.startTitle'), t('debt.form.startMessage'));
 
     const input: DebtInput = {
       name: trimmedName,
@@ -335,7 +337,7 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
       onClose();
     } catch (error) {
       console.error('Failed to save debt:', error);
-      Alert.alert('Error', 'Failed to save this debt.');
+      Alert.alert(t('common.error'), t('debt.form.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -344,12 +346,12 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
   const handleDelete = () => {
     if (!debt) return;
     Alert.alert(
-      'Delete debt?',
-      `"${debt.name}" and its payment history will be removed. Your bank transactions are not affected.`,
+      t('debt.deleteTitle'),
+      t('debt.deleteMessage', { name: debt.name }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -359,7 +361,7 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
               onClose();
             } catch (error) {
               console.error('Failed to delete debt:', error);
-              Alert.alert('Error', 'Failed to delete this debt.');
+              Alert.alert(t('common.error'), t('debt.deleteFailed'));
             }
           },
         },
@@ -376,7 +378,7 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
   const aprNumber = apr.trim() === '' ? 0 : parseNumber(apr);
   const showAprEstimate = estimatedApr !== null && Math.abs(aprNumber - estimatedApr) > 0.005;
   const formatMoney = (value: number) =>
-    `${currencySymbol}${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+    format.money(value, currencySymbol, { maximumFractionDigits: 2 });
   const needsTermForEstimate = term.trim() === '' && apr.trim() === '' && amountNumber > 0 && paymentNumber > 0;
 
   const renderField = (
@@ -423,16 +425,16 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
         <View style={styles.flex}>
           <View style={[styles.header, { borderBottomColor: colors.border }]}>
             <TouchableOpacity onPress={onClose} hitSlop={8}>
-              <Text style={[styles.headerAction, { color: colors.accent }]}>Cancel</Text>
+              <Text style={[styles.headerAction, { color: colors.accent }]}>{t('common.cancel')}</Text>
             </TouchableOpacity>
             <Text style={[styles.headerTitle, { color: colors.text }]}>
-              {debt ? 'Edit Debt' : 'New Debt'}
+              {debt ? t('debt.form.editTitle') : t('debt.form.newTitle')}
             </Text>
             <TouchableOpacity onPress={handleSave} disabled={saving} hitSlop={8}>
               {saving ? (
                 <ActivityIndicator size="small" color={colors.accent} />
               ) : (
-                <Text style={[styles.headerAction, styles.bold, { color: colors.accent }]}>Save</Text>
+                <Text style={[styles.headerAction, styles.bold, { color: colors.accent }]}>{t('common.save')}</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -444,7 +446,7 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
             keyboardDismissMode="on-drag"
             automaticallyAdjustKeyboardInsets
           >
-            {renderField('NAME', name, setName, 'e.g. Car loan', { maxLength: 40 })}
+            {renderField(t('categoryForm.name'), name, setName, t('debt.form.namePlaceholder'), { maxLength: 40 })}
 
             <Text
               style={[styles.sectionLabel, { color: colors.textSecondary }]}
@@ -452,11 +454,10 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
                 keywordSectionY.current = event.nativeEvent.layout.y;
               }}
             >
-              AUTO-LINK KEYWORDS
+              {t('debt.form.keywords')}
             </Text>
             <Text style={[styles.footnote, styles.footnoteTop, { color: colors.textSecondary }]}>
-              Statement transactions whose merchant or description contains a keyword are added as payments
-              automatically.
+              {t('debt.form.keywordsHelp')}
             </Text>
             <View style={styles.keywordInputRow}>
               <View
@@ -471,7 +472,7 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
                   style={[styles.input, { color: colors.text }]}
                   value={keywordInput}
                   onChangeText={setKeywordInput}
-                  placeholder="e.g. DUO"
+                  placeholder={t('debt.form.keywordPlaceholder')}
                   placeholderTextColor={colors.textSecondary}
                   autoCapitalize="characters"
                   autoCorrect={false}
@@ -490,7 +491,7 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
                   keywordInput.trim().length === 0 && styles.disabled,
                 ]}
               >
-                <Text style={styles.addKeywordText}>{editingKeyword !== null ? 'Update' : 'Add'}</Text>
+                <Text style={styles.addKeywordText}>{editingKeyword !== null ? t('debt.form.update') : t('common.add')}</Text>
               </TouchableOpacity>
             </View>
 
@@ -510,7 +511,7 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
                       onPress={() => handleEditKeyword(keyword)}
                       hitSlop={{ top: 8, bottom: 8, left: 8 }}
                       style={styles.chipLabel}
-                      accessibilityLabel={`Edit keyword ${keyword}`}
+                      accessibilityLabel={t('debt.form.a11yEditKeyword', { keyword })}
                     >
                       <Text
                         style={[
@@ -532,7 +533,7 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
               </View>
             )}
 
-            <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>TYPE</Text>
+            <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t('debt.form.type')}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.typeRow}>
               {DEBT_TYPE_OPTIONS.map((option) => {
                 const isActive = option.key === type;
@@ -552,22 +553,22 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
                   >
                     <Ionicons name={option.icon} size={15} color={isActive ? '#FFFFFF' : colors.textSecondary} />
                     <Text style={[styles.typeText, { color: isActive ? '#FFFFFF' : colors.text }]}>
-                      {option.label}
+                      {t(option.label)}
                     </Text>
                   </TouchableOpacity>
                 );
               })}
             </ScrollView>
 
-            {renderField('ORIGINAL AMOUNT', amount, setAmount, '0.00', {
+            {renderField(t('debt.form.original'), amount, setAmount, '0.00', {
               keyboard: 'decimal-pad',
               prefix: currencySymbol,
             })}
-            {renderField('MONTHLY PAYMENT', payment, setPayment, '0.00', {
+            {renderField(t('debt.form.payment'), payment, setPayment, '0.00', {
               keyboard: 'decimal-pad',
               prefix: currencySymbol,
             })}
-            <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>TERM (OPTIONAL)</Text>
+            <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t('debt.form.term')}</Text>
             <View style={styles.termRow}>
               <View style={[styles.inputWrap, styles.flex, { backgroundColor: fieldBg, borderColor: colors.border }]}>
                 <TextInput
@@ -597,68 +598,76 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
                       style={[styles.unitOption, isActive && { backgroundColor: colors.accent }]}
                     >
                       <Text style={[styles.typeText, { color: isActive ? '#FFFFFF' : colors.text }]}>
-                        {unit.label}
+                        {t(unit.label)}
                       </Text>
                     </TouchableOpacity>
                   );
                 })}
               </View>
             </View>
-            {renderField('INTEREST RATE (APR, OPTIONAL)', apr, setApr, '0', {
+            {renderField(t('debt.form.apr'), apr, setApr, '0', {
               keyboard: 'decimal-pad',
               suffix: '%',
             })}
             {showAprEstimate && (
               <View style={styles.estimateRow}>
                 <Text style={[styles.estimateText, { color: colors.textSecondary }]}>
-                  Estimated rate from amount, payment and term: {estimatedApr}%
+                  {t('debt.form.estimatedRate', { rate: estimatedApr ?? '' })}
                 </Text>
                 <TouchableOpacity
                   activeOpacity={0.8}
                   hitSlop={8}
                   accessibilityRole="button"
-                  accessibilityLabel={`Use estimated rate ${estimatedApr}%`}
+                  accessibilityLabel={t('debt.form.a11yUseRate', { rate: estimatedApr ?? '' })}
                   onPress={() => {
                     Haptics.selectionAsync().catch(() => {});
                     setApr(String(estimatedApr));
                   }}
                 >
-                  <Text style={[styles.estimateAction, { color: colors.accent }]}>Use</Text>
+                  <Text style={[styles.estimateAction, { color: colors.accent }]}>{t('debt.form.use')}</Text>
                 </TouchableOpacity>
               </View>
             )}
             {needsTermForEstimate && (
               <Text style={[styles.footnote, { color: colors.textSecondary }]}>
-                Don&apos;t know the rate? Enter the term above and it is estimated from the amount and monthly payment.
+                {t('debt.form.rateHelp')}
               </Text>
             )}
             {canEstimateApr && estimatedApr === null && (
               <Text style={[styles.footnote, { color: colors.textSecondary }]}>
                 {paymentNumber * termNumber < amountNumber
-                  ? `No rate can be estimated: ${termNumber} payments of ${formatMoney(paymentNumber)} add up to ${formatMoney(paymentNumber * termNumber)}, less than the ${formatMoney(amountNumber)} borrowed. The term is the total number of payments over the whole loan, not the months left.`
-                  : `No rate can be estimated: ${termNumber} payments of ${formatMoney(paymentNumber)} add up to ${formatMoney(paymentNumber * termNumber)}, which puts the rate above 100% a year on ${formatMoney(amountNumber)} borrowed. Check the original amount.`}
+                  ? t('debt.form.noRateLow', {
+                      count: termNumber,
+                      payment: formatMoney(paymentNumber),
+                      total: formatMoney(paymentNumber * termNumber),
+                      amount: formatMoney(amountNumber),
+                    })
+                  : t('debt.form.noRateHigh', {
+                      count: termNumber,
+                      payment: formatMoney(paymentNumber),
+                      total: formatMoney(paymentNumber * termNumber),
+                      amount: formatMoney(amountNumber),
+                    })}
               </Text>
             )}
-            {renderField('PAYMENT DAY OF MONTH', payDay, setPayDay, '1', {
+            {renderField(t('debt.form.payDay'), payDay, setPayDay, '1', {
               keyboard: 'number-pad',
               maxLength: 2,
             })}
-            {renderField('START DATE (OPTIONAL)', startDate, setStartDate, 'YYYY-MM-DD', {
+            {renderField(t('debt.form.start'), startDate, setStartDate, 'YYYY-MM-DD', {
               keyboard: 'numbers-and-punctuation',
               maxLength: 10,
             })}
             {autoFilledFrom > 0 && (
               <Text style={[styles.footnote, { color: colors.accent }]}>
-                Monthly payment, payment day and start date were filled in from {autoFilledFrom} matching payment
-                {autoFilledFrom === 1 ? '' : 's'}. Edit them if they are wrong.
+                {t('debt.form.autoFilled', { count: autoFilledFrom })}
               </Text>
             )}
             <Text style={[styles.footnote, { color: colors.textSecondary }]}>
-              Interest is estimated daily from the start date. Without a start date, interest is counted from the
-              first payment.
+              {t('debt.form.interestNote')}
             </Text>
 
-            <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>COLOR</Text>
+            <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t('categoryForm.color')}</Text>
             <View style={styles.swatchGrid}>
               {CATEGORY_COLOR_PALETTE.map((swatch) => {
                 const isSelected = swatch === color;
@@ -683,11 +692,11 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
             {keywords.length > 0 && (
               <>
                 <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
-                  MATCHING PAYMENTS ({included.length})
+                  {t('debt.form.matching', { count: included.length })}
                 </Text>
                 {payable.length === 0 ? (
                   <Text style={[styles.footnote, styles.footnoteTop, { color: colors.textSecondary }]}>
-                    No statement transactions match yet. New imports are checked automatically.
+                    {t('debt.form.noMatches')}
                   </Text>
                 ) : (
                   <View style={[styles.previewCard, { backgroundColor: colors.card }]}>
@@ -719,7 +728,7 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
                             </Text>
                             <Text style={[styles.previewDate, { color: colors.textSecondary }]}>
                               {match.date}
-                              {isExcluded ? ' • will be unlinked' : ''}
+                              {isExcluded ? ` • ${t('debt.form.willUnlink')}` : ''}
                             </Text>
                           </View>
                           <Text
@@ -735,7 +744,7 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
                           <TouchableOpacity
                             onPress={() => toggleExcluded(match.id)}
                             hitSlop={10}
-                            accessibilityLabel={isExcluded ? 'Keep this payment' : 'Unlink this payment'}
+                            accessibilityLabel={isExcluded ? t('debt.form.a11yKeep') : t('debt.form.a11yUnlink')}
                           >
                             <Ionicons
                               name={isExcluded ? 'arrow-undo-circle-outline' : 'close-circle-outline'}
@@ -756,7 +765,7 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
                         ]}
                       >
                         <Text style={[styles.showAllText, { color: colors.accent }]}>
-                          {showAllMatches ? 'Show fewer' : `Show all ${payable.length}`}
+                          {showAllMatches ? t('debt.form.showFewer') : t('debt.form.showAll', { count: payable.length })}
                         </Text>
                       </TouchableOpacity>
                     )}
@@ -767,7 +776,7 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
                       ]}
                     >
                       <Text style={[styles.previewDate, styles.previewLeft, { color: colors.textSecondary }]}>
-                        Total
+                        {t('debt.form.total')}
                       </Text>
                       <Text style={[styles.previewAmount, { color: colors.text }]}>{fmt(payableTotal)}</Text>
                     </View>
@@ -775,17 +784,16 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
                 )}
                 {payable.length > 0 && (
                   <Text style={[styles.footnote, { color: colors.textSecondary }]}>
-                    Tap the cross to unlink a payment that does not belong to this debt. It will not be linked
-                    again.
+                    {t('debt.form.unlinkHelp')}
                   </Text>
                 )}
                 {possible.length > 0 && (
                   <>
                     <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
-                      POSSIBLE MATCHES ({possible.length})
+                      {t('debt.form.possible', { count: possible.length })}
                     </Text>
                     <Text style={[styles.footnote, styles.footnoteTop, { color: colors.textSecondary }]}>
-                      Similar, but not linked automatically. Tap Add to include a payment when you save.
+                      {t('debt.form.possibleHelp')}
                     </Text>
                     <View style={[styles.previewCard, { backgroundColor: colors.card }]}>
                       {possible.slice(0, 8).map((match, index) => {
@@ -809,7 +817,7 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
                               </Text>
                               <Text style={[styles.previewDate, { color: colors.textSecondary }]} numberOfLines={1}>
                                 {match.date} • {fmt(match.amount)} •{' '}
-                                {match.strength === 'EXACT' ? 'unusual amount' : `similar to ${match.keyword}`}
+                                {match.strength === 'EXACT' ? t('debt.form.unusualAmount') : t('debt.form.similarTo', { keyword: match.keyword })}
                               </Text>
                             </View>
                             <TouchableOpacity
@@ -823,7 +831,7 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
                               ]}
                             >
                               <Text style={[styles.possibleBtnText, { color: isAdded ? '#FFFFFF' : colors.accent }]}>
-                                {isAdded ? 'Added' : 'Add'}
+                                {isAdded ? t('debt.form.added') : t('common.add')}
                               </Text>
                             </TouchableOpacity>
                           </View>
@@ -839,12 +847,12 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
                 )}
                 {unmatchedKeywords.length > 0 && payable.length > 0 && (
                   <Text style={[styles.footnote, { color: colors.textSecondary }]}>
-                    No statement transactions contain {unmatchedKeywords.join(', ')}.
+                    {t('debt.form.noneContain', { keywords: unmatchedKeywords.join(', ') })}
                   </Text>
                 )}
                 {previewHints.length > 0 && (
                   <Text style={[styles.footnote, { color: colors.textSecondary }]}>
-                    Not counted: {previewHints.join(' • ')}.
+                    {t('debt.form.notCounted', { hints: previewHints.join(' • ') })}
                   </Text>
                 )}
               </>
@@ -857,7 +865,7 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
                 onPress={handleDelete}
               >
                 <Ionicons name="trash-outline" size={18} color="#FF3B30" />
-                <Text style={styles.dangerText}>Delete Debt</Text>
+                <Text style={styles.dangerText}>{t('debt.form.delete')}</Text>
               </TouchableOpacity>
             )}
           </ScrollView>

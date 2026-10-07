@@ -1,4 +1,5 @@
 import { CATEGORY_COLOR_PALETTE } from '@/constants/colors';
+import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import {
@@ -53,6 +54,7 @@ export function CategoryFormModal({
 }: CategoryFormModalProps) {
   const db = useSQLiteContext();
   const { colors } = useTheme();
+  const { t, categoryName } = useI18n();
   const { activeProfile, refreshProfiles } = useProfile();
   const profileId = activeProfile?.id ?? 1;
 
@@ -121,24 +123,24 @@ export function CategoryFormModal({
     if (addedKeywordCount > 0) {
       setTimeout(() => {
         Alert.alert(
-          'Apply to existing transactions?',
-          'Re-run auto-classification on transactions you have not categorized manually, so the new keywords take effect on your history.',
+          t('categoryForm.applyTitle'),
+          t('categoryForm.applyMessage'),
           [
-            { text: 'Not now', style: 'cancel' },
+            { text: t('common.notNow'), style: 'cancel' },
             {
-              text: 'Apply',
+              text: t('common.apply'),
               onPress: async () => {
                 try {
                   const updated = await reclassifyAllUnoverriddenTransactions(db, profileId);
                   await refreshProfiles();
                   onChanged();
                   Alert.alert(
-                    'Done',
-                    `${updated} transaction${updated === 1 ? '' : 's'} updated.`
+                    t('common.done'),
+                    t('categoryForm.updated', { count: updated })
                   );
                 } catch (error) {
                   console.error('Reclassify failed:', error);
-                  Alert.alert('Error', 'Failed to update existing transactions.');
+                  Alert.alert(t('common.error'), t('categoryForm.updateFailed'));
                 }
               },
             },
@@ -151,7 +153,7 @@ export function CategoryFormModal({
   const handleSave = async () => {
     const trimmed = name.trim();
     if (!trimmed) {
-      Alert.alert('Name required', 'Please enter a category name.');
+      Alert.alert(t('categoryForm.nameRequiredTitle'), t('categoryForm.nameRequired'));
       return;
     }
 
@@ -160,7 +162,7 @@ export function CategoryFormModal({
       if (isCreate) {
         const existing = await findCategoryByName(db, profileId, trimmed);
         if (existing) {
-          Alert.alert('Category exists', `"${existing.name}" already exists.`);
+          Alert.alert(t('categoryForm.existsTitle'), t('categoryForm.exists', { name: categoryName(existing.name) }));
           setSaving(false);
           return;
         }
@@ -178,12 +180,12 @@ export function CategoryFormModal({
         if (clash) {
           setSaving(false);
           Alert.alert(
-            'Merge categories?',
-            `"${clash.name}" already exists. Merge "${target.name}" into it? All transactions and keywords move to "${clash.name}".`,
+            t('categoryForm.mergeTitle'),
+            t('categoryForm.mergeMessage', { existing: categoryName(clash.name), name: target.name }),
             [
-              { text: 'Cancel', style: 'cancel' },
+              { text: t('common.cancel'), style: 'cancel' },
               {
-                text: 'Merge',
+                text: t('categoryForm.merge'),
                 style: 'destructive',
                 onPress: async () => {
                   try {
@@ -193,7 +195,7 @@ export function CategoryFormModal({
                     await finish(0);
                   } catch (error) {
                     console.error('Merge failed:', error);
-                    Alert.alert('Error', 'Failed to merge categories.');
+                    Alert.alert(t('common.error'), t('categoryForm.mergeFailed'));
                   } finally {
                     setSaving(false);
                   }
@@ -220,7 +222,7 @@ export function CategoryFormModal({
       await finish(added.length);
     } catch (error) {
       console.error('Failed to save category:', error);
-      Alert.alert('Error', 'Failed to save category.');
+      Alert.alert(t('common.error'), t('categoryForm.saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -245,7 +247,7 @@ export function CategoryFormModal({
       await finish(0);
     } catch (error) {
       console.error('Failed to delete category:', error);
-      Alert.alert('Error', 'Failed to delete category.');
+      Alert.alert(t('common.error'), t('categoryForm.deleteFailed'));
     } finally {
       setSaving(false);
     }
@@ -257,16 +259,15 @@ export function CategoryFormModal({
     <>
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={() => setDeleting(false)} hitSlop={8}>
-          <Text style={[styles.headerAction, { color: colors.accent }]}>Back</Text>
+          <Text style={[styles.headerAction, { color: colors.accent }]}>{t('common.back')}</Text>
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Delete Category</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>{t('categoryForm.delete')}</Text>
         <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={[styles.helperText, { color: colors.textSecondary }]}>
-          Move {category?.transactionCount ?? 0} transaction
-          {(category?.transactionCount ?? 0) === 1 ? '' : 's'} and all keywords from "{category?.name}" to:
+          {t('categoryForm.moveHelp', { count: category?.transactionCount ?? 0, name: category?.name ?? '' })}
         </Text>
 
         <View style={[styles.card, { backgroundColor: colors.card }]}>
@@ -284,7 +285,7 @@ export function CategoryFormModal({
                   }}
                 >
                   <View style={[styles.dot, { backgroundColor: option.color }]} />
-                  <Text style={[styles.reassignText, { color: colors.text }]}>{option.name}</Text>
+                  <Text style={[styles.reassignText, { color: colors.text }]}>{categoryName(option.name)}</Text>
                   {isSelected && <Ionicons name="checkmark-circle" size={20} color={colors.accent} />}
                 </TouchableOpacity>
               </React.Fragment>
@@ -301,7 +302,7 @@ export function CategoryFormModal({
           {saving ? (
             <ActivityIndicator color="#FFFFFF" />
           ) : (
-            <Text style={styles.deleteBtnText}>Move & Delete</Text>
+            <Text style={styles.deleteBtnText}>{t('categoryForm.moveDelete')}</Text>
           )}
         </TouchableOpacity>
       </ScrollView>
@@ -312,17 +313,17 @@ export function CategoryFormModal({
     <>
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <TouchableOpacity onPress={onClose} hitSlop={8}>
-          <Text style={[styles.headerAction, { color: colors.accent }]}>Cancel</Text>
+          <Text style={[styles.headerAction, { color: colors.accent }]}>{t('common.cancel')}</Text>
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.text }]}>
-          {isCreate ? 'New Category' : 'Edit Category'}
+          {isCreate ? t('categoryForm.new') : t('categoryForm.edit')}
         </Text>
         <TouchableOpacity onPress={handleSave} disabled={saving} hitSlop={8}>
           {saving ? (
             <ActivityIndicator size="small" color={colors.accent} />
           ) : (
             <Text style={[styles.headerAction, styles.headerActionBold, { color: colors.accent }]}>
-              Save
+              {t('common.save')}
             </Text>
           )}
         </TouchableOpacity>
@@ -333,13 +334,13 @@ export function CategoryFormModal({
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
-        <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>NAME</Text>
+        <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t('categoryForm.name')}</Text>
         <View style={[styles.inputWrap, { backgroundColor: fieldBg, borderColor: colors.border }]}>
           <TextInput
             style={[styles.input, { color: isBuiltIn ? colors.textSecondary : colors.text }]}
-            value={name}
+            value={isBuiltIn ? categoryName(name) : name}
             onChangeText={setName}
-            placeholder="e.g. Pets"
+            placeholder={t('categoryForm.namePlaceholder')}
             placeholderTextColor={colors.textSecondary}
             editable={!isBuiltIn}
             maxLength={30}
@@ -350,12 +351,11 @@ export function CategoryFormModal({
         </View>
         {isBuiltIn && (
           <Text style={[styles.footnote, { color: colors.textSecondary }]}>
-            Built-in names are used by auto-classification and can't be changed. You can still
-            change the color and add keywords.
+            {t('categoryForm.builtInNote')}
           </Text>
         )}
 
-        <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>COLOR</Text>
+        <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t('categoryForm.color')}</Text>
         <View style={styles.swatchGrid}>
           {CATEGORY_COLOR_PALETTE.map((swatch) => {
             const isSelected = swatch === color;
@@ -381,10 +381,10 @@ export function CategoryFormModal({
         </View>
 
         <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
-          AUTO-CLASSIFICATION KEYWORDS
+          {t('categoryForm.keywords')}
         </Text>
         <Text style={[styles.footnote, styles.footnoteTop, { color: colors.textSecondary }]}>
-          Transactions whose description contains a keyword are assigned to this category on import.
+          {t('categoryForm.keywordsHelp')}
         </Text>
 
         <View style={styles.keywordInputRow}>
@@ -399,7 +399,7 @@ export function CategoryFormModal({
               style={[styles.input, { color: colors.text }]}
               value={keywordInput}
               onChangeText={setKeywordInput}
-              placeholder="e.g. ALBERT HEIJN"
+              placeholder={t('categoryForm.keywordPlaceholder')}
               placeholderTextColor={colors.textSecondary}
               autoCapitalize="characters"
               autoCorrect={false}
@@ -417,7 +417,7 @@ export function CategoryFormModal({
               keywordInput.trim().length === 0 && styles.btnDisabled,
             ]}
           >
-            <Text style={styles.addKeywordText}>Add</Text>
+            <Text style={styles.addKeywordText}>{t('common.add')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -444,7 +444,7 @@ export function CategoryFormModal({
             onPress={handleStartDelete}
           >
             <Ionicons name="trash-outline" size={18} color="#FF3B30" />
-            <Text style={styles.dangerText}>Delete Category</Text>
+            <Text style={styles.dangerText}>{t('categoryForm.delete')}</Text>
           </TouchableOpacity>
         )}
       </ScrollView>

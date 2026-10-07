@@ -1,4 +1,5 @@
 import { DebtProgressBar } from '@/components/debts/DebtProgressBar';
+import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import {
@@ -8,7 +9,7 @@ import {
     getDebtPayments,
     removeDebtPayment
 } from '@/db/database';
-import { formatPayoffMonth, getDebtTypeIcon, isValidDateKey, parseNumber, todayKey } from '@/utils/debt';
+import { getDebtTypeIcon, isValidDateKey, parseNumber, todayKey } from '@/utils/debt';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSQLiteContext } from 'expo-sqlite';
@@ -38,6 +39,7 @@ interface DebtDetailModalProps {
 export function DebtDetailModal({ visible, debt, onClose, onEdit, onChanged }: DebtDetailModalProps) {
   const db = useSQLiteContext();
   const { colors } = useTheme();
+  const { t, format } = useI18n();
   const { activeProfile, currencySymbol } = useProfile();
   const profileId = activeProfile?.id ?? 1;
 
@@ -69,22 +71,18 @@ export function DebtDetailModal({ visible, debt, onClose, onEdit, onChanged }: D
 
   if (!debt) return null;
 
-  const fmt = (value: number, decimals = 0) =>
-    `${currencySymbol}${value.toLocaleString('en-US', {
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals,
-    })}`;
+  const fmt = (value: number, decimals = 0) => format.money(value, currencySymbol, decimals);
 
   const fieldBg = colors.field;
 
   const handleAddPayment = async () => {
     const amount = parseNumber(amountInput);
     if (isNaN(amount) || amount <= 0) {
-      Alert.alert('Payment amount', 'Enter a payment amount greater than 0.');
+      Alert.alert(t('debt.detail.amountTitle'), t('debt.detail.amountMessage'));
       return;
     }
     if (!isValidDateKey(dateInput.trim())) {
-      Alert.alert('Payment date', 'Use the format YYYY-MM-DD.');
+      Alert.alert(t('debt.detail.dateTitle'), t('debt.detail.dateMessage'));
       return;
     }
     try {
@@ -94,21 +92,19 @@ export function DebtDetailModal({ visible, debt, onClose, onEdit, onChanged }: D
       onChanged();
     } catch (error) {
       console.error('Failed to add payment:', error);
-      Alert.alert('Error', 'Failed to add this payment.');
+      Alert.alert(t('common.error'), t('debt.detail.addFailed'));
     }
   };
 
   const handleRemovePayment = (payment: DebtPayment) => {
     const isAuto = payment.source === 'AUTO';
     Alert.alert(
-      isAuto ? 'Unlink payment?' : 'Delete payment?',
-      isAuto
-        ? 'This statement transaction will no longer count toward this debt. Your transaction is not deleted.'
-        : 'This payment will be removed from the debt history.',
+      isAuto ? t('debt.detail.unlinkTitle') : t('debt.detail.deleteTitle'),
+      isAuto ? t('debt.detail.unlinkMessage') : t('debt.detail.deleteMessage'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: isAuto ? 'Unlink' : 'Delete',
+          text: isAuto ? t('debt.unlink') : t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -126,13 +122,20 @@ export function DebtDetailModal({ visible, debt, onClose, onEdit, onChanged }: D
   };
 
   const stats: { label: string; value: string }[] = [
-    { label: 'Paid off', value: fmt(debt.paidPrincipal) },
-    { label: 'Interest paid (est.)', value: fmt(debt.paidInterest) },
-    { label: 'Monthly payment', value: debt.paymentAmount > 0 ? fmt(debt.paymentAmount) : '—' },
-    { label: 'Interest rate', value: debt.apr > 0 ? `${debt.apr}%` : '0%' },
-    { label: 'Debt-free (est.)', value: debt.isPaidOff ? 'Done' : formatPayoffMonth(debt.payoffMonth) },
+    { label: t('debt.paidOff'), value: fmt(debt.paidPrincipal) },
+    { label: t('debt.detail.interestPaid'), value: fmt(debt.paidInterest) },
+    { label: t('debt.detail.monthlyPayment'), value: debt.paymentAmount > 0 ? fmt(debt.paymentAmount) : '—' },
+    { label: t('debt.detail.interestRate'), value: debt.apr > 0 ? `${format.number(debt.apr)}%` : '0%' },
     {
-      label: 'Future interest (est.)',
+      label: t('debt.detail.debtFree'),
+      value: debt.isPaidOff
+        ? t('common.done')
+        : debt.payoffMonth
+        ? format.monthYear(debt.payoffMonth, 'short')
+        : '—',
+    },
+    {
+      label: t('debt.detail.futureInterest'),
       value: debt.projectedInterest !== null && !debt.isPaidOff ? fmt(debt.projectedInterest) : '—',
     },
   ];
@@ -157,13 +160,13 @@ export function DebtDetailModal({ visible, debt, onClose, onEdit, onChanged }: D
         >
           <View style={[styles.header, { borderBottomColor: colors.border }]}>
             <TouchableOpacity onPress={onClose} hitSlop={8}>
-              <Text style={[styles.headerAction, { color: colors.accent }]}>Done</Text>
+              <Text style={[styles.headerAction, { color: colors.accent }]}>{t('common.done')}</Text>
             </TouchableOpacity>
             <Text style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>
               {debt.name}
             </Text>
             <TouchableOpacity onPress={onEdit} hitSlop={8}>
-              <Text style={[styles.headerAction, styles.bold, { color: colors.accent }]}>Edit</Text>
+              <Text style={[styles.headerAction, styles.bold, { color: colors.accent }]}>{t('common.edit')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -180,12 +183,12 @@ export function DebtDetailModal({ visible, debt, onClose, onEdit, onChanged }: D
                 {debt.isPaidOff && (
                   <View style={styles.paidBadge}>
                     <Ionicons name="checkmark-circle" size={14} color="#34C759" />
-                    <Text style={styles.paidBadgeText}>Paid off</Text>
+                    <Text style={styles.paidBadgeText}>{t('debt.paidOff')}</Text>
                   </View>
                 )}
               </View>
 
-              <Text style={[styles.heroLabel, { color: colors.textSecondary }]}>REMAINING</Text>
+              <Text style={[styles.heroLabel, { color: colors.textSecondary }]}>{t('debt.detail.remaining')}</Text>
               <Text style={[styles.heroValue, { color: colors.text }]}>{fmt(debt.balance, 2)}</Text>
 
               <View style={styles.barWrap}>
@@ -193,10 +196,10 @@ export function DebtDetailModal({ visible, debt, onClose, onEdit, onChanged }: D
               </View>
               <View style={styles.heroFooter}>
                 <Text style={[styles.heroFooterText, { color: colors.textSecondary }]}>
-                  {debt.percentPaid.toFixed(0)}% paid
+                  {t('debt.percentPaid', { percent: debt.percentPaid.toFixed(0) })}
                 </Text>
                 <Text style={[styles.heroFooterText, { color: colors.textSecondary }]}>
-                  of {fmt(debt.originalAmount)}
+                  {t('debt.ofAmount', { amount: fmt(debt.originalAmount) })}
                 </Text>
               </View>
             </View>
@@ -205,7 +208,7 @@ export function DebtDetailModal({ visible, debt, onClose, onEdit, onChanged }: D
               <View style={styles.warnCard}>
                 <Ionicons name="warning-outline" size={16} color="#FF9500" />
                 <Text style={styles.warnText}>
-                  The monthly payment doesn't cover the monthly interest, so the balance won't shrink at this rate.
+                  {t('debt.detail.neverPaysOff')}
                 </Text>
               </View>
             )}
@@ -228,7 +231,7 @@ export function DebtDetailModal({ visible, debt, onClose, onEdit, onChanged }: D
 
             {!debt.isPaidOff && (
               <>
-                <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>ADD A PAYMENT</Text>
+                <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t('debt.detail.addPayment')}</Text>
                 <View style={styles.addRow}>
                   <View style={[styles.inputWrap, styles.amountInput, { backgroundColor: fieldBg, borderColor: colors.border }]}>
                     <Text style={[styles.affix, { color: colors.textSecondary }]}>{currencySymbol}</Text>
@@ -236,7 +239,7 @@ export function DebtDetailModal({ visible, debt, onClose, onEdit, onChanged }: D
                       style={[styles.input, { color: colors.text }]}
                       value={amountInput}
                       onChangeText={setAmountInput}
-                      placeholder="Amount"
+                      placeholder={t('debt.detail.amountPlaceholder')}
                       placeholderTextColor={colors.textSecondary}
                       keyboardType="decimal-pad"
                     />
@@ -259,17 +262,17 @@ export function DebtDetailModal({ visible, debt, onClose, onEdit, onChanged }: D
                   onPress={handleAddPayment}
                 >
                   <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" />
-                  <Text style={styles.addBtnText}>Record Payment</Text>
+                  <Text style={styles.addBtnText}>{t('debt.detail.record')}</Text>
                 </TouchableOpacity>
               </>
             )}
 
             <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
-              PAYMENT HISTORY ({payments.length})
+              {t('debt.detail.history', { count: payments.length })}
             </Text>
             {payments.length === 0 ? (
               <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                No payments yet. Add keywords to auto-link statement payments, or record one manually.
+                {t('debt.detail.noPayments')}
               </Text>
             ) : (
               <View style={[styles.listCard, { backgroundColor: colors.card }]}>
@@ -284,18 +287,18 @@ export function DebtDetailModal({ visible, debt, onClose, onEdit, onChanged }: D
                     <View style={styles.paymentLeft}>
                       <Text style={[styles.paymentDate, { color: colors.text }]} numberOfLines={1}>
                         {payment.source === 'MANUAL'
-                          ? 'Manual payment'
+                          ? t('debt.detail.manualPayment')
                           : (payment.merchant && payment.merchant !== 'Unknown'
                               ? payment.merchant
-                              : payment.rawDescription) || 'Statement payment'}
+                              : payment.rawDescription) || t('debt.detail.statementPayment')}
                       </Text>
                       <Text style={[styles.paymentSplit, { color: colors.textSecondary }]} numberOfLines={1}>
                         {payment.date}
-                        {payment.source === 'AUTO' && payment.keyword ? ` • via ${payment.keyword}` : ''}
+                        {payment.source === 'AUTO' && payment.keyword ? ` • ${t('debt.detail.via', { keyword: payment.keyword })}` : ''}
                       </Text>
                       <Text style={[styles.paymentSplit, { color: colors.textSecondary }]}>
-                        {fmt(payment.principal, 2)} principal
-                        {payment.interest > 0 ? ` • ${fmt(payment.interest, 2)} interest` : ''}
+                        {t('debt.detail.principal', { amount: fmt(payment.principal, 2) })}
+                        {payment.interest > 0 ? ` • ${t('debt.detail.interest', { amount: fmt(payment.interest, 2) })}` : ''}
                       </Text>
                     </View>
                     <View style={styles.paymentRight}>
@@ -314,7 +317,7 @@ export function DebtDetailModal({ visible, debt, onClose, onEdit, onChanged }: D
                             { color: payment.source === 'AUTO' ? '#34C759' : colors.textSecondary },
                           ]}
                         >
-                          {payment.source === 'AUTO' ? 'Auto' : 'Manual'}
+                          {payment.source === 'AUTO' ? t('debt.detail.auto') : t('debt.detail.manual')}
                         </Text>
                       </View>
                     </View>

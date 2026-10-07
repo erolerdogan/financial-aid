@@ -1,4 +1,5 @@
 import { DebtProgressBar } from '@/components/debts/DebtProgressBar';
+import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { DebtSummary, getDebtSummaries, syncDebtPayments } from '@/db/database';
@@ -12,6 +13,7 @@ export function DebtsCard() {
   const db = useSQLiteContext();
   const router = useRouter();
   const { colors } = useTheme();
+  const { t, format } = useI18n();
   const { activeProfile, dataVersion, currencySymbol } = useProfile();
   const profileId = activeProfile?.id ?? 1;
 
@@ -42,8 +44,7 @@ export function DebtsCard() {
 
   if (!loaded) return null;
 
-  const fmt = (value: number) =>
-    `${currencySymbol}${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+  const fmt = (value: number) => format.money(value, currencySymbol, { maximumFractionDigits: 0 });
 
   if (debts.length === 0) {
     return (
@@ -56,9 +57,9 @@ export function DebtsCard() {
           <Ionicons name="trending-down-outline" size={18} color={colors.accent} />
         </View>
         <View style={styles.emptyTextWrap}>
-          <Text style={[styles.title, { color: colors.text }]}>Track your debts</Text>
+          <Text style={[styles.title, { color: colors.text }]}>{t('home.debts.emptyTitle')}</Text>
           <Text style={[styles.sub, { color: colors.textSecondary }]}>
-            See progress and your debt-free date
+            {t('home.debts.emptySub')}
           </Text>
         </View>
         <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
@@ -79,22 +80,22 @@ export function DebtsCard() {
       onPress={() => router.navigate({ pathname: '/debts', params: { segment: 'debts' } })}
     >
       <View style={styles.headerRow}>
-        <Text style={[styles.title, { color: colors.text }]}>Debts</Text>
+        <Text style={[styles.title, { color: colors.text }]}>{t('home.debts.title')}</Text>
         <View style={styles.headerRight}>
           <Text style={[styles.sub, { color: colors.textSecondary }]}>
-            {activeCount} active
+            {t('home.debts.active', { count: activeCount })}
           </Text>
           <Ionicons name="chevron-forward" size={14} color={colors.textSecondary} />
         </View>
       </View>
 
       <Text style={[styles.balance, { color: colors.text }]}>{fmt(totalBalance)}</Text>
-      <Text style={[styles.sub, { color: colors.textSecondary }]}>remaining</Text>
+      <Text style={[styles.sub, { color: colors.textSecondary }]}>{t('home.debts.remaining')}</Text>
 
       <View style={styles.bar}>
         <DebtProgressBar percent={percent} color={colors.accent} height={8} />
       </View>
-      <Text style={[styles.footer, { color: colors.textSecondary }]}>{percent.toFixed(0)}% paid off</Text>
+      <Text style={[styles.footer, { color: colors.textSecondary }]}>{t('home.debts.paidOff', { percent: percent.toFixed(0) })}</Text>
     </TouchableOpacity>
   );
 }

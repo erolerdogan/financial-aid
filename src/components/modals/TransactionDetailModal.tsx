@@ -1,4 +1,5 @@
 import { getCategoryColor } from '@/constants/colors';
+import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import {
@@ -7,6 +8,7 @@ import {
   Transaction,
   updateTransactionCategory,
 } from '@/db/database';
+import type { Message } from '@/i18n';
 import { INCOME_CATEGORY, UNCATEGORISED } from '@/utils/parser';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -32,7 +34,7 @@ interface TransactionDetailModalProps {
   transaction: Transaction | null;
   fixedState: FixedOverrideState;
   autoIsFixed?: boolean;
-  autoReason?: string;
+  autoReason?: Message[];
   parentTitle?: string;
   onClose: () => void;
   onDismiss?: () => void;
@@ -47,7 +49,7 @@ export function TransactionDetailModal({
   fixedState,
   autoIsFixed = false,
   autoReason,
-  parentTitle = 'Back',
+  parentTitle,
   onClose,
   onDismiss,
   onSelectFixedState,
@@ -55,6 +57,7 @@ export function TransactionDetailModal({
 }: TransactionDetailModalProps) {
   const handleDismissAction = onDismiss ?? onClose;
   const { colors, isDark } = useTheme();
+  const { t, format, categoryName, describe } = useI18n();
   const { currencySymbol, activeProfile } = useProfile();
   const db = useSQLiteContext();
   const profileId = activeProfile?.id ?? 1;
@@ -153,7 +156,8 @@ export function TransactionDetailModal({
   const isIncome = transaction.amount > 0;
   const isAuto = fixedState === 'AUTO';
   const effectiveState = isAuto ? (autoIsFixed ? 'FIXED' : 'FLEXIBLE') : fixedState;
-  const formattedAmount = `${isIncome ? '+' : '-'}${currencySymbol}${Math.abs(transaction.amount).toFixed(2)}`;
+  const formattedAmount = `${isIncome ? '+' : '-'}${format.money(Math.abs(transaction.amount), currencySymbol, 2)}`;
+  const autoReasonText = autoReason ? describe(autoReason) : '';
   const pickerOptions =
     isIncome && !categoryNames.includes(INCOME_CATEGORY) ? [INCOME_CATEGORY, ...categoryNames] : categoryNames;
 
@@ -196,7 +200,7 @@ export function TransactionDetailModal({
           <View style={styles.navRow}>
             <TouchableOpacity style={styles.backBtn} onPress={() => handleDismissAnimation(onClose)}>
               <Ionicons name="chevron-back" size={20} color={colors.accent} />
-              <Text style={[styles.backBtnText, { color: colors.accent }]}>{parentTitle}</Text>
+              <Text style={[styles.backBtnText, { color: colors.accent }]}>{parentTitle ?? t('common.back')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity onPress={() => handleDismissAnimation(handleDismissAction)}>
@@ -220,7 +224,7 @@ export function TransactionDetailModal({
                 activeOpacity={0.7}
                 hitSlop={10}
                 accessibilityRole="button"
-                accessibilityLabel={`Category ${transaction.category}, change`}
+                accessibilityLabel={t('detail.categoryChange', { category: categoryName(transaction.category) })}
                 onPress={() => {
                   Haptics.selectionAsync().catch(() => {});
                   setPickerOpen((open) => !open);
@@ -228,7 +232,7 @@ export function TransactionDetailModal({
               >
                 <View style={[styles.dot, { backgroundColor: getCategoryColor(transaction.category) }]} />
                 <Text style={[styles.categoryText, { color: getCategoryColor(transaction.category) }]}>
-                  {transaction.category}
+                  {categoryName(transaction.category)}
                 </Text>
                 <Ionicons
                   name={pickerOpen ? 'chevron-up' : 'chevron-down'}
@@ -243,7 +247,7 @@ export function TransactionDetailModal({
 
           {pickerOpen && (
             <View style={[styles.sectionContainer, { backgroundColor: colors.surface }]}>
-              <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>CATEGORY</Text>
+              <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>{t('detail.category')}</Text>
               <ScrollView style={styles.categoryScroll} contentContainerStyle={styles.categoryGrid}>
                 {pickerOptions.map((name) => {
                   const selected = name === transaction.category;
@@ -262,7 +266,7 @@ export function TransactionDetailModal({
                     >
                       <View style={[styles.dot, { backgroundColor: color }]} />
                       <Text style={[styles.categoryChipText, { color: colors.text }, selected && { fontWeight: '700' }]}>
-                        {name}
+                        {categoryName(name)}
                       </Text>
                     </TouchableOpacity>
                   );
@@ -273,7 +277,7 @@ export function TransactionDetailModal({
 
           {/* Classification Selection */}
           <View style={[styles.sectionContainer, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>COST CLASSIFICATION</Text>
+            <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>{t('detail.classification')}</Text>
 
             <View style={styles.overrideOptionsRow}>
               <TouchableOpacity
@@ -284,7 +288,7 @@ export function TransactionDetailModal({
                 onPress={() => onSelectFixedState('FIXED')}
               >
                 <Text style={[styles.optionText, { color: colors.textSecondary }, effectiveState === 'FIXED' && { color: '#5856D6', fontWeight: '700' }]}>
-                  Fixed
+                  {t('fixed.fixed')}
                 </Text>
               </TouchableOpacity>
 
@@ -296,19 +300,19 @@ export function TransactionDetailModal({
                 onPress={() => onSelectFixedState('FLEXIBLE')}
               >
                 <Text style={[styles.optionText, { color: colors.textSecondary }, effectiveState === 'FLEXIBLE' && { color: '#FF9500', fontWeight: '700' }]}>
-                  Flexible
+                  {t('fixed.flexible')}
                 </Text>
               </TouchableOpacity>
             </View>
 
             {isAuto ? (
               <Text style={[styles.autoHint, { color: colors.textSecondary }]}>
-                {autoReason ? `Detected automatically · ${autoReason}` : 'Detected automatically'}
+                {autoReasonText ? `${t('detail.autoDetected')} · ${autoReasonText}` : t('detail.autoDetected')}
               </Text>
             ) : (
               <TouchableOpacity onPress={() => onSelectFixedState('AUTO')} hitSlop={8}>
                 <Text style={[styles.autoHint, { color: colors.textSecondary }]}>
-                  Set by you · <Text style={{ color: colors.accent }}>Reset to automatic</Text>
+                  {t('detail.setByYou')} · <Text style={{ color: colors.accent }}>{t('detail.resetAuto')}</Text>
                 </Text>
               </TouchableOpacity>
             )}
@@ -316,7 +320,7 @@ export function TransactionDetailModal({
 
           {/* Raw Description Info */}
           <View style={styles.rawDescContainer}>
-            <Text style={[styles.rawDescLabel, { color: colors.textSecondary }]}>RAW DESCRIPTION</Text>
+            <Text style={[styles.rawDescLabel, { color: colors.textSecondary }]}>{t('detail.rawDescription')}</Text>
             <Text style={[styles.rawDescValue, { color: colors.text }]}>{transaction.rawDescription}</Text>
           </View>
         </Animated.View>

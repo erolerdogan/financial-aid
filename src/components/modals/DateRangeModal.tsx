@@ -1,3 +1,4 @@
+import { useI18n } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -14,8 +15,6 @@ interface DateRangeModalProps {
   onClose: () => void;
 }
 
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
 const toKey = (d: Date): string =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
@@ -23,9 +22,6 @@ const parseKey = (key: string): Date => {
   const [y, m, d] = key.split('-').map(Number);
   return new Date(y, m - 1, d);
 };
-
-const formatKey = (key: string): string =>
-  parseKey(key).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 
 const monthKeyOf = (d: Date): string =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -40,6 +36,10 @@ export function DateRangeModal({
   onClose,
 }: DateRangeModalProps) {
   const { colors } = useTheme();
+  const { t, format } = useI18n();
+  const formatKey = format.day;
+  // 1 January 2024 is a Monday.
+  const weekdays = Array.from({ length: 7 }, (_, i) => format.date(new Date(2024, 0, 1 + i), { weekday: 'short' }));
 
   const [start, setStart] = useState<string | null>(null);
   const [end, setEnd] = useState<string | null>(null);
@@ -113,21 +113,21 @@ export function DateRangeModal({
 
   const presets = [
     {
-      label: 'Last 7 days',
+      label: t('range.last7'),
       run: () => {
         const today = new Date();
         applyPreset(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 6), today);
       },
     },
     {
-      label: 'Last 30 days',
+      label: t('range.last30'),
       run: () => {
         const today = new Date();
         applyPreset(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 29), today);
       },
     },
     {
-      label: 'Year to date',
+      label: t('range.ytd'),
       run: () => {
         const today = new Date();
         applyPreset(new Date(today.getFullYear(), 0, 1), today);
@@ -142,12 +142,12 @@ export function DateRangeModal({
   };
 
   const summaryText = !start
-    ? 'Select a start date'
+    ? t('range.selectStart')
     : !end
-    ? `${formatKey(start)} – select an end date`
+    ? t('range.selectEnd', { start: formatKey(start) })
     : `${formatKey(start)} – ${formatKey(end)}`;
 
-  const monthTitle = cursor.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  const monthTitle = format.date(cursor, { month: 'long', year: 'numeric' });
   const chipBg = colors.surface;
 
   return (
@@ -157,7 +157,7 @@ export function DateRangeModal({
           <View style={[styles.sheet, { backgroundColor: colors.card }]}>
             <View style={styles.header}>
               <View style={[styles.handle, { backgroundColor: colors.border }]} />
-              <Text style={[styles.title, { color: colors.text }]}>Custom Range</Text>
+              <Text style={[styles.title, { color: colors.text }]}>{t('range.title')}</Text>
               <Text style={[styles.summary, { color: start ? colors.accent : colors.textSecondary }]}>
                 {summaryText}
               </Text>
@@ -197,7 +197,7 @@ export function DateRangeModal({
             </View>
 
             <View style={styles.weekRow}>
-              {WEEKDAYS.map((day) => (
+              {weekdays.map((day) => (
                 <Text key={day} style={[styles.weekday, { color: colors.textSecondary }]}>
                   {day}
                 </Text>
@@ -247,7 +247,7 @@ export function DateRangeModal({
                 style={[styles.footerBtn, { backgroundColor: chipBg }]}
                 onPress={onClose}
               >
-                <Text style={[styles.footerBtnText, { color: colors.text }]}>Cancel</Text>
+                <Text style={[styles.footerBtnText, { color: colors.text }]}>{t('common.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 activeOpacity={0.8}
@@ -259,7 +259,7 @@ export function DateRangeModal({
                 ]}
                 onPress={handleApply}
               >
-                <Text style={[styles.footerBtnText, { color: '#FFFFFF' }]}>Apply</Text>
+                <Text style={[styles.footerBtnText, { color: '#FFFFFF' }]}>{t('common.apply')}</Text>
               </TouchableOpacity>
             </View>
           </View>

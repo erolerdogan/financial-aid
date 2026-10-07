@@ -5,16 +5,18 @@ import {
   type FreedomErrors,
   type FreedomFieldKey,
 } from '@/components/freedom/FreedomInputs';
+import { useI18n } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import type { TranslationKey } from '@/i18n';
 import { MAX_GOAL_YEARS, SAFE_WITHDRAWAL_RATE, type GoalType } from '@/utils/freedom';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import React, { useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-const TYPES: { key: GoalType; label: string }[] = [
-  { key: 'BALANCE', label: 'Target balance' },
-  { key: 'INCOME', label: 'Passive income' },
+const TYPES: { key: GoalType; label: TranslationKey }[] = [
+  { key: 'BALANCE', label: 'freedom.field.goalBalance' },
+  { key: 'INCOME', label: 'freedom.goal.typeIncome' },
 ];
 
 const ON_TRACK_COLOR = '#34C759';
@@ -51,11 +53,6 @@ interface GoalSectionProps {
 
 const percent = (value: number): string => `${Number((value * 100).toFixed(2))}%`;
 
-const yearsLabel = (value: number): string => {
-  const rounded = Number(value.toFixed(1));
-  return `${rounded} ${rounded === 1 ? 'year' : 'years'}`;
-};
-
 export function GoalSection({
   goalType,
   onGoalTypeChange,
@@ -71,9 +68,10 @@ export function GoalSection({
   stale = false,
 }: GoalSectionProps) {
   const { colors } = useTheme();
+  const { t, format } = useI18n();
+  const yearsLabel = (value: number): string => t('common.years', { count: Number(value.toFixed(1)) });
 
-  const fmt = (value: number) =>
-    `${currencySymbol}${Math.round(value).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+  const fmt = (value: number) => format.money(Math.round(value), currencySymbol);
 
   const field = GOAL_FIELDS[goalType];
   const hasGoal = goal.target > 0;
@@ -85,13 +83,13 @@ export function GoalSection({
   // Never rounds up to 100% while the goal is still short.
   const progressPct = onTrack ? 100 : Math.min(99, Math.round(progress * 100));
   const statusColor = onTrack ? ON_TRACK_COLOR : BEHIND_COLOR;
-  const statusLabel = onTrack ? 'On track' : 'Behind';
-  const timeframe = `${years} ${years === 1 ? 'year' : 'years'}`;
+  const statusLabel = onTrack ? t('freedom.goal.onTrack') : t('freedom.goal.behind');
+  const timeframe = t('common.years', { count: years });
   // Rounded up, so the shown amount still reaches the goal.
   const needed = goal.monthlyNeeded === null ? null : Math.ceil(goal.monthlyNeeded);
 
   const renderResult = (label: string, value: string | null, detail: string) => (
-    <View accessible accessibilityLabel={`${label}, estimated, ${value ?? 'out of reach'}. ${detail}`}>
+    <View accessible accessibilityLabel={`${t('freedom.a11yEstimated', { label, value: value ?? t('freedom.goal.outOfReachShort') })}. ${detail}`}>
       <View style={styles.row}>
         <Text style={[styles.rowLabel, { color: colors.textSecondary }]} numberOfLines={1}>
           {label}
@@ -112,40 +110,50 @@ export function GoalSection({
   );
 
   const renderYears = () => {
-    const label = `At ${fmt(monthly)} a month`;
+    const label = t('freedom.goal.atMonthly', { amount: fmt(monthly) });
     if (goal.yearsNeeded === null) {
       return renderResult(
         label,
         null,
-        `This pace doesn't get there within ${MAX_GOAL_YEARS} years. A higher monthly amount or a smaller goal brings it within reach.`
+        t('freedom.goal.outOfReach', { years: MAX_GOAL_YEARS })
       );
     }
-    if (goal.yearsNeeded === 0) return renderResult(label, 'Reached', 'Your starting amount already covers this goal.');
+    if (goal.yearsNeeded === 0) return renderResult(label, t('freedom.goal.reached'), t('freedom.goal.reachedDetail'));
     const gap = goal.yearsNeeded - years;
     const detail =
       Math.abs(gap) < 0.05
-        ? `Right on your ${timeframe} timeframe.`
+        ? t('freedom.goal.rightOn', { timeframe })
         : gap < 0
-          ? `${yearsLabel(-gap)} sooner than your ${timeframe} timeframe.`
-          : `${yearsLabel(gap)} longer than your ${timeframe} timeframe.`;
+          ? t('freedom.goal.sooner', { gap: yearsLabel(-gap), timeframe })
+          : t('freedom.goal.longer', { gap: yearsLabel(gap), timeframe });
     return renderResult(label, yearsLabel(goal.yearsNeeded), detail);
   };
 
   const renderMonthly = () => {
-    const label = `To get there in ${timeframe}`;
+    const label = t('freedom.goal.toGetThere', { timeframe });
     if (needed === null) {
       return renderResult(
         label,
         null,
-        `No monthly amount gets there in ${timeframe} with these numbers. Try more years or a lower fee.`
+        t('freedom.goal.noMonthly', { timeframe })
       );
     }
-    if (needed === 0) return renderResult(label, `${fmt(0)} a month`, 'Your starting amount gets there on its own.');
-    const growth = annualIncreasePct !== 0 ? `, then ${annualIncreasePct > 0 ? '+' : ''}${percent(annualIncreasePct)} a year` : '';
+    if (needed === 0) return renderResult(label, t('freedom.goal.perMonth', { amount: fmt(0) }), t('freedom.goal.startCovers'));
     const diff = needed - Math.round(monthly);
     const compare =
-      diff > 0 ? `${fmt(diff)} more than now` : diff < 0 ? `${fmt(-diff)} less than now` : 'what you invest now';
-    return renderResult(label, `${fmt(needed)} a month`, `${compare}${growth}.`);
+      diff > 0
+        ? t('freedom.goal.moreThanNow', { amount: fmt(diff) })
+        : diff < 0
+          ? t('freedom.goal.lessThanNow', { amount: fmt(-diff) })
+          : t('freedom.goal.sameAsNow');
+    const detail =
+      annualIncreasePct !== 0
+        ? t('freedom.goal.withGrowth', {
+            compare,
+            percent: `${annualIncreasePct > 0 ? '+' : ''}${percent(annualIncreasePct)}`,
+          })
+        : `${compare}.`;
+    return renderResult(label, t('freedom.goal.perMonth', { amount: fmt(needed) }), detail);
   };
 
   if (!open) {
@@ -158,13 +166,13 @@ export function GoalSection({
           setOpen(true);
         }}
         accessibilityRole="button"
-        accessibilityLabel="Add a goal. See if you are on track for a target balance or a monthly income"
+        accessibilityLabel={t('freedom.goal.addA11y')}
       >
         <Ionicons name="flag-outline" size={20} color={colors.accent} />
         <View style={styles.addBody}>
-          <Text style={[styles.addTitle, { color: colors.text }]}>Add a goal</Text>
+          <Text style={[styles.addTitle, { color: colors.text }]}>{t('freedom.goal.add')}</Text>
           <Text style={[styles.addSubtitle, { color: colors.textSecondary }]} numberOfLines={1}>
-            See if you are on track
+            {t('freedom.goal.addSub')}
           </Text>
         </View>
         <Ionicons name="add" size={20} color={colors.textSecondary} />
@@ -174,7 +182,7 @@ export function GoalSection({
 
   return (
     <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-      <Text style={[styles.title, { color: colors.textSecondary }]}>GOAL (EST.)</Text>
+      <Text style={[styles.title, { color: colors.textSecondary }]}>{t('freedom.goal.title')}</Text>
 
       <View style={[styles.segmentedContainer, { backgroundColor: colors.track }]} accessibilityRole="radiogroup">
         {TYPES.map((item) => {
@@ -187,7 +195,7 @@ export function GoalSection({
               onPress={() => onGoalTypeChange(item.key)}
               accessibilityRole="radio"
               accessibilityState={{ selected }}
-              accessibilityLabel={`${item.label} goal`}
+              accessibilityLabel={t('freedom.goal.typeA11y', { label: t(item.label) })}
             >
               <Text
                 style={[
@@ -197,7 +205,7 @@ export function GoalSection({
                 ]}
                 numberOfLines={1}
               >
-                {item.label}
+                {t(item.label)}
               </Text>
             </TouchableOpacity>
           );
@@ -216,9 +224,11 @@ export function GoalSection({
 
       {goalType === 'INCOME' ? (
         <Text style={[styles.note, { color: colors.textSecondary }, stale && styles.stale]}>
-          {hasGoal ? `Needs a balance of ${fmt(goal.target)}. ` : ''}
-          Assumption: the {percent(SAFE_WITHDRAWAL_RATE)} rule, you withdraw {percent(SAFE_WITHDRAWAL_RATE)} of the
-          balance per year (income × 12 ÷ {SAFE_WITHDRAWAL_RATE}). A rule of thumb, not a guarantee.
+          {hasGoal ? `${t('freedom.goal.needsBalance', { amount: fmt(goal.target) })} ` : ''}
+          {t('freedom.goal.assumption', {
+            percent: percent(SAFE_WITHDRAWAL_RATE),
+            rate: format.number(SAFE_WITHDRAWAL_RATE),
+          })}
         </Text>
       ) : null}
 
@@ -228,9 +238,13 @@ export function GoalSection({
             accessible
             accessibilityRole="progressbar"
             accessibilityValue={{ min: 0, max: 100, now: progressPct }}
-            accessibilityLabel={`${statusLabel}. Estimated ${fmt(goal.projected)} of ${fmt(
-              goal.target
-            )} after ${timeframe}, ${progressPct} percent${real ? ", in today's money" : ''}`}
+            accessibilityLabel={`${t('freedom.goal.progressA11y', {
+              status: statusLabel,
+              projected: fmt(goal.projected),
+              target: fmt(goal.target),
+              timeframe,
+              percent: progressPct,
+            })}${real ? ` ${t('freedom.inTodaysMoney')}` : ''}`}
           >
             <View style={styles.row}>
               <View style={[styles.pill, { backgroundColor: `${statusColor}22` }]}>
@@ -244,11 +258,18 @@ export function GoalSection({
             </View>
             <Text style={[styles.detail, { color: colors.textSecondary }]}>
               {onTrack
-                ? `${fmt(goal.projected)} est. after ${timeframe}, ${fmt(goal.projected - goal.target)} above your goal.`
-                : `${fmt(goal.projected)} est. of ${fmt(goal.target)} after ${timeframe}, ${fmt(
-                    goal.target - goal.projected
-                  )} short.`}
-              {real ? " In today's money." : ''}
+                ? t('freedom.goal.above', {
+                    projected: fmt(goal.projected),
+                    timeframe,
+                    diff: fmt(goal.projected - goal.target),
+                  })
+                : t('freedom.goal.short', {
+                    projected: fmt(goal.projected),
+                    target: fmt(goal.target),
+                    timeframe,
+                    diff: fmt(goal.target - goal.projected),
+                  })}
+              {real ? ` ${t('freedom.inTodaysMoney')}` : ''}
             </Text>
           </View>
 
@@ -257,7 +278,7 @@ export function GoalSection({
         </View>
       ) : (
         <Text style={[styles.empty, { color: colors.textSecondary }]}>
-          Enter a goal to see how long it takes and what to invest each month.
+          {t('freedom.goal.empty')}
         </Text>
       )}
     </View>

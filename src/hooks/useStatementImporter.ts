@@ -1,8 +1,10 @@
 import { useImportResult } from '@/contexts/ImportResultContext';
+import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { getCustomRules, getLearnedCategories, getProfiles } from '@/db/database';
 import { parseFileToTransactions, processBatchImport } from '@/services/importService';
 import { cancelCurrentMonthReminders } from '@/utils/notifications';
+import { UNSUPPORTED_MESSAGE_KEYS, UnsupportedFileError } from '@/utils/statementFormat';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Haptics from 'expo-haptics';
 import { useSQLiteContext } from 'expo-sqlite';
@@ -17,6 +19,7 @@ export function useStatementImporter(options?: UseStatementImporterOptions) {
   const db = useSQLiteContext();
   const { activeProfile, refreshProfiles, switchProfile } = useProfile();
   const { showImportResult } = useImportResult();
+  const { t } = useI18n();
   const [importing, setImporting] = useState(false);
   const isPickingRef = useRef(false);
 
@@ -35,7 +38,7 @@ export function useStatementImporter(options?: UseStatementImporterOptions) {
       }
 
       if (!targetProfile) {
-        Alert.alert('Import Error', 'No active profile found. Please create a profile first.');
+        Alert.alert(t('import.errorTitle'), t('import.noProfile'));
         return;
       }
 
@@ -74,7 +77,10 @@ export function useStatementImporter(options?: UseStatementImporterOptions) {
       );
 
       if (!parsedTransactions || parsedTransactions.length === 0) {
-        Alert.alert('Import Warning', 'No valid transactions found in file.');
+        Alert.alert(
+          t('import.noneTitle'),
+          t('import.noneMessage')
+        );
         return;
       }
 
@@ -92,8 +98,14 @@ export function useStatementImporter(options?: UseStatementImporterOptions) {
 
       showImportResult(summary, targetProfile.name);
     } catch (error: any) {
+      if (error instanceof UnsupportedFileError) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        const key = UNSUPPORTED_MESSAGE_KEYS[error.message];
+        Alert.alert(t('import.unsupportedTitle'), key ? t(key) : error.message);
+        return;
+      }
       console.error('Import Error:', error);
-      Alert.alert('Import Failed', error?.message || 'An error occurred during import.');
+      Alert.alert(t('import.failedTitle'), error?.message || t('import.failedMessage'));
     } finally {
       setImporting(false);
       isPickingRef.current = false;

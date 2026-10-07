@@ -1,5 +1,6 @@
 import { ProfileSwitcherModal } from '@/components/ProfileSwitcherModal';
 import { useInbox } from '@/contexts/InboxContext';
+import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +16,7 @@ interface HeaderActionsProps {
 export function HeaderActions({ children }: HeaderActionsProps) {
   const router = useRouter();
   const { colors } = useTheme();
+  const { t } = useI18n();
   const { activeProfile } = useProfile();
   const { count, hasQuietItems, openInbox, refreshInbox } = useInbox();
   const [profileModalVisible, setProfileModalVisible] = useState(false);
@@ -27,7 +29,7 @@ export function HeaderActions({ children }: HeaderActionsProps) {
   );
 
   const inboxLabel =
-    count > 0 ? `For you, ${count} item${count === 1 ? '' : 's'}` : hasQuietItems ? 'For you, 1 reminder' : 'For you';
+    count > 0 ? t('header.forYouItems', { count }) : hasQuietItems ? t('header.forYouReminder') : t('header.forYou');
 
   return (
     <View style={styles.group}>
@@ -40,7 +42,7 @@ export function HeaderActions({ children }: HeaderActionsProps) {
           <Text style={styles.miniAvatarText}>{activeProfile?.name?.substring(0, 1) || 'P'}</Text>
         </View>
         <Text style={[styles.profilePillText, { color: colors.text }]} numberOfLines={1}>
-          {activeProfile?.name || 'Personal'}
+          {activeProfile?.name || t('profile.defaultName')}
         </Text>
         <Ionicons name="chevron-down" size={12} color={colors.textSecondary} />
       </TouchableOpacity>
@@ -71,7 +73,7 @@ export function HeaderActions({ children }: HeaderActionsProps) {
         style={[styles.settingsBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
         activeOpacity={0.8}
         onPress={() => router.push('/settings')}
-        accessibilityLabel="Settings"
+        accessibilityLabel={t('header.settings')}
       >
         <Ionicons name="settings-outline" size={18} color={colors.text} />
       </TouchableOpacity>

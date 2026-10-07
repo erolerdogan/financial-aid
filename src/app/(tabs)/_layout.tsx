@@ -1,15 +1,19 @@
 import { ImportSummaryHost } from '@/contexts/ImportResultContext';
 import { InboxHost, InboxProvider } from '@/contexts/InboxContext';
+import { useI18n } from '@/contexts/LanguageContext';
+import { TabSwipeProvider } from '@/contexts/TabSwipeContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { Platform } from 'react-native';
+import { Easing, Platform, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabLayout() {
   const { colors } = useTheme();
+  const { t } = useI18n();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
 
   const bottomInset = Math.max(insets.bottom, 0);
   const baseTabBarHeight = 50;
@@ -20,12 +24,28 @@ export default function TabLayout() {
 
   return (
     <InboxProvider>
+    <TabSwipeProvider>
     <Tabs
       initialRouteName="index"
       screenOptions={{
         headerShown: false,
         lazy: false,
         freezeOnBlur: false,
+        // Pages slide a full width side by side; the stock 'shift' fades both screens out and shows the backdrop.
+        animation: 'shift',
+        transitionSpec: { animation: 'timing', config: { duration: 300, easing: Easing.out(Easing.cubic) } },
+        sceneStyleInterpolator: ({ current }) => ({
+          sceneStyle: {
+            transform: [
+              {
+                translateX: current.progress.interpolate({
+                  inputRange: [-1, 0, 1],
+                  outputRange: [-width, 0, width],
+                }),
+              },
+            ],
+          },
+        }),
         tabBarHideOnKeyboard: Platform.OS === 'android',
         sceneStyle: { backgroundColor: colors.background },
         tabBarActiveTintColor: colors.accent,
@@ -49,7 +69,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
+          title: t('tabs.home'),
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? 'home' : 'home-outline'}
@@ -63,7 +83,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="transactions"
         options={{
-          title: 'Transactions',
+          title: t('tabs.transactions'),
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? 'receipt' : 'receipt-outline'}
@@ -76,7 +96,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="trends"
         options={{
-          title: 'Trends',
+          title: t('tabs.trends'),
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? 'stats-chart' : 'stats-chart-outline'}
@@ -89,7 +109,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="debts"
         options={{
-          title: 'Plan',
+          title: t('tabs.plan'),
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? 'trending-up' : 'trending-up-outline'}
@@ -100,6 +120,7 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+    </TabSwipeProvider>
     <ImportSummaryHost />
     <InboxHost />
     </InboxProvider>

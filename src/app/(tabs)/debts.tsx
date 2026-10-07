@@ -5,7 +5,9 @@ import { DebtDetailModal } from '@/components/modals/DebtDetailModal';
 import { DebtFormModal, DebtPrefill } from '@/components/modals/DebtFormModal';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { useInbox } from '@/contexts/InboxContext';
+import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
+import { TabSwipeBlocker, useTabSwipeInterceptor } from '@/contexts/TabSwipeContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import {
   DebtSummary,
@@ -15,7 +17,8 @@ import {
   getDebtSummaries,
   syncDebtPayments,
 } from '@/db/database';
-import { formatPayoffMonth, getDebtTypeIcon } from '@/utils/debt';
+import type { TranslationKey } from '@/i18n';
+import { getDebtTypeIcon } from '@/utils/debt';
 import { DebtSuggestion } from '@/utils/debtSuggestion';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -29,9 +32,9 @@ const MAX_SUGGESTIONS = 3;
 
 type PlanSegment = 'DEBTS' | 'FREEDOM';
 
-const SEGMENTS: { key: PlanSegment; label: string }[] = [
-  { key: 'DEBTS', label: 'Debts' },
-  { key: 'FREEDOM', label: 'Future Growth' },
+const SEGMENTS: { key: PlanSegment; label: TranslationKey }[] = [
+  { key: 'DEBTS', label: 'home.debts.title' },
+  { key: 'FREEDOM', label: 'freedom.name' },
 ];
 
 export default function DebtsScreen() {
@@ -53,7 +56,21 @@ export default function DebtsScreen() {
     setSegment(next);
   };
 
+  // A swipe steps through the segments before it leaves the tab.
+  useTabSwipeInterceptor((direction) => {
+    if (direction === 'next' && segment === 'DEBTS') {
+      selectSegment('FREEDOM');
+      return true;
+    }
+    if (direction === 'prev' && segment === 'FREEDOM') {
+      selectSegment('DEBTS');
+      return true;
+    }
+    return false;
+  });
+
   const { colors } = useTheme();
+  const { t, format } = useI18n();
   const { activeProfile, dataVersion, currencySymbol } = useProfile();
   const profileId = activeProfile?.id ?? 1;
   const { refreshInbox } = useInbox();
@@ -111,8 +128,7 @@ export default function DebtsScreen() {
     }, [db, load, changeStamp])
   );
 
-  const fmt = (value: number) =>
-    `${currencySymbol}${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+  const fmt = (value: number) => format.money(value, currencySymbol, { maximumFractionDigits: 0 });
 
   const totalOriginal = debts.reduce((sum, d) => sum + d.originalAmount, 0);
   const totalPaid = debts.reduce((sum, d) => sum + d.paidPrincipal, 0);
@@ -174,12 +190,12 @@ export default function DebtsScreen() {
 
   const confirmDelete = (debt: DebtSummary) => {
     Alert.alert(
-      'Delete debt?',
-      `"${debt.name}" and its payment history will be removed. Your bank transactions are not affected.`,
+      t('debt.deleteTitle'),
+      t('debt.deleteMessage', { name: debt.name }),
       [
-        { text: 'Cancel', style: 'cancel', onPress: () => closeSwipes() },
+        { text: t('common.cancel'), style: 'cancel', onPress: () => closeSwipes() },
         {
-          text: 'Delete',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -188,7 +204,7 @@ export default function DebtsScreen() {
               await load();
             } catch (error) {
               console.error('Failed to delete debt:', error);
-              Alert.alert('Error', 'Failed to delete this debt.');
+              Alert.alert(t('common.error'), t('debt.deleteFailed'));
             }
           },
         },
@@ -203,20 +219,20 @@ export default function DebtsScreen() {
         style={[styles.swipeAction, { backgroundColor: colors.accent }]}
         onPress={() => openEdit(debt)}
         accessibilityRole="button"
-        accessibilityLabel={`Edit ${debt.name}`}
+        accessibilityLabel={t('debt.a11yEdit', { name: debt.name })}
       >
         <Ionicons name="pencil" size={18} color="#FFFFFF" />
-        <Text style={styles.swipeActionText}>Edit</Text>
+        <Text style={styles.swipeActionText}>{t('common.edit')}</Text>
       </TouchableOpacity>
       <TouchableOpacity
         activeOpacity={0.8}
         style={[styles.swipeAction, styles.swipeDelete]}
         onPress={() => confirmDelete(debt)}
         accessibilityRole="button"
-        accessibilityLabel={`Delete ${debt.name}`}
+        accessibilityLabel={t('debt.a11yDelete', { name: debt.name })}
       >
         <Ionicons name="trash-outline" size={18} color="#FFFFFF" />
-        <Text style={styles.swipeActionText}>Delete</Text>
+        <Text style={styles.swipeActionText}>{t('common.delete')}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -225,7 +241,7 @@ export default function DebtsScreen() {
     suggestions.length === 0 ? null : (
       <View style={styles.suggestions}>
         <Text style={[styles.suggestionsLabel, { color: colors.textSecondary }]}>
-          SUGGESTED FROM YOUR STATEMENTS
+          {t('debt.suggestedLabel')}
         </Text>
         {suggestions.slice(0, MAX_SUGGESTIONS).map((suggestion) => (
           <View
@@ -240,8 +256,11 @@ export default function DebtsScreen() {
                 {suggestion.name}
               </Text>
               <Text style={[styles.debtSub, { color: colors.textSecondary }]} numberOfLines={1}>
-                {fmt(suggestion.payment)} / month • {suggestion.count} payments • since{' '}
-                {formatPayoffMonth(suggestion.firstDate.slice(0, 7))}
+                {t('debt.suggestionSub', {
+                  payment: fmt(suggestion.payment),
+                  count: suggestion.count,
+                  month: format.monthYear(suggestion.firstDate.slice(0, 7), 'short'),
+                })}
               </Text>
             </View>
             <TouchableOpacity
@@ -249,14 +268,14 @@ export default function DebtsScreen() {
               onPress={() => openSuggestion(suggestion)}
               hitSlop={8}
               style={[styles.suggestionAdd, { backgroundColor: colors.accent }]}
-              accessibilityLabel={`Add ${suggestion.name} as a debt`}
+              accessibilityLabel={t('debt.a11yAddSuggestion', { name: suggestion.name })}
             >
-              <Text style={styles.suggestionAddText}>Add</Text>
+              <Text style={styles.suggestionAddText}>{t('common.add')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => dismissSuggestion(suggestion)}
               hitSlop={10}
-              accessibilityLabel={`Dismiss suggestion ${suggestion.name}`}
+              accessibilityLabel={t('debt.a11yDismissSuggestion', { name: suggestion.name })}
             >
               <Ionicons name="close" size={18} color={colors.textSecondary} />
             </TouchableOpacity>
@@ -268,7 +287,7 @@ export default function DebtsScreen() {
   return (
     <ScreenContainer>
       <View style={styles.headerRow}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Plan</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>{t('tabs.plan')}</Text>
         <HeaderActions>
           {segment === 'DEBTS' && (
             <TouchableOpacity
@@ -276,7 +295,7 @@ export default function DebtsScreen() {
               onPress={openCreate}
               activeOpacity={0.8}
               accessibilityRole="button"
-              accessibilityLabel="Add debt"
+              accessibilityLabel={t('debt.add')}
             >
               <Ionicons name="add" size={20} color="#FFFFFF" />
             </TouchableOpacity>
@@ -303,7 +322,7 @@ export default function DebtsScreen() {
                   active && [styles.segmentTextActive, { color: colors.text }],
                 ]}
               >
-                {label}
+                {t(label)}
               </Text>
             </TouchableOpacity>
           );
@@ -321,10 +340,9 @@ export default function DebtsScreen() {
           <View style={[styles.emptyIcon, { backgroundColor: colors.tintBackground }]}>
             <Ionicons name="trending-down-outline" size={32} color={colors.accent} />
           </View>
-          <Text style={[styles.emptyTitle, { color: colors.text }]}>Track your debts</Text>
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>{t('home.debts.emptyTitle')}</Text>
           <Text style={[styles.emptySub, { color: colors.textSecondary }]}>
-            Add a loan, see your progress and an estimated debt-free date. Payments from your statements are linked
-            automatically.
+            {t('debt.emptySub')}
           </Text>
           {suggestionCards}
           <TouchableOpacity
@@ -333,30 +351,30 @@ export default function DebtsScreen() {
             onPress={openCreate}
           >
             <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" />
-            <Text style={styles.emptyBtnText}>Add Your First Debt</Text>
+            <Text style={styles.emptyBtnText}>{t('debt.addFirst')}</Text>
           </TouchableOpacity>
         </ScrollView>
       ) : (
         <ScrollView contentContainerStyle={styles.content}>
           <View style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>TOTAL REMAINING</Text>
+            <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>{t('debt.totalRemaining')}</Text>
             <Text style={[styles.summaryValue, { color: colors.text }]}>{fmt(totalBalance)}</Text>
             <View style={styles.summaryBar}>
               <DebtProgressBar percent={overallPercent} color={colors.accent} height={12} />
             </View>
             <View style={styles.summaryFooter}>
               <Text style={[styles.summaryFooterText, { color: colors.textSecondary }]}>
-                {overallPercent.toFixed(0)}% paid • {activeCount} active
+                {t('debt.percentPaid', { percent: overallPercent.toFixed(0) })} • {t('home.debts.active', { count: activeCount })}
               </Text>
               <Text style={[styles.summaryFooterText, { color: colors.textSecondary }]}>
-                {fmt(totalInterest)} interest (est.)
+                {t('debt.interestEst', { amount: fmt(totalInterest) })}
               </Text>
             </View>
           </View>
 
           {debts.map((debt) => (
+            <TabSwipeBlocker key={debt.id}>
             <Swipeable
-              key={debt.id}
               ref={(row) => {
                 if (row) swipeRefs.current.set(debt.id, row);
                 else swipeRefs.current.delete(debt.id);
@@ -382,16 +400,16 @@ export default function DebtsScreen() {
                     </Text>
                     <Text style={[styles.debtSub, { color: colors.textSecondary }]} numberOfLines={1}>
                       {debt.isPaidOff
-                        ? 'Paid off'
+                        ? t('debt.paidOff')
                         : debt.payoffMonth
-                        ? `Debt-free ~ ${formatPayoffMonth(debt.payoffMonth)}`
-                        : 'Set a monthly payment for an estimate'}
+                        ? t('debt.debtFree', { month: format.monthYear(debt.payoffMonth, 'short') })
+                        : t('debt.setPayment')}
                     </Text>
                   </View>
                   <View style={styles.debtAmountWrap}>
                     <Text style={[styles.debtBalance, { color: colors.text }]}>{fmt(debt.balance)}</Text>
                     <Text style={[styles.debtOf, { color: colors.textSecondary }]}>
-                      of {fmt(debt.originalAmount)}
+                      {t('debt.ofAmount', { amount: fmt(debt.originalAmount) })}
                     </Text>
                   </View>
                 </View>
@@ -401,15 +419,16 @@ export default function DebtsScreen() {
                 </View>
                 <View style={styles.debtFooter}>
                   <Text style={[styles.debtFooterText, { color: colors.textSecondary }]}>
-                    {debt.percentPaid.toFixed(0)}% paid
+                    {t('debt.percentPaid', { percent: debt.percentPaid.toFixed(0) })}
                   </Text>
                   <Text style={[styles.debtFooterText, { color: colors.textSecondary }]}>
-                    {debt.paymentCount} payment{debt.paymentCount === 1 ? '' : 's'}
-                    {debt.apr > 0 ? ` • ${debt.apr}% APR` : ''}
+                    {t('debt.payments', { count: debt.paymentCount })}
+                    {debt.apr > 0 ? ` • ${t('debt.apr', { apr: format.number(debt.apr) })}` : ''}
                   </Text>
                 </View>
               </TouchableOpacity>
             </Swipeable>
+            </TabSwipeBlocker>
           ))}
 
           {suggestionCards}

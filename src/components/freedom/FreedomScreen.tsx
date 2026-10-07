@@ -16,6 +16,7 @@ import { ResultCards } from '@/components/freedom/ResultCards';
 import { ScenarioSelector } from '@/components/freedom/ScenarioSelector';
 import { YearlyTable } from '@/components/freedom/YearlyTable';
 import { useProfile } from '@/contexts/ProfileContext';
+import { useI18n } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import {
   DEFAULT_FREEDOM_PLAN,
@@ -53,6 +54,7 @@ const SAVE_DELAY_MS = 500;
 export function FreedomScreen() {
   const db = useSQLiteContext();
   const { colors } = useTheme();
+  const { t } = useI18n();
   const { activeProfile, dataVersion, currencySymbol } = useProfile();
   const profileId = activeProfile?.id ?? 1;
 
@@ -255,25 +257,25 @@ export function FreedomScreen() {
   };
 
   if (introSeen === false) {
-    return <FreedomIntro currencySymbol={currencySymbol} actionLabel="Start Planning" onDone={handleIntroDone} />;
+    return <FreedomIntro currencySymbol={currencySymbol} actionLabel={t('freedom.intro.start')} onDone={handleIntroDone} />;
   }
 
   if (!draft || loadedProfileId !== profileId || introSeen === null) {
     if (failedLoadKey === loadKey) {
       return (
         <View style={styles.centered}>
-          <Text style={[styles.errorTitle, { color: colors.text }]}>Couldn&apos;t load your plan</Text>
+          <Text style={[styles.errorTitle, { color: colors.text }]}>{t('freedom.loadErrorTitle')}</Text>
           <Text style={[styles.errorText, { color: colors.textSecondary }]}>
-            Your saved plan is untouched. Try again in a moment.
+            {t('freedom.loadErrorBody')}
           </Text>
           <TouchableOpacity
             activeOpacity={0.8}
             style={[styles.retryBtn, { backgroundColor: colors.accent }]}
             onPress={handleRetry}
             accessibilityRole="button"
-            accessibilityLabel="Try loading the plan again"
+            accessibilityLabel={t('freedom.retryA11y')}
           >
-            <Text style={styles.retryText}>Try Again</Text>
+            <Text style={styles.retryText}>{t('freedom.retry')}</Text>
           </TouchableOpacity>
         </View>
       );
@@ -300,10 +302,10 @@ export function FreedomScreen() {
           onPress={openIntro}
           hitSlop={8}
           accessibilityRole="button"
-          accessibilityLabel="How Future Growth works"
+          accessibilityLabel={t('freedom.intro.modalTitle')}
         >
           <Ionicons name="help-circle-outline" size={16} color={colors.accent} />
-          <Text style={[styles.introLinkText, { color: colors.accent }]}>How it works</Text>
+          <Text style={[styles.introLinkText, { color: colors.accent }]}>{t('freedom.howItWorks')}</Text>
         </TouchableOpacity>
         <FreedomInputs
           fields="BASIC"
@@ -343,8 +345,8 @@ export function FreedomScreen() {
           stale={stale}
         />
         <DisclosureRow
-          title="More options"
-          subtitle="Own return, yearly increase, fee, inflation"
+          title={t('freedom.moreOptions')}
+          subtitle={t('freedom.moreOptionsSub')}
           expanded={showOptions}
           onToggle={() => setOptionsOpen(!showOptions)}
         />
@@ -358,8 +360,8 @@ export function FreedomScreen() {
           />
         )}
         <DisclosureRow
-          title="Details"
-          subtitle="Today's prices, cost of fees, year by year"
+          title={t('freedom.details')}
+          subtitle={t('freedom.detailsSub')}
           expanded={detailsOpen}
           onToggle={() => setDetailsOpen((value) => !value)}
         />

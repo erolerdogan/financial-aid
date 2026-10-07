@@ -1,11 +1,13 @@
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { getCategoryColor } from '@/constants/colors';
+import { useI18n } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import {
   CategoryGoalWithProgress,
   getCategoryGoalsWithProgress,
   setCategoryGoal
 } from '@/db/database';
+import { parseNumber } from '@/utils/debt';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
@@ -29,6 +31,7 @@ export default function GoalsScreen() {
   const router = useRouter();
   const db = useSQLiteContext();
   const { colors } = useTheme();
+  const { t, format, categoryName } = useI18n();
   const { activeProfile, dataVersion, currencySymbol } = useProfile();
   const activeProfileId = activeProfile?.id ?? 1;
 
@@ -63,7 +66,7 @@ export default function GoalsScreen() {
 
   const handleSaveGoal = async () => {
     if (!db || !editingCategory) return;
-    const parsed = parseFloat(inputLimit);
+    const parsed = parseNumber(inputLimit);
     if (!isNaN(parsed) && parsed >= 0) {
       await setCategoryGoal(db, editingCategory, parsed, activeProfileId);
     } else if (inputLimit === '' || parsed === 0) {
@@ -78,7 +81,7 @@ export default function GoalsScreen() {
   return (
     <ScreenContainer showDemoBanner={false}>
       <View style={[styles.headerRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Budgets</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>{t('settings.budgets')}</Text>
         <TouchableOpacity
           style={[styles.closeBtn, { backgroundColor: colors.surface }]}
           onPress={() => router.back()}
@@ -89,14 +92,14 @@ export default function GoalsScreen() {
 
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         <Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>
-          Manage your monthly spending caps per category. Progress is tracked against current month expenses.
+          {t('budgets.subtitle')}
         </Text>
 
         {loading ? (
           <ActivityIndicator size="small" color={colors.accent} style={{ marginTop: 40 }} />
         ) : goals.length === 0 ? (
           <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-            No spending categories found for this profile yet.
+            {t('budgets.empty')}
           </Text>
         ) : (
           goals.map((item) => {
@@ -117,13 +120,13 @@ export default function GoalsScreen() {
                 <View style={styles.goalCardHeader}>
                   <View style={styles.goalLeft}>
                     <View style={[styles.dot, { backgroundColor: catColor }]} />
-                    <Text style={[styles.categoryName, { color: colors.text }]}>{item.category}</Text>
+                    <Text style={[styles.categoryName, { color: colors.text }]}>{categoryName(item.category)}</Text>
                   </View>
                   <View style={styles.goalRight}>
                     <Text style={[styles.spentText, { color: colors.text }]}>
-                      {currencySymbol}{item.spent.toFixed(0)}{' '}
+                      {format.money(item.spent, currencySymbol)}{' '}
                       <Text style={{ color: colors.textSecondary, fontWeight: '400' }}>
-                        / {item.monthlyLimit > 0 ? `${currencySymbol}${item.monthlyLimit.toFixed(0)}` : 'No limit'}
+                        / {item.monthlyLimit > 0 ? format.money(item.monthlyLimit, currencySymbol) : t('budgets.noLimit')}
                       </Text>
                     </Text>
                     <Ionicons name="chevron-forward" size={14} color={colors.textSecondary} />
@@ -166,7 +169,7 @@ export default function GoalsScreen() {
                 <View style={styles.sheetHeader}>
                   <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
                   <Text style={[styles.sheetTitle, { color: colors.text }]}>
-                    Budget for {editingCategory}
+                    {t('budgets.budgetFor', { category: editingCategory ? categoryName(editingCategory) : '' })}
                   </Text>
                 </View>
                 <TextInput
@@ -178,7 +181,7 @@ export default function GoalsScreen() {
                       borderColor: colors.border,
                     },
                   ]}
-                  placeholder="e.g. 400"
+                  placeholder={t('budgets.placeholder')}
                   placeholderTextColor={colors.textSecondary}
                   keyboardType="numeric"
                   value={inputLimit}
@@ -190,13 +193,13 @@ export default function GoalsScreen() {
                     style={[styles.modalCancelBtn, { backgroundColor: colors.track }]}
                     onPress={() => setModalVisible(false)}
                   >
-                    <Text style={[styles.modalCancelText, { color: colors.text }]}>Cancel</Text>
+                    <Text style={[styles.modalCancelText, { color: colors.text }]}>{t('common.cancel')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.modalSaveBtn, { backgroundColor: colors.accent }]}
                     onPress={handleSaveGoal}
                   >
-                    <Text style={styles.modalSaveText}>Save Goal</Text>
+                    <Text style={styles.modalSaveText}>{t('budgets.save')}</Text>
                   </TouchableOpacity>
                 </View>
               </View>

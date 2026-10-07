@@ -1,3 +1,4 @@
+import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { deleteProfile, Profile } from '@/db/database';
@@ -29,6 +30,7 @@ interface ProfileSwitcherModalProps {
 export function ProfileSwitcherModal({ visible, onClose }: ProfileSwitcherModalProps) {
   const db = useSQLiteContext();
   const { colors } = useTheme();
+  const { t } = useI18n();
   const { profiles, activeProfile, switchProfile, addNewProfile, editProfile, refreshProfiles } = useProfile();
 
   const [isEditing, setIsEditing] = useState(false);
@@ -58,16 +60,16 @@ export function ProfileSwitcherModal({ visible, onClose }: ProfileSwitcherModalP
 
   const handleDelete = (profile: Profile) => {
     if (profiles.length <= 1) {
-      Alert.alert('Cannot Delete', 'You must keep at least one profile.');
+      Alert.alert(t('profile.cannotDeleteTitle'), t('profile.cannotDeleteMessage'));
       return;
     }
     Alert.alert(
-      'Delete Profile',
-      `Are you sure you want to delete "${profile.name}" and all its associated data?`,
+      t('profile.deleteTitle'),
+      t('profile.deleteMessage', { name: profile.name }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             await deleteProfile(db, profile.id);
@@ -102,7 +104,7 @@ export function ProfileSwitcherModal({ visible, onClose }: ProfileSwitcherModalP
               
               <View style={styles.headerRow}>
                 <Text style={[styles.title, { color: colors.text }]}>
-                  {isEditing ? (selectedForEdit ? 'Edit Profile' : 'New Profile') : 'Switch Profile'}
+                  {isEditing ? (selectedForEdit ? t('profile.edit') : t('profile.new')) : t('profile.switch')}
                 </Text>
                 {!isEditing && (
                   <TouchableOpacity
@@ -111,7 +113,7 @@ export function ProfileSwitcherModal({ visible, onClose }: ProfileSwitcherModalP
                       setIsEditing(true);
                     }}
                   >
-                    <Text style={[styles.addText, { color: colors.accent }]}>+ Add New</Text>
+                    <Text style={[styles.addText, { color: colors.accent }]}>{t('profile.addNew')}</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -120,13 +122,13 @@ export function ProfileSwitcherModal({ visible, onClose }: ProfileSwitcherModalP
                 <View style={styles.formContainer}>
                   <TextInput
                     style={[styles.input, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
-                    placeholder="Profile Name"
+                    placeholder={t('profile.namePlaceholder')}
                     placeholderTextColor={colors.textSecondary}
                     value={nameInput}
                     onChangeText={setNameInput}
                     autoFocus
                   />
-                  <Text style={[styles.colorLabel, { color: colors.textSecondary }]}>Choose Avatar Color</Text>
+                  <Text style={[styles.colorLabel, { color: colors.textSecondary }]}>{t('profile.avatarColor')}</Text>
                   <View style={styles.colorRow}>
                     {AVATAR_COLORS.map((col) => (
                       <TouchableOpacity
@@ -142,13 +144,13 @@ export function ProfileSwitcherModal({ visible, onClose }: ProfileSwitcherModalP
                       style={[styles.cancelBtn, { borderColor: colors.border }]}
                       onPress={resetForm}
                     >
-                      <Text style={[styles.cancelBtnText, { color: colors.text }]}>Cancel</Text>
+                      <Text style={[styles.cancelBtnText, { color: colors.text }]}>{t('common.cancel')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.saveBtn, { backgroundColor: colors.accent }]}
                       onPress={handleSave}
                     >
-                      <Text style={styles.saveBtnText}>Save Profile</Text>
+                      <Text style={styles.saveBtnText}>{t('profile.save')}</Text>
                     </TouchableOpacity>
                   </View>
                 </View>

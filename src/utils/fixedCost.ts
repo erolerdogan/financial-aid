@@ -1,3 +1,4 @@
+import type { Message, TranslationKey } from '@/i18n';
 import { containsWord, normalizeMerchantName } from '@/utils/parser';
 
 export type Cadence = 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY' | 'IRREGULAR';
@@ -24,7 +25,8 @@ export interface MerchantProfile {
 export interface FixedScore {
   isFixed: boolean;
   confidence: number;
-  reason: string;
+  /** Up to two signals, rendered with `describe` from `useI18n()`. */
+  reason: Message[];
 }
 
 export interface FixedRule {
@@ -60,12 +62,12 @@ const FIXED_INCOME_KEYWORDS = [
   'TOESLAG', 'KINDERBIJSLAG', 'UITKERING',
 ];
 
-const CADENCE_BANDS: { cadence: Cadence; min: number; max: number; label: string }[] = [
-  { cadence: 'WEEKLY', min: 6, max: 8, label: 'Weekly' },
-  { cadence: 'BIWEEKLY', min: 13, max: 15, label: 'Every 2 weeks' },
-  { cadence: 'MONTHLY', min: 26, max: 33, label: 'Monthly' },
-  { cadence: 'QUARTERLY', min: 83, max: 97, label: 'Quarterly' },
-  { cadence: 'YEARLY', min: 350, max: 380, label: 'Yearly' },
+const CADENCE_BANDS: { cadence: Cadence; min: number; max: number; label: TranslationKey }[] = [
+  { cadence: 'WEEKLY', min: 6, max: 8, label: 'fixed.reason.weekly' },
+  { cadence: 'BIWEEKLY', min: 13, max: 15, label: 'fixed.reason.biweekly' },
+  { cadence: 'MONTHLY', min: 26, max: 33, label: 'fixed.reason.monthly' },
+  { cadence: 'QUARTERLY', min: 83, max: 97, label: 'fixed.reason.quarterly' },
+  { cadence: 'YEARLY', min: 350, max: 380, label: 'fixed.reason.yearly' },
 ];
 
 const median = (values: number[]): number => {
@@ -172,8 +174,8 @@ export function scoreFixed(
   isDirectDebit: boolean = false
 ): FixedScore {
   let score = 0;
-  const positives: string[] = [];
-  let negative = '';
+  const positives: Message[] = [];
+  let negative: Message | null = null;
 
   const hasHistory = !!profile && profile.count >= 2;
   const regular =
@@ -184,16 +186,16 @@ export function scoreFixed(
 
   if (regular) {
     score += 0.45;
-    positives.push(CADENCE_BANDS.find((b) => b.cadence === profile.cadence)?.label ?? 'Recurring');
+    positives.push({ key: CADENCE_BANDS.find((b) => b.cadence === profile.cadence)?.label ?? 'fixed.reason.recurring' });
   }
 
   if (hasHistory) {
     if (profile.amountDeviation <= 0.05) {
       score += 0.3;
-      positives.push('same amount');
+      positives.push({ key: 'fixed.reason.sameAmount' });
     } else if (profile.amountDeviation <= 0.2) {
       score += 0.15;
-      positives.push('similar amounts');
+      positives.push({ key: 'fixed.reason.similarAmounts' });
     }
 
     if (regular && profile.cadence === 'MONTHLY' && profile.daySpread <= 4) {
@@ -202,42 +204,40 @@ export function scoreFixed(
 
     if (profile.chargesPerMonth >= 2 && profile.amountDeviation > 0.2) {
       score -= 0.4;
-      negative = 'Several charges per month, varying amounts';
+      negative = { key: 'fixed.reason.varying' };
     }
   }
 
   if (hasFixedKeyword(text, isIncome)) {
     score += isIncome ? 0.6 : 0.4;
-    positives.push(isIncome ? 'regular income' : 'known recurring bill');
+    positives.push({ key: isIncome ? 'fixed.reason.regularIncome' : 'fixed.reason.knownBill' });
   }
 
   if (isDirectDebit && !isIncome) {
     score += 0.2;
-    positives.push('direct debit');
+    positives.push({ key: 'fixed.reason.directDebit' });
   }
 
   if (!isIncome) {
     if (STRONG_FIXED_CATEGORIES.has(category)) {
       score += 0.6;
-      positives.push(`${category} category`);
+      positives.push({ key: 'fixed.reason.category', params: { category } });
     } else if (FIXED_CATEGORIES.has(category)) {
       score += 0.35;
-      positives.push(`${category} category`);
+      positives.push({ key: 'fixed.reason.category', params: { category } });
     } else if (STRONG_FLEXIBLE_CATEGORIES.has(category) || FLEXIBLE_CATEGORIES.has(category)) {
       score -= STRONG_FLEXIBLE_CATEGORIES.has(category) ? 0.45 : 0.25;
-      if (!negative) negative = `${category} category, no fixed pattern`;
+      if (!negative) negative = { key: 'fixed.reason.categoryNoPattern', params: { category } };
     }
   }
 
   const isFixed = score >= FIXED_THRESHOLD;
-  const reason = isFixed
-    ? capitalize(positives.slice(0, 2).join(', '))
-    : negative || (hasHistory ? 'No regular pattern' : 'Not enough history');
+  const reason: Message[] = isFixed
+    ? positives.slice(0, 2)
+    : [negative ?? { key: hasHistory ? 'fixed.reason.noPattern' : 'fixed.reason.noHistory' }];
 
   return { isFixed, confidence: Math.max(0, Math.min(1, score)), reason };
 }
-
-const capitalize = (value: string): string => (value ? value[0].toUpperCase() + value.slice(1) : value);
 
 /** Most specific (longest) user rule whose keyword appears as a whole word in `text`. */
 export function matchRule<T extends FixedRule>(text: string, rules: T[]): T | undefined {

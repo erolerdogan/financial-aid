@@ -4,6 +4,7 @@ import { HeaderActions } from '@/components/HeaderActions';
 import { DateRangeModal } from '@/components/modals/DateRangeModal';
 import { TransactionDetailModal } from '@/components/modals/TransactionDetailModal';
 import { ScreenContainer } from '@/components/ScreenContainer';
+import { useI18n } from '@/contexts/LanguageContext';
 import { usePeriod } from '@/contexts/PeriodContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -18,6 +19,7 @@ import {
     setMerchantFixedOverride,
     Transaction
 } from '@/db/database';
+import type { Message } from '@/i18n';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -57,38 +59,33 @@ const parseKey = (key: string): Date => {
   return new Date(y, m - 1, d);
 };
 
-const formatMonthKey = (monthKey: string): string => {
-  const [y, m] = monthKey.split('-').map(Number);
-  if (!y || !m) return monthKey;
-  return new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
-};
-
-const formatShortDate = (key: string): string =>
-  parseKey(key).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
-
-const formatDayTitle = (isoDate: string): string => {
-  const parsed = new Date(`${isoDate.slice(0, 10)}T00:00:00`);
-  if (isNaN(parsed.getTime())) return isoDate;
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const diffDays = Math.round((today.getTime() - parsed.getTime()) / 86400000);
-
-  if (diffDays === 0) return 'Today';
-  if (diffDays === 1) return 'Yesterday';
-
-  return parsed.toLocaleDateString(undefined, {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
-};
-
 export default function TransactionsScreen() {
   const router = useRouter();
   const db = useSQLiteContext();
   const { colors } = useTheme();
+  const { t, format, categoryName } = useI18n();
+
+  const formatDayTitle = useCallback(
+    (isoDate: string): string => {
+      const parsed = new Date(`${isoDate.slice(0, 10)}T00:00:00`);
+      if (isNaN(parsed.getTime())) return isoDate;
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const diffDays = Math.round((today.getTime() - parsed.getTime()) / 86400000);
+
+      if (diffDays === 0) return t('common.today');
+      if (diffDays === 1) return t('common.yesterday');
+
+      return format.date(parsed, {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      });
+    },
+    [t, format]
+  );
   const { activeProfile, dataVersion, currencySymbol } = useProfile();
   const { period: filter, setPeriod: setFilter } = usePeriod();
   const activeProfileId = activeProfile?.id ?? 1;
@@ -111,7 +108,7 @@ export default function TransactionsScreen() {
 
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [currentFixedState, setCurrentFixedState] = useState<FixedOverrideState>('AUTO');
-  const [fixedAuto, setFixedAuto] = useState({ autoIsFixed: false, reason: '' });
+  const [fixedAuto, setFixedAuto] = useState<{ autoIsFixed: boolean; reason: Message[] }>({ autoIsFixed: false, reason: [] });
 
   const listRef = useRef<SectionList<Transaction, DaySection>>(null);
   const loadedCountRef = useRef(0);
@@ -138,19 +135,17 @@ export default function TransactionsScreen() {
   const monthNames = useMemo(() => {
     const map: Record<string, string> = {};
     availableMonths.forEach((m) => {
-      map[m] = formatMonthKey(m);
+      map[m] = format.monthYear(m);
     });
     return map;
-  }, [availableMonths]);
+  }, [availableMonths, format]);
 
   const stepperLabel =
     filter.kind === 'MONTH'
       ? filter.month
       : filter.kind === 'RANGE'
-      ? filter.from === filter.to
-        ? formatShortDate(filter.from)
-        : `${formatShortDate(filter.from)} – ${formatShortDate(filter.to)}`
-      : 'All Transactions';
+      ? format.range(filter.from, filter.to)
+      : t('transactions.all');
 
   useEffect(() => {
     setSelectedCategory('All');
@@ -278,7 +273,7 @@ export default function TransactionsScreen() {
       result[result.length - 1].data.push(tx);
     }
     return result;
-  }, [items]);
+  }, [items, formatDayTitle]);
 
   const monthIndex = filter.kind === 'MONTH' ? availableMonths.indexOf(filter.month) : -1;
 
@@ -394,13 +389,12 @@ export default function TransactionsScreen() {
             {title}
           </Text>
           <Text style={[styles.rowSubtitle, { color: colors.textSecondary }]} numberOfLines={1}>
-            {item.category}
+            {categoryName(item.category)}
           </Text>
         </View>
         <Text style={[styles.rowAmount, { color: isIncome ? '#34C759' : colors.text }]}>
           {isIncome ? '+' : '-'}
-          {currencySymbol}
-          {Math.abs(item.amount).toFixed(2)}
+          {format.money(Math.abs(item.amount), currencySymbol, 2)}
         </Text>
       </TouchableOpacity>
     );
@@ -410,7 +404,7 @@ export default function TransactionsScreen() {
     <ScreenContainer>
       <View style={styles.headerWrap}>
         <View style={styles.headerRow}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>Transactions</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>{t('tabs.transactions')}</Text>
           <HeaderActions />
         </View>
 
@@ -428,7 +422,7 @@ export default function TransactionsScreen() {
           <Ionicons name="search" size={16} color={colors.textSecondary} />
           <TextInput
             style={[styles.searchInput, { color: colors.text }]}
-            placeholder="Search merchant, description or category"
+            placeholder={t('transactions.searchPlaceholder')}
             placeholderTextColor={colors.textSecondary}
             value={searchInput}
             onChangeText={setSearchInput}
@@ -485,9 +479,9 @@ export default function TransactionsScreen() {
               >
                 <Ionicons name="pricetags-outline" size={18} color={colors.accent} />
                 <Text style={[styles.reviewRowText, { color: colors.text }]}>
-                  {uncategorisedCount} uncategorised transaction{uncategorisedCount === 1 ? '' : 's'}
+                  {t('transactions.uncategorised', { count: uncategorisedCount })}
                 </Text>
-                <Text style={[styles.reviewRowAction, { color: colors.accent }]}>Review</Text>
+                <Text style={[styles.reviewRowAction, { color: colors.accent }]}>{t('transactions.review')}</Text>
                 <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
               </TouchableOpacity>
             ) : null
@@ -505,10 +499,10 @@ export default function TransactionsScreen() {
               <Ionicons name="receipt-outline" size={40} color={colors.textSecondary} />
               <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
                 {searchTerm.length > 0
-                  ? 'No matching transactions.'
+                  ? t('transactions.noMatching')
                   : filter.kind !== 'ALL' || selectedCategory !== 'All'
-                  ? 'No transactions match these filters.'
-                  : 'No transactions yet.'}
+                  ? t('transactions.noFilterMatch')
+                  : t('transactions.none')}
               </Text>
             </View>
           }
@@ -535,7 +529,7 @@ export default function TransactionsScreen() {
             <View style={[styles.sheetContainer, { backgroundColor: colors.card }]}>
               <View style={styles.sheetHeader}>
                 <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
-                <Text style={[styles.sheetTitle, { color: colors.text }]}>Filter by Date</Text>
+                <Text style={[styles.sheetTitle, { color: colors.text }]}>{t('transactions.filterByDate')}</Text>
               </View>
 
               <ScrollView style={styles.sheetScroll}>
@@ -556,7 +550,7 @@ export default function TransactionsScreen() {
                         filter.kind === 'ALL' && styles.sheetItemTextActive,
                       ]}
                     >
-                      All Transactions
+                      {t('transactions.all')}
                     </Text>
                   </View>
                   {filter.kind === 'ALL' && (
@@ -581,7 +575,7 @@ export default function TransactionsScreen() {
                         filter.kind === 'RANGE' && styles.sheetItemTextActive,
                       ]}
                     >
-                      Custom Range…
+                      {t('period.customRange')}
                     </Text>
                   </View>
                   {filter.kind === 'RANGE' ? (
@@ -638,7 +632,7 @@ export default function TransactionsScreen() {
         fixedState={currentFixedState}
         autoIsFixed={fixedAuto.autoIsFixed}
         autoReason={fixedAuto.reason}
-        parentTitle="Transactions"
+        parentTitle={t('tabs.transactions')}
         onClose={() => setSelectedTransaction(null)}
         onDismiss={() => setSelectedTransaction(null)}
         onSelectFixedState={handleSelectFixedState}

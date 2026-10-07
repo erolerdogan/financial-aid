@@ -1,4 +1,6 @@
+import { useI18n } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import type { Formatters } from '@/i18n/format';
 import { type YearRow } from '@/utils/freedom';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -12,9 +14,9 @@ interface YearlyTableProps {
   real?: boolean;
 }
 
-const formatAmount = (value: number, currencySymbol: string): string => {
+const formatAmount = (value: number, currencySymbol: string, format: Formatters): string => {
   const rounded = Math.round(value);
-  const text = `${currencySymbol}${Math.abs(rounded).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+  const text = format.money(Math.abs(rounded), currencySymbol);
   return rounded < 0 ? `-${text}` : text;
 };
 
@@ -33,30 +35,35 @@ const YearlyRow = React.memo(function YearlyRow({
   textColor,
   borderColor,
 }: YearlyRowProps) {
+  const { t, format } = useI18n();
+  const amount = (value: number) => formatAmount(value, currencySymbol, format);
   const cell = [styles.cell, { color: textColor }];
   return (
     <View
       style={[styles.row, { borderTopColor: borderColor }]}
       accessible
-      accessibilityLabel={`Year ${row.year}. Start ${formatAmount(row.start, currencySymbol)}, contributions ${formatAmount(
-        row.contributions,
-        currencySymbol
-      )}, profit ${formatAmount(row.profit, currencySymbol)}, end ${formatAmount(row.end, currencySymbol)}`}
+      accessibilityLabel={t('freedom.table.a11yRow', {
+        year: row.year,
+        start: amount(row.start),
+        contributions: amount(row.contributions),
+        profit: amount(row.profit),
+        end: amount(row.end),
+      })}
     >
       <Text style={[cell, styles.yearCell]} numberOfLines={1}>
         {row.year}
       </Text>
       <Text style={cell} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
-        {formatAmount(row.start, currencySymbol)}
+        {amount(row.start)}
       </Text>
       <Text style={cell} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
-        {formatAmount(row.contributions, currencySymbol)}
+        {amount(row.contributions)}
       </Text>
       <Text style={cell} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
-        {formatAmount(row.profit, currencySymbol)}
+        {amount(row.profit)}
       </Text>
       <Text style={[cell, isLast && styles.finalCell]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
-        {formatAmount(row.end, currencySymbol)}
+        {amount(row.end)}
       </Text>
     </View>
   );
@@ -64,6 +71,7 @@ const YearlyRow = React.memo(function YearlyRow({
 
 export const YearlyTable = React.memo(function YearlyTable({ rows, currencySymbol, real = false }: YearlyTableProps) {
   const { colors } = useTheme();
+  const { t } = useI18n();
   const [expanded, setExpanded] = useState(false);
 
   const toggle = () => {
@@ -79,24 +87,24 @@ export const YearlyTable = React.memo(function YearlyTable({ rows, currencySymbo
         onPress={toggle}
         style={styles.toggle}
         accessibilityRole="button"
-        accessibilityLabel={real ? "Yearly breakdown, in today's money" : 'Yearly breakdown'}
+        accessibilityLabel={real ? t('freedom.table.a11yReal') : t('freedom.table.a11y')}
         accessibilityState={{ expanded }}
         hitSlop={4}
       >
-        <Text style={[styles.title, { color: colors.text }]}>{real ? "Yearly breakdown (est., today's prices)" : 'Yearly breakdown (est.)'}</Text>
+        <Text style={[styles.title, { color: colors.text }]}>{real ? t('freedom.table.titleReal') : t('freedom.table.title')}</Text>
         <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textSecondary} />
       </Pressable>
 
       {expanded && (
         <View style={styles.body}>
           <View style={styles.headerRow} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-            <Text style={[headerCell, styles.yearCell]}>YEAR</Text>
-            <Text style={headerCell}>START</Text>
+            <Text style={[headerCell, styles.yearCell]}>{t('freedom.table.year')}</Text>
+            <Text style={headerCell}>{t('freedom.table.start')}</Text>
             <Text style={headerCell} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
-              CONTRIB.
+              {t('freedom.table.contrib')}
             </Text>
-            <Text style={headerCell}>PROFIT</Text>
-            <Text style={headerCell}>END</Text>
+            <Text style={headerCell}>{t('freedom.table.profit')}</Text>
+            <Text style={headerCell}>{t('freedom.table.end')}</Text>
           </View>
           {rows.map((row, index) => (
             <YearlyRow

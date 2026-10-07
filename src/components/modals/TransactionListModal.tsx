@@ -1,6 +1,7 @@
 import { CategoryFilterBar } from '@/components/CategoryFilterBar';
 import { FixedFlexibleCard } from '@/components/dashboard/FixedFlexibleCard';
 import { getCategoryColor } from '@/constants/colors';
+import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { FixedCostSummary, Transaction } from '@/db/database';
@@ -54,6 +55,7 @@ export function TransactionListModal({
 }: TransactionListModalProps) {
   const { colors, isDark } = useTheme();
   const { currencySymbol } = useProfile();
+  const { t, format, categoryName } = useI18n();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filterMode, setFilterMode] = useState<ExpenseFilterMode>('ALL');
@@ -140,7 +142,7 @@ export function TransactionListModal({
 
   const monthLabel = monthNames[selectedMonth] || selectedMonth;
   const isExpenseModal = listType === 'EXPENSE' || listType === 'FIXED' || listType === 'FLEXIBLE';
-  const modalTitle = isExpenseModal ? 'Expenses' : 'Income Items';
+  const modalTitle = isExpenseModal ? t('list.expense') : t('list.income');
 
   const scopedTransactions = transactions.filter((tx) => {
     if (searchQuery.trim().length > 0) {
@@ -210,13 +212,13 @@ export function TransactionListModal({
                       isFixed ? styles.fixedBadgeTextActive : styles.flexibleBadgeTextActive,
                     ]}
                   >
-                    {isFixed ? 'FIXED' : 'FLEX'}
+                    {isFixed ? t('fixed.badgeFixed') : t('fixed.badgeFlex')}
                   </Text>
                 </View>
               )}
             </View>
             <Text style={[styles.trxMeta, { color: colors.textSecondary }]}>
-              {trx.date} • {trx.category}
+              {trx.date} • {categoryName(trx.category)}
             </Text>
           </View>
         </View>
@@ -229,8 +231,8 @@ export function TransactionListModal({
             ]}
           >
             {trx.amount < 0
-              ? `-${currencySymbol}${Math.abs(trx.amount).toFixed(2)}`
-              : `+${currencySymbol}${trx.amount.toFixed(2)}`}
+              ? `-${format.money(Math.abs(trx.amount), currencySymbol, 2)}`
+              : `+${format.money(trx.amount, currencySymbol, 2)}`}
           </Text>
           <Ionicons name="chevron-forward" size={14} color={colors.textSecondary} />
         </View>
@@ -280,7 +282,7 @@ export function TransactionListModal({
               </View>
               <View style={[styles.totalBadge, { backgroundColor: colors.surface }]}>
                 <Text style={[styles.totalBadgeText, { color: colors.text }]}>
-                  {currencySymbol}{totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {format.money(totalAmount, currencySymbol, 2)}
                 </Text>
               </View>
             </View>
@@ -318,7 +320,7 @@ export function TransactionListModal({
                       <Ionicons name="search" size={16} color={colors.textSecondary} style={styles.searchIcon} />
                       <TextInput
                         style={[styles.searchInput, { color: colors.text }]}
-                        placeholder="Search merchant, description..."
+                        placeholder={t('list.searchPlaceholder')}
                         placeholderTextColor={colors.textSecondary}
                         value={searchQuery}
                         onChangeText={setSearchQuery}
@@ -348,7 +350,7 @@ export function TransactionListModal({
                             filterMode === 'ALL' && [styles.segmentTextActive, { color: colors.accent }],
                           ]}
                         >
-                          All
+                          {t('common.all')}
                         </Text>
                       </TouchableOpacity>
 
@@ -366,7 +368,7 @@ export function TransactionListModal({
                             filterMode === 'FIXED' && [styles.segmentTextActive, { color: colors.accent }],
                           ]}
                         >
-                          Fixed
+                          {t('fixed.fixed')}
                         </Text>
                       </TouchableOpacity>
 
@@ -384,7 +386,7 @@ export function TransactionListModal({
                             filterMode === 'FLEXIBLE' && [styles.segmentTextActive, { color: colors.accent }],
                           ]}
                         >
-                          Flexible
+                          {t('fixed.flexible')}
                         </Text>
                       </TouchableOpacity>
                     </View>
@@ -403,8 +405,14 @@ export function TransactionListModal({
                   <View style={styles.emptyContainer}>
                     <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
                       {searchQuery.trim().length > 0
-                        ? `No matches found for "${searchQuery}"`
-                        : `No ${filterMode !== 'ALL' ? filterMode.toLowerCase() : ''} transactions found for this period.`}
+                        ? t('list.noMatches', { query: searchQuery })
+                        : t(
+                            filterMode === 'FIXED'
+                              ? 'list.emptyFixed'
+                              : filterMode === 'FLEXIBLE'
+                              ? 'list.emptyFlexible'
+                              : 'list.emptyAll'
+                          )}
                     </Text>
                   </View>
                 }
@@ -416,7 +424,7 @@ export function TransactionListModal({
               style={[styles.closeBtn, { backgroundColor: colors.surface }]}
               onPress={handleDismiss}
             >
-              <Text style={[styles.closeBtnText, { color: colors.accent }]}>Close</Text>
+              <Text style={[styles.closeBtnText, { color: colors.accent }]}>{t('common.close')}</Text>
             </TouchableOpacity>
           </Animated.View>
         </KeyboardAvoidingView>

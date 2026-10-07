@@ -1,4 +1,6 @@
+import { useI18n } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import type { TranslationKey } from '@/i18n';
 import { type Scenario, type ScenarioKey, type ScenarioResult } from '@/utils/freedom';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -15,15 +17,21 @@ interface ScenarioSelectorProps {
 
 const percent = (value: number): string => `${Number((value * 100).toFixed(2))}%`;
 
+export const SCENARIO_LABELS: Record<ScenarioKey, TranslationKey> = {
+  PESSIMISTIC: 'freedom.scenario.cautious',
+  NEUTRAL: 'freedom.scenario.expected',
+  OPTIMISTIC: 'freedom.scenario.optimistic',
+};
+
 export function ScenarioSelector({ scenarios, active, onSelect, currencySymbol, stale = false }: ScenarioSelectorProps) {
   const { colors } = useTheme();
+  const { t, format } = useI18n();
 
-  const fmt = (value: number) =>
-    `${currencySymbol}${Math.round(value).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+  const fmt = (value: number) => format.money(Math.round(value), currencySymbol);
 
   return (
     <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-      <Text style={[styles.title, { color: colors.textSecondary }]}>OUTLOOK</Text>
+      <Text style={[styles.title, { color: colors.textSecondary }]}>{t('freedom.outlook')}</Text>
 
       <View style={[styles.segmentedContainer, { backgroundColor: colors.track }]} accessibilityRole="radiogroup">
         {scenarios.map((scenario) => {
@@ -36,7 +44,10 @@ export function ScenarioSelector({ scenarios, active, onSelect, currencySymbol, 
               onPress={() => onSelect(scenario)}
               accessibilityRole="radio"
               accessibilityState={{ selected }}
-              accessibilityLabel={`${scenario.label}, ${percent(scenario.returnPct)} return`}
+              accessibilityLabel={t('freedom.scenario.a11y', {
+                label: t(SCENARIO_LABELS[scenario.key]),
+                percent: percent(scenario.returnPct),
+              })}
             >
               <Text
                 style={[
@@ -48,7 +59,7 @@ export function ScenarioSelector({ scenarios, active, onSelect, currencySymbol, 
                 adjustsFontSizeToFit
                 minimumFontScale={0.8}
               >
-                {scenario.label}
+                {t(SCENARIO_LABELS[scenario.key])}
               </Text>
             </TouchableOpacity>
           );
@@ -63,9 +74,11 @@ export function ScenarioSelector({ scenarios, active, onSelect, currencySymbol, 
               key={scenario.key}
               style={styles.compareCell}
               accessible
-              accessibilityLabel={`${scenario.label}, ${percent(scenario.returnPct)}: final balance, estimated, ${fmt(
-                scenario.finalBalance
-              )}`}
+              accessibilityLabel={t('freedom.scenario.a11yBalance', {
+                label: t(SCENARIO_LABELS[scenario.key]),
+                percent: percent(scenario.returnPct),
+                balance: fmt(scenario.finalBalance),
+              })}
             >
               <Text
                 style={[styles.compareValue, { color: selected ? colors.accent : colors.text }]}
@@ -76,7 +89,7 @@ export function ScenarioSelector({ scenarios, active, onSelect, currencySymbol, 
                 {fmt(scenario.finalBalance)}
               </Text>
               <Text style={[styles.compareSub, { color: colors.textSecondary }]} numberOfLines={1}>
-                {percent(scenario.returnPct)} · est.
+                {t('freedom.scenario.est', { percent: percent(scenario.returnPct) })}
               </Text>
             </View>
           );

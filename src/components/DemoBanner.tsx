@@ -1,3 +1,4 @@
+import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,6 +10,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 export function DemoBanner() {
   const { isDemoMode, setIsDemoMode } = useProfile();
   const { isDark } = useTheme();
+  const { t } = useI18n();
 
   if (!isDemoMode) return null;
 
@@ -39,7 +41,7 @@ export function DemoBanner() {
       <View style={styles.leftContent}>
         <Ionicons name="sparkles" size={15} color="#F59E0B" />
         <Text style={[styles.bannerText, { color: isDark ? '#FBBF24' : '#B45309' }]}>
-          Demo Workspace Active
+          {t('demo.active')}
         </Text>
       </View>
 
@@ -48,7 +50,7 @@ export function DemoBanner() {
         onPress={handleEndDemo}
         activeOpacity={0.8}
       >
-        <Text style={styles.exitButtonText}>Exit Demo</Text>
+        <Text style={styles.exitButtonText}>{t('demo.exit')}</Text>
       </TouchableOpacity>
     </View>
   );

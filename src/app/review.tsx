@@ -1,3 +1,4 @@
+import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import {
@@ -29,6 +30,7 @@ export default function ReviewScreen() {
   const db = useSQLiteContext();
   const router = useRouter();
   const { colors } = useTheme();
+  const { t, format, categoryName, describe } = useI18n();
   const { activeProfile, dataVersion, currencySymbol } = useProfile();
   const profileId = activeProfile?.id ?? 1;
 
@@ -77,9 +79,9 @@ export default function ReviewScreen() {
 
   const formatSubtitle = (group: UncategorisedGroup): string =>
     [
-      `${group.count} transaction${group.count === 1 ? '' : 's'}`,
-      `${currencySymbol}${group.total.toLocaleString('en-US', { maximumFractionDigits: 0 })}`,
-      `last ${group.lastDate.slice(0, 10)}`,
+      t('common.transactions', { count: group.count }),
+      format.money(group.total, currencySymbol, { maximumFractionDigits: 0 }),
+      t('review.last', { date: format.day(group.lastDate) }),
     ].join(' • ');
 
   // The suggested category leads the picker.
@@ -93,7 +95,7 @@ export default function ReviewScreen() {
       <View
         style={[styles.headerRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}
       >
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Review</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>{t('transactions.review')}</Text>
         <TouchableOpacity
           style={[styles.headerBtn, { backgroundColor: colors.background }]}
           onPress={() => router.back()}
@@ -110,17 +112,15 @@ export default function ReviewScreen() {
       ) : groups.length === 0 ? (
         <View style={styles.centered}>
           <Ionicons name="checkmark-circle" size={44} color={colors.accent} />
-          <Text style={[styles.emptyTitle, { color: colors.text }]}>All caught up</Text>
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>{t('review.doneTitle')}</Text>
           <Text style={[styles.emptySub, { color: colors.textSecondary }]}>
-            Every transaction has a category.
+            {t('review.doneSub')}
           </Text>
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.content}>
           <Text style={[styles.introText, { color: colors.textSecondary }]}>
-            Merchants the app could not categorise, largest first. Pick a category once, or accept
-            the suggestion, and it applies to all of that merchant&apos;s transactions, including
-            future imports.
+            {t('review.intro')}
           </Text>
           <View style={[styles.cardGroup, { backgroundColor: colors.card }]}>
             {groups.map((group, index) => (
@@ -148,18 +148,18 @@ export default function ReviewScreen() {
                           activeOpacity={0.7}
                           onPress={() => assign(group, group.suggestion!.category)}
                           accessibilityRole="button"
-                          accessibilityLabel={`Categorise as ${group.suggestion.category}`}
+                          accessibilityLabel={t('review.categoriseAs', { category: categoryName(group.suggestion.category) })}
                         >
                           <Ionicons name="checkmark" size={14} color={colors.accent} />
                           <Text style={[styles.suggestionText, { color: colors.accent }]} numberOfLines={1}>
-                            {group.suggestion.category}
+                            {categoryName(group.suggestion.category)}
                           </Text>
                         </TouchableOpacity>
                         <Text
                           style={[styles.suggestionReason, { color: colors.textSecondary }]}
                           numberOfLines={1}
                         >
-                          {group.suggestion.reason}
+                          {describe([group.suggestion.reason])}
                         </Text>
                       </View>
                     )}
@@ -186,7 +186,7 @@ export default function ReviewScreen() {
             <Text style={[styles.sheetTitle, { color: colors.text }]} numberOfLines={1}>
               {selected?.title}
             </Text>
-            <Text style={[styles.sheetSub, { color: colors.textSecondary }]}>Choose a category</Text>
+            <Text style={[styles.sheetSub, { color: colors.textSecondary }]}>{t('review.choose')}</Text>
             <ScrollView style={styles.sheetList}>
               {pickerCategories.map((category, index) => (
                 <React.Fragment key={category.id}>
@@ -198,10 +198,10 @@ export default function ReviewScreen() {
                   >
                     <View style={[styles.colorDot, { backgroundColor: category.color }]} />
                     <Text style={[styles.rowTitle, styles.sheetRowTitle, { color: colors.text }]} numberOfLines={1}>
-                      {category.name}
+                      {categoryName(category.name)}
                     </Text>
                     {category.name === suggested && (
-                      <Text style={[styles.rowSub, { color: colors.accent }]}>Suggested</Text>
+                      <Text style={[styles.rowSub, { color: colors.accent }]}>{t('review.suggested')}</Text>
                     )}
                   </TouchableOpacity>
                 </React.Fragment>

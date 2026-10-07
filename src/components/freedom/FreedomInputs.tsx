@@ -1,5 +1,7 @@
+import { useI18n } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { type FreedomPlan } from '@/db/database';
+import type { Message, TranslationKey } from '@/i18n';
 import { parseNumber } from '@/utils/debt';
 import { MAX_YEARS, MIN_YEARS, type GoalType } from '@/utils/freedom';
 import React from 'react';
@@ -13,7 +15,7 @@ type NumericFieldKey = Exclude<FreedomFieldKey, 'goalType'>;
 /** Field text as typed. Percent fields hold percents ("9"), the plan holds decimals (0.09). */
 export type FreedomDraft = Record<NumericFieldKey, string> & { goalType: GoalType };
 
-export type FreedomErrors = Partial<Record<FreedomFieldKey, string>>;
+export type FreedomErrors = Partial<Record<FreedomFieldKey, Message>>;
 
 export const MAX_RETURN_PCT = 30;
 export const MAX_INFLATION_PCT = 30;
@@ -26,6 +28,7 @@ const ACCESSORY_ID = 'freedom-keyboard-accessory';
 /** Rendered once by the screen, next to the scroll view. */
 export function FreedomKeyboardAccessory() {
   const { colors } = useTheme();
+  const { t } = useI18n();
   if (Platform.OS !== 'ios') return null;
 
   return (
@@ -35,9 +38,9 @@ export function FreedomKeyboardAccessory() {
           onPress={() => Keyboard.dismiss()}
           style={styles.accessoryBtn}
           accessibilityRole="button"
-          accessibilityLabel="Done, hide keyboard"
+          accessibilityLabel={t('freedom.keyboardDone')}
         >
-          <Text style={[styles.accessoryText, { color: colors.accent }]}>Done</Text>
+          <Text style={[styles.accessoryText, { color: colors.accent }]}>{t('common.done')}</Text>
         </TouchableOpacity>
       </View>
     </InputAccessoryView>
@@ -46,8 +49,8 @@ export function FreedomKeyboardAccessory() {
 
 type FieldConfig = {
   key: NumericFieldKey;
-  label: string;
-  helper: string;
+  label: TranslationKey;
+  helper: TranslationKey;
   kind: 'YEARS' | 'AMOUNT' | 'PERCENT';
   /** Highest percent accepted; unlimited when missing. */
   max?: number;
@@ -55,31 +58,31 @@ type FieldConfig = {
 
 /** The three questions every plan starts with. */
 const BASIC_FIELDS: FieldConfig[] = [
-  { key: 'monthly', label: 'Monthly amount', helper: 'What you add every month.', kind: 'AMOUNT' },
-  { key: 'years', label: 'Years', helper: 'How long you keep investing.', kind: 'YEARS' },
-  { key: 'lumpSum', label: 'Starting amount', helper: 'What you put in at the start. Can be 0.', kind: 'AMOUNT' },
+  { key: 'monthly', label: 'freedom.field.monthly', helper: 'freedom.field.monthlyHelp', kind: 'AMOUNT' },
+  { key: 'years', label: 'freedom.field.years', helper: 'freedom.field.yearsHelp', kind: 'YEARS' },
+  { key: 'lumpSum', label: 'freedom.field.lumpSum', helper: 'freedom.field.lumpSumHelp', kind: 'AMOUNT' },
 ];
 
 /** Behind "More options"; the defaults work without touching them. */
 const ADVANCED_FIELDS: FieldConfig[] = [
   {
     key: 'returnPct',
-    label: 'Yearly return',
-    helper: 'Set by the outlook above. Type your own to override it.',
+    label: 'freedom.field.returnPct',
+    helper: 'freedom.field.returnPctHelp',
     kind: 'PERCENT',
     max: MAX_RETURN_PCT,
   },
   {
     key: 'annualIncreasePct',
-    label: 'Yearly increase',
-    helper: 'How much your monthly amount grows each year.',
+    label: 'freedom.field.annualIncreasePct',
+    helper: 'freedom.field.annualIncreasePctHelp',
     kind: 'PERCENT',
   },
-  { key: 'feePct', label: 'Fee', helper: 'Yearly fund and platform costs.', kind: 'PERCENT' },
+  { key: 'feePct', label: 'freedom.field.feePct', helper: 'freedom.field.feePctHelp', kind: 'PERCENT' },
   {
     key: 'inflationPct',
-    label: 'Inflation',
-    helper: "Average yearly price increase. Used for today's prices.",
+    label: 'freedom.field.inflationPct',
+    helper: 'freedom.field.inflationPctHelp',
     kind: 'PERCENT',
     max: MAX_INFLATION_PCT,
   },
@@ -93,11 +96,16 @@ export const ADVANCED_FIELD_KEYS: FreedomFieldKey[] = ADVANCED_FIELDS.map((field
 
 /** Rendered by the Goal section, one at a time (the one of the selected goal type). */
 export const GOAL_FIELDS: Record<GoalType, FieldConfig> = {
-  BALANCE: { key: 'goalBalance', label: 'Target balance', helper: 'The balance you want to reach.', kind: 'AMOUNT' },
+  BALANCE: {
+    key: 'goalBalance',
+    label: 'freedom.field.goalBalance',
+    helper: 'freedom.field.goalBalanceHelp',
+    kind: 'AMOUNT',
+  },
   INCOME: {
     key: 'goalIncome',
-    label: 'Passive income per month',
-    helper: 'What the balance should pay you every month.',
+    label: 'freedom.field.goalIncome',
+    helper: 'freedom.field.goalIncomeHelp',
     kind: 'AMOUNT',
   },
 };
@@ -120,18 +128,24 @@ export const planToDraft = (plan: FreedomPlan): FreedomDraft => ({
   goalIncome: tidy(plan.goalIncome, 2),
 });
 
-const validate = (field: FieldConfig, text: string): { value: number; error: string | null } => {
+const validate = (field: FieldConfig, text: string): { value: number; error: Message | null } => {
   const value = text.trim() === '' ? NaN : parseNumber(text);
 
   if (field.kind === 'YEARS') {
     const valid = Number.isInteger(value) && value >= MIN_YEARS && value <= MAX_YEARS;
-    return { value, error: valid ? null : `Enter ${MIN_YEARS} to ${MAX_YEARS} years` };
+    return {
+      value,
+      error: valid ? null : { key: 'freedom.error.years', params: { min: MIN_YEARS, max: MAX_YEARS } },
+    };
   }
 
-  const noun = field.kind === 'AMOUNT' ? 'an amount' : 'a percentage';
-  if (!Number.isFinite(value)) return { value, error: `Enter ${noun}` };
-  if (value < 0) return { value, error: "Can't be negative" };
-  if (field.max !== undefined && value > field.max) return { value, error: `Enter 0 to ${field.max}%` };
+  if (!Number.isFinite(value)) {
+    return { value, error: { key: field.kind === 'AMOUNT' ? 'freedom.error.amount' : 'freedom.error.percent' } };
+  }
+  if (value < 0) return { value, error: { key: 'freedom.error.negative' } };
+  if (field.max !== undefined && value > field.max) {
+    return { value, error: { key: 'freedom.error.max', params: { max: field.max } } };
+  }
   return { value, error: null };
 };
 
@@ -152,20 +166,24 @@ export const parseDraft = (draft: FreedomDraft): { input: FreedomPlan | null; er
 interface FreedomFieldProps {
   field: FieldConfig;
   value: string;
-  error?: string;
+  error?: Message;
   onChange: (key: FreedomFieldKey, text: string) => void;
   currencySymbol: string;
 }
 
 export function FreedomField({ field, value, error, onChange, currencySymbol }: FreedomFieldProps) {
   const { colors } = useTheme();
+  const { t } = useI18n();
   const prefix = field.kind === 'AMOUNT' ? currencySymbol : null;
-  const suffix = field.kind === 'YEARS' ? 'years' : field.kind === 'PERCENT' ? '%' : null;
-  const unit = field.kind === 'AMOUNT' ? currencySymbol : field.kind === 'PERCENT' ? 'percent' : 'years';
+  const suffix = field.kind === 'YEARS' ? t('freedom.unit.years') : field.kind === 'PERCENT' ? '%' : null;
+  const unit =
+    field.kind === 'AMOUNT' ? currencySymbol : field.kind === 'PERCENT' ? t('freedom.unit.percent') : t('freedom.unit.years');
+  const label = t(field.label);
+  const hint = error ? t(error.key, error.params) : t(field.helper);
 
   return (
     <View>
-      <Text style={[styles.label, { color: colors.textSecondary }]}>{field.label}</Text>
+      <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>
       <View
         style={[styles.inputWrap, { backgroundColor: colors.field, borderColor: error ? ERROR_COLOR : colors.border }]}
       >
@@ -182,8 +200,8 @@ export function FreedomField({ field, value, error, onChange, currencySymbol }: 
           autoCorrect={false}
           returnKeyType="done"
           inputAccessoryViewID={Platform.OS === 'ios' ? ACCESSORY_ID : undefined}
-          accessibilityLabel={`${field.label}${unit ? `, in ${unit}` : ''}`}
-          accessibilityHint={error ?? field.helper}
+          accessibilityLabel={unit ? t('freedom.field.a11y', { label, unit }) : label}
+          accessibilityHint={hint}
         />
         {suffix ? <Text style={[styles.affix, { color: colors.textSecondary }]}>{suffix}</Text> : null}
       </View>
@@ -192,7 +210,7 @@ export function FreedomField({ field, value, error, onChange, currencySymbol }: 
         numberOfLines={2}
         accessibilityLiveRegion={error ? 'polite' : 'none'}
       >
-        {error ?? field.helper}
+        {hint}
       </Text>
     </View>
   );

@@ -1,4 +1,7 @@
+import { SCENARIO_LABELS } from '@/components/freedom/ScenarioSelector';
+import { useI18n } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import type { TranslationKey } from '@/i18n';
 import { projectGrowth, SCENARIOS, summarize, type FreedomInput } from '@/utils/freedom';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -20,35 +23,33 @@ const EXAMPLE: FreedomInput = {
 
 const percent = (value: number): string => `${Number((value * 100).toFixed(2))}%`;
 
-type Step = { icon: keyof typeof Ionicons.glyphMap; title: string; text: string };
+type Step = { icon: keyof typeof Ionicons.glyphMap; title: TranslationKey; text: TranslationKey };
 
 const STEPS: Step[] = [
   {
     icon: 'create-outline',
-    title: 'Enter what you can put aside',
-    text: 'What you add each month, for how many years and what you start with. That is all you need; everything else is optional.',
+    title: 'freedom.intro.step1Title',
+    text: 'freedom.intro.step1Text',
   },
   {
     icon: 'trending-up-outline',
-    title: 'Pick an outlook',
-    text: `Nobody knows what the market will do. ${SCENARIOS.map(
-      (scenario) => `${scenario.label} assumes ${percent(scenario.returnPct)} a year`
-    ).join(', ')}. Compare all three side by side.`,
+    title: 'freedom.intro.step2Title',
+    text: 'freedom.intro.step2Text',
   },
   {
     icon: 'bar-chart-outline',
-    title: 'Read the result',
-    text: 'Final balance is what you paid in plus the profit it earned. The chart and the yearly table show how it builds up.',
+    title: 'freedom.intro.step3Title',
+    text: 'freedom.intro.step3Text',
   },
   {
     icon: 'flag-outline',
-    title: 'Set a goal (optional)',
-    text: 'Choose a target balance or a monthly income. You see whether you are on track, when you get there and what monthly amount it takes.',
+    title: 'freedom.intro.step4Title',
+    text: 'freedom.intro.step4Text',
   },
   {
     icon: 'scale-outline',
-    title: 'Check fees and inflation',
-    text: "A small yearly fee adds up over decades. Under Details, switch to Today's prices to see what the result is worth after prices have gone up.",
+    title: 'freedom.intro.step5Title',
+    text: 'freedom.intro.step5Text',
   },
 ];
 
@@ -60,20 +61,26 @@ interface FreedomIntroProps {
 
 export function FreedomIntro({ currencySymbol, actionLabel, onDone }: FreedomIntroProps) {
   const { colors } = useTheme();
+  const { t, format } = useI18n();
+  // Only the outlook step uses it; the other step texts have no placeholder.
+  const scenarios = SCENARIOS.map((scenario) =>
+    t('freedom.intro.scenarioAssumes', {
+      label: t(SCENARIO_LABELS[scenario.key]),
+      percent: percent(scenario.returnPct),
+    })
+  ).join(', ');
 
   const example = useMemo(() => summarize(projectGrowth(EXAMPLE), EXAMPLE), []);
 
-  const fmt = (value: number) =>
-    `${currencySymbol}${Math.round(value).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+  const fmt = (value: number) => format.money(Math.round(value), currencySymbol);
 
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <Text style={[styles.heading, { color: colors.text }]} accessibilityRole="header">
-        See what your savings could become
+        {t('freedom.intro.heading')}
       </Text>
       <Text style={[styles.lead, { color: colors.textSecondary }]}>
-        Future Growth estimates how money you invest regularly could grow over the years. Profit earns profit of its own,
-        so time does much of the work.
+        {t('freedom.intro.lead')}
       </Text>
 
       <LinearGradient
@@ -82,50 +89,57 @@ export function FreedomIntro({ currencySymbol, actionLabel, onDone }: FreedomInt
         end={{ x: 1, y: 1 }}
         style={styles.exampleCard}
         accessible
-        accessibilityLabel={`Example: ${fmt(EXAMPLE.monthly)} a month for ${EXAMPLE.years} years at ${percent(
-          EXAMPLE.returnPct
-        )} a year. You pay in ${fmt(example.totalInvested)}, estimated growth ${fmt(
-          example.profit
-        )}, estimated final balance ${fmt(example.finalBalance)}`}
+        accessibilityLabel={t('freedom.intro.exampleA11y', {
+          amount: fmt(EXAMPLE.monthly),
+          years: EXAMPLE.years,
+          percent: percent(EXAMPLE.returnPct),
+          invested: fmt(example.totalInvested),
+          profit: fmt(example.profit),
+          balance: fmt(example.finalBalance),
+        })}
       >
-        <Text style={[styles.exampleLabel, { color: colors.onGradient }]}>EXAMPLE (EST.)</Text>
+        <Text style={[styles.exampleLabel, { color: colors.onGradient }]}>{t('freedom.intro.exampleLabel')}</Text>
         <Text style={[styles.exampleText, { color: colors.onGradient }]}>
-          {fmt(EXAMPLE.monthly)} a month for {EXAMPLE.years} years at {percent(EXAMPLE.returnPct)} a year
+          {t('freedom.intro.exampleText', {
+            amount: fmt(EXAMPLE.monthly),
+            years: EXAMPLE.years,
+            percent: percent(EXAMPLE.returnPct),
+          })}
         </Text>
         <View style={styles.exampleRow}>
           <View style={styles.exampleCell}>
             <Text style={[styles.exampleValue, { color: colors.onGradient }]} numberOfLines={1} adjustsFontSizeToFit>
               {fmt(example.totalInvested)}
             </Text>
-            <Text style={[styles.exampleSub, { color: colors.onGradient }]}>you pay in</Text>
+            <Text style={[styles.exampleSub, { color: colors.onGradient }]}>{t('freedom.intro.youPayIn')}</Text>
           </View>
           <Text style={[styles.exampleSign, { color: colors.onGradient }]}>+</Text>
           <View style={styles.exampleCell}>
             <Text style={[styles.exampleValue, { color: colors.onGradient }]} numberOfLines={1} adjustsFontSizeToFit>
               {fmt(example.profit)}
             </Text>
-            <Text style={[styles.exampleSub, { color: colors.onGradient }]}>growth</Text>
+            <Text style={[styles.exampleSub, { color: colors.onGradient }]}>{t('freedom.intro.growth')}</Text>
           </View>
           <Text style={[styles.exampleSign, { color: colors.onGradient }]}>=</Text>
           <View style={styles.exampleCell}>
             <Text style={[styles.exampleValue, { color: colors.onGradient }]} numberOfLines={1} adjustsFontSizeToFit>
               {fmt(example.finalBalance)}
             </Text>
-            <Text style={[styles.exampleSub, { color: colors.onGradient }]}>final balance</Text>
+            <Text style={[styles.exampleSub, { color: colors.onGradient }]}>{t('freedom.intro.finalBalance')}</Text>
           </View>
         </View>
       </LinearGradient>
 
       <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Text style={[styles.cardTitle, { color: colors.textSecondary }]}>HOW IT WORKS</Text>
+        <Text style={[styles.cardTitle, { color: colors.textSecondary }]}>{t('freedom.intro.howItWorks')}</Text>
         {STEPS.map((step, index) => (
           <View key={step.title} style={[styles.step, index > 0 && styles.stepGap]}>
             <View style={[styles.stepIcon, { backgroundColor: colors.tintBackground }]}>
               <Ionicons name={step.icon} size={18} color={colors.accent} />
             </View>
             <View style={styles.stepBody}>
-              <Text style={[styles.stepTitle, { color: colors.text }]}>{step.title}</Text>
-              <Text style={[styles.stepText, { color: colors.textSecondary }]}>{step.text}</Text>
+              <Text style={[styles.stepTitle, { color: colors.text }]}>{t(step.title)}</Text>
+              <Text style={[styles.stepText, { color: colors.textSecondary }]}>{t(step.text, { scenarios })}</Text>
             </View>
           </View>
         ))}
@@ -134,7 +148,7 @@ export function FreedomIntro({ currencySymbol, actionLabel, onDone }: FreedomInt
       <View style={styles.privacyRow}>
         <Ionicons name="lock-closed-outline" size={14} color={colors.textSecondary} />
         <Text style={[styles.privacyText, { color: colors.textSecondary }]}>
-          Your plan is saved on this device only and changes as you type.
+          {t('freedom.intro.privacy')}
         </Text>
       </View>
 
@@ -148,7 +162,7 @@ export function FreedomIntro({ currencySymbol, actionLabel, onDone }: FreedomInt
       </TouchableOpacity>
 
       <Text style={[styles.disclaimer, { color: colors.textSecondary }]}>
-        Projection, not guaranteed. Not financial advice.
+        {t('freedom.disclaimer')}
       </Text>
     </ScrollView>
   );
@@ -162,6 +176,7 @@ interface FreedomIntroModalProps {
 
 export function FreedomIntroModal({ visible, onClose, currencySymbol }: FreedomIntroModalProps) {
   const { colors } = useTheme();
+  const { t } = useI18n();
 
   return (
     <Modal
@@ -175,13 +190,13 @@ export function FreedomIntroModal({ visible, onClose, currencySymbol }: FreedomI
         edges={Platform.OS === 'ios' ? ['bottom'] : ['top', 'bottom']}
       >
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>How Future Growth Works</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>{t('freedom.intro.modalTitle')}</Text>
           <TouchableOpacity onPress={onClose} hitSlop={8} style={styles.headerAction} accessibilityRole="button">
-            <Text style={[styles.headerActionText, { color: colors.accent }]}>Done</Text>
+            <Text style={[styles.headerActionText, { color: colors.accent }]}>{t('common.done')}</Text>
           </TouchableOpacity>
         </View>
         <View style={styles.modalBody}>
-          <FreedomIntro currencySymbol={currencySymbol} actionLabel="Got It" onDone={onClose} />
+          <FreedomIntro currencySymbol={currencySymbol} actionLabel={t('freedom.intro.gotIt')} onDone={onClose} />
         </View>
       </SafeAreaView>
     </Modal>

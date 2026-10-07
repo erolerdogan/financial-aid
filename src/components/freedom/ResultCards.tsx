@@ -1,3 +1,4 @@
+import { useI18n } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { type FreedomSummary } from '@/utils/freedom';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -16,18 +17,22 @@ interface ResultCardsProps {
 
 export function ResultCards({ summary, years, currencySymbol, real = false, stale = false }: ResultCardsProps) {
   const { colors } = useTheme();
+  const { t, format } = useI18n();
 
   const fmt = (value: number) => {
     const rounded = Math.round(value);
-    const text = `${currencySymbol}${Math.abs(rounded).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+    const text = format.money(Math.abs(rounded), currencySymbol);
     return rounded < 0 ? `-${text}` : text;
   };
 
   // A fee above the return makes the balance end below what was paid in.
   const breakdown =
     Math.round(summary.profit) >= 0
-      ? `You pay in ${fmt(summary.totalInvested)}, growth adds ${fmt(summary.profit)}.`
-      : `You pay in ${fmt(summary.totalInvested)}, costs take ${fmt(-summary.profit)}.`;
+      ? t('freedom.result.growthAdds', { invested: fmt(summary.totalInvested), profit: fmt(summary.profit) })
+      : t('freedom.result.costsTake', { invested: fmt(summary.totalInvested), cost: fmt(-summary.profit) });
+  const after = t(real ? 'freedom.result.afterReal' : 'freedom.result.after', {
+    years: t('common.years', { count: years }),
+  });
 
   return (
     <View style={stale && styles.stale}>
@@ -37,17 +42,14 @@ export function ResultCards({ summary, years, currencySymbol, real = false, stal
         end={{ x: 1, y: 1 }}
         style={styles.heroCard}
         accessible
-        accessibilityLabel={`Final balance, estimated, ${fmt(summary.finalBalance)} after ${years} ${
-          years === 1 ? 'year' : 'years'
-        }${real ? ", in today's money" : ''}. ${breakdown}`}
+        accessibilityLabel={t('freedom.result.a11y', { balance: fmt(summary.finalBalance), after, breakdown })}
       >
-        <Text style={[styles.label, styles.heroLabel, { color: colors.onGradient }]}>FINAL BALANCE (EST.)</Text>
+        <Text style={[styles.label, styles.heroLabel, { color: colors.onGradient }]}>{t('freedom.result.title')}</Text>
         <Text style={[styles.heroValue, { color: colors.onGradient }]} numberOfLines={1} adjustsFontSizeToFit>
           {fmt(summary.finalBalance)}
         </Text>
         <Text style={[styles.heroSub, { color: colors.onGradient }]}>
-          after {years} {years === 1 ? 'year' : 'years'}
-          {real ? " · in today's money" : ''}
+          {after}
         </Text>
         <Text style={[styles.breakdown, { color: colors.onGradient }]}>{breakdown}</Text>
       </LinearGradient>

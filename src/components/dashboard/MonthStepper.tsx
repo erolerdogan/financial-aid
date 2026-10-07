@@ -1,3 +1,4 @@
+import { useI18n } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
@@ -30,6 +31,7 @@ export function MonthStepper({
   onOpenMonthPicker,
 }: MonthStepperProps) {
   const { colors, isDark } = useTheme();
+  const { t } = useI18n();
   const currentIndex = availableMonths.indexOf(selectedMonth);
   const isPrevDisabled = currentIndex >= availableMonths.length - 1;
   const isNextDisabled = currentIndex <= 0;
@@ -61,7 +63,7 @@ export function MonthStepper({
 
         <TouchableOpacity style={styles.monthTitleButton} onPress={onOpenMonthPicker}>
           <Text style={[styles.monthLabelText, { color: colors.text }]}>
-            {monthNames[selectedMonth] || selectedMonth || 'Select Month'}
+            {monthNames[selectedMonth] || selectedMonth || t('period.selectMonth')}
           </Text>
           <Ionicons
             name="chevron-down"

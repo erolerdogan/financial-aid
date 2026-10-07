@@ -1,4 +1,5 @@
 import { DebtProgressBar } from '@/components/debts/DebtProgressBar';
+import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { FreedomPlan, getSavedFreedomPlan } from '@/db/database';
@@ -14,6 +15,7 @@ export function FreedomCard() {
   const db = useSQLiteContext();
   const router = useRouter();
   const { colors } = useTheme();
+  const { t, format } = useI18n();
   const { activeProfile, dataVersion, currencySymbol } = useProfile();
   const profileId = activeProfile?.id ?? 1;
 
@@ -43,8 +45,7 @@ export function FreedomCard() {
 
   if (!plan) return null;
 
-  const fmt = (value: number) =>
-    `${currencySymbol}${Math.round(value).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+  const fmt = (value: number) => format.money(Math.round(value), currencySymbol);
 
   const years = clampYears(plan.years);
   const endYear = new Date().getFullYear() + years;
@@ -65,15 +66,17 @@ export function FreedomCard() {
       style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
       onPress={handlePress}
       accessibilityRole="button"
-      accessibilityLabel={`Future Growth plan. Estimated balance in ${endYear}, ${fmt(finalBalance)}${
-        hasGoal ? `, ${percent} percent of your ${fmt(target)} goal` : ''
-      }. Projection, not guaranteed.`}
+      accessibilityLabel={
+        hasGoal
+          ? t('home.freedom.a11yGoal', { year: endYear, balance: fmt(finalBalance), percent, target: fmt(target) })
+          : t('home.freedom.a11y', { year: endYear, balance: fmt(finalBalance) })
+      }
     >
       <View style={styles.headerRow}>
-        <Text style={[styles.title, { color: colors.text }]}>Future Growth</Text>
+        <Text style={[styles.title, { color: colors.text }]}>{t('freedom.name')}</Text>
         <View style={styles.headerRight}>
           <Text style={[styles.sub, { color: colors.textSecondary }]}>
-            {years} {years === 1 ? 'year' : 'years'}
+            {t('common.years', { count: years })}
           </Text>
           <Ionicons name="chevron-forward" size={14} color={colors.textSecondary} />
         </View>
@@ -82,7 +85,7 @@ export function FreedomCard() {
       <Text style={[styles.balance, { color: colors.text }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
         {fmt(finalBalance)}
       </Text>
-      <Text style={[styles.sub, { color: colors.textSecondary }]}>est. balance in {endYear}</Text>
+      <Text style={[styles.sub, { color: colors.textSecondary }]}>{t('home.freedom.estBalance', { year: endYear })}</Text>
 
       {hasGoal ? (
         <>
@@ -90,13 +93,13 @@ export function FreedomCard() {
             <DebtProgressBar percent={percent} color={colors.accent} height={8} />
           </View>
           <Text style={[styles.footer, { color: colors.textSecondary }]}>
-            {percent}% of {fmt(target)} goal (est.)
+            {t('home.freedom.goalProgress', { percent, target: fmt(target) })}
           </Text>
         </>
       ) : null}
 
       <Text style={[styles.disclaimer, { color: colors.textSecondary }]}>
-        Projection, not guaranteed. Not financial advice.
+        {t('freedom.disclaimer')}
       </Text>
     </TouchableOpacity>
   );

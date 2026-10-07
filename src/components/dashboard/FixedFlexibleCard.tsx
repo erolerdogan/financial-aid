@@ -1,3 +1,4 @@
+import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { FixedCostSummary } from '@/db/database';
@@ -13,6 +14,7 @@ interface FixedFlexibleCardProps {
 export function FixedFlexibleCard({ summary, onPressFixed, onPressFlexible }: FixedFlexibleCardProps) {
   const { colors, isDark } = useTheme();
   const { currencySymbol } = useProfile();
+  const { t, format } = useI18n();
   const { fixedTotal, flexibleTotal, fixedPercentage, flexiblePercentage, fixedItemsCount } = summary;
 
   const displayFixedPct = Math.round(fixedPercentage);
@@ -27,7 +29,7 @@ export function FixedFlexibleCard({ summary, onPressFixed, onPressFlexible }: Fi
     >
       {/* Header */}
       <View style={styles.cardHeader}>
-        <Text style={[styles.cardTitle, { color: colors.text }]}>Fixed vs. Flexible</Text>
+        <Text style={[styles.cardTitle, { color: colors.text }]}>{t('fixed.title')}</Text>
         <View
           style={[
             styles.badge,
@@ -35,7 +37,7 @@ export function FixedFlexibleCard({ summary, onPressFixed, onPressFlexible }: Fi
           ]}
         >
           <Text style={[styles.badgeText, { color: '#5856D6' }]}>
-            {fixedItemsCount} Fixed Items
+            {t('fixed.itemsCount', { count: fixedItemsCount })}
           </Text>
         </View>
       </View>
@@ -57,10 +59,10 @@ export function FixedFlexibleCard({ summary, onPressFixed, onPressFlexible }: Fi
         <TouchableOpacity style={styles.statCol} activeOpacity={0.7} onPress={onPressFixed} disabled={!onPressFixed}>
           <View style={styles.indicatorRow}>
             <View style={[styles.dot, { backgroundColor: '#5856D6' }]} />
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Fixed</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{t('fixed.fixed')}</Text>
           </View>
           <Text style={[styles.statAmount, { color: colors.text }]}>
-            {currencySymbol}{fixedTotal.toFixed(0)}{' '}
+            {format.money(fixedTotal, currencySymbol)}{' '}
             <Text style={[styles.statPercent, { color: colors.textSecondary }]}>
               ({displayFixedPct}%)
             </Text>
@@ -78,10 +80,10 @@ export function FixedFlexibleCard({ summary, onPressFixed, onPressFlexible }: Fi
         <TouchableOpacity style={styles.statCol} activeOpacity={0.7} onPress={onPressFlexible} disabled={!onPressFlexible}>
           <View style={styles.indicatorRow}>
             <View style={[styles.dot, { backgroundColor: '#FF9500' }]} />
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Flexible</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{t('fixed.flexible')}</Text>
           </View>
           <Text style={[styles.statAmount, { color: colors.text }]}>
-            {currencySymbol}{flexibleTotal.toFixed(0)}{' '}
+            {format.money(flexibleTotal, currencySymbol)}{' '}
             <Text style={[styles.statPercent, { color: colors.textSecondary }]}>
               ({displayFlexiblePct}%)
             </Text>

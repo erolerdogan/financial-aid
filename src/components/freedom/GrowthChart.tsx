@@ -1,3 +1,4 @@
+import { useI18n } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { getNiceScale } from '@/utils/chartScale';
 import { type YearRow } from '@/utils/freedom';
@@ -54,6 +55,7 @@ export const GrowthChart = React.memo(function GrowthChart({
   stale = false,
 }: GrowthChartProps) {
   const { colors } = useTheme();
+  const { t, format } = useI18n();
   const { width: windowWidth } = useWindowDimensions();
 
   const profitColor = colors.accent;
@@ -101,15 +103,17 @@ export const GrowthChart = React.memo(function GrowthChart({
     return years;
   }, [count]);
 
-  const fmt = (value: number) =>
-    `${currencySymbol}${Math.round(value).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+  const fmt = (value: number) => format.money(Math.round(value), currencySymbol);
 
   const accessibilityLabel = last
-    ? `Growth chart, estimated${real ? ", in today's money" : ''}. After ${count} ${count === 1 ? 'year' : 'years'}: contributions ${fmt(
-        Math.min(last.cumulativeInvested, last.end)
-      )}, profit ${fmt(Math.max(0, last.end - last.cumulativeInvested))}, balance ${fmt(last.end)}`
-    : 'Growth chart';
-  const emptyLabel = 'Growth chart. No amounts entered yet.';
+    ? t(real ? 'freedom.chart.a11yReal' : 'freedom.chart.a11y', {
+        years: t('common.years', { count }),
+        contributions: fmt(Math.min(last.cumulativeInvested, last.end)),
+        profit: fmt(Math.max(0, last.end - last.cumulativeInvested)),
+        balance: fmt(last.end),
+      })
+    : t('freedom.chart.a11yPlain');
+  const emptyLabel = t('freedom.chart.a11yEmpty');
 
   return (
     <View
@@ -118,15 +122,15 @@ export const GrowthChart = React.memo(function GrowthChart({
       accessibilityLabel={last && last.end <= 0 ? emptyLabel : accessibilityLabel}
     >
       <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.textSecondary }]}>{real ? 'GROWTH (EST., REAL)' : 'GROWTH (EST.)'}</Text>
+        <Text style={[styles.title, { color: colors.textSecondary }]}>{real ? t('freedom.chart.titleReal') : t('freedom.chart.title')}</Text>
         <View style={styles.legend}>
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: contributionsColor }]} />
-            <Text style={[styles.legendText, { color: colors.textSecondary }]}>Contributions</Text>
+            <Text style={[styles.legendText, { color: colors.textSecondary }]}>{t('freedom.chart.contributions')}</Text>
           </View>
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: profitColor }]} />
-            <Text style={[styles.legendText, { color: colors.textSecondary }]}>Profit</Text>
+            <Text style={[styles.legendText, { color: colors.textSecondary }]}>{t('freedom.chart.profit')}</Text>
           </View>
         </View>
       </View>
@@ -136,7 +140,7 @@ export const GrowthChart = React.memo(function GrowthChart({
           <ActivityIndicator size="small" color={colors.accent} />
         ) : last.end <= 0 ? (
           <Text style={[styles.empty, { color: colors.textSecondary }]}>
-            Enter a starting or monthly amount to see your growth.
+            {t('freedom.chart.empty')}
           </Text>
         ) : (
           <View style={styles.chartWrapper}>

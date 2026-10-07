@@ -1,4 +1,5 @@
 import { CategoryFormModal } from '@/components/modals/CategoryFormModal';
+import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { CategoryInfo, getCategoriesWithStats } from '@/db/database';
@@ -21,6 +22,7 @@ export default function CategoriesScreen() {
   const db = useSQLiteContext();
   const router = useRouter();
   const { colors } = useTheme();
+  const { t, format, categoryName } = useI18n();
   const { activeProfile, dataVersion, currencySymbol } = useProfile();
   const profileId = activeProfile?.id ?? 1;
 
@@ -63,21 +65,19 @@ export default function CategoriesScreen() {
   const formatSubtitle = (category: CategoryInfo): string => {
     const parts: string[] = [];
     if (category.transactionCount > 0) {
-      parts.push(
-        `${category.transactionCount} transaction${category.transactionCount === 1 ? '' : 's'}`
-      );
+      parts.push(t('common.transactions', { count: category.transactionCount }));
       if (category.totalSpent > 0) {
         parts.push(
-          `${currencySymbol}${category.totalSpent.toLocaleString('en-US', {
-            maximumFractionDigits: 0,
-          })} spent`
+          t('categories.spent', {
+            amount: format.money(category.totalSpent, currencySymbol, { maximumFractionDigits: 0 }),
+          })
         );
       }
     } else {
-      parts.push('No transactions yet');
+      parts.push(t('categories.noTransactions'));
     }
     if (category.monthlyLimit > 0) {
-      parts.push(`Goal ${currencySymbol}${category.monthlyLimit.toFixed(0)}`);
+      parts.push(t('categories.goal', { amount: format.money(category.monthlyLimit, currencySymbol) }));
     }
     return parts.join(' • ');
   };
@@ -100,7 +100,7 @@ export default function CategoriesScreen() {
                   <View style={[styles.colorDot, { backgroundColor: category.color }]} />
                   <View style={styles.rowTextWrap}>
                     <Text style={[styles.rowTitle, { color: colors.text }]} numberOfLines={1}>
-                      {category.name}
+                      {categoryName(category.name)}
                     </Text>
                     <Text
                       style={[styles.rowSub, { color: colors.textSecondary }]}
@@ -124,7 +124,7 @@ export default function CategoriesScreen() {
       <View
         style={[styles.headerRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}
       >
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Categories</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>{t('settings.categories')}</Text>
         <View style={styles.headerRight}>
           <TouchableOpacity
             style={[styles.headerBtn, { backgroundColor: colors.accent }]}
@@ -150,11 +150,10 @@ export default function CategoriesScreen() {
       ) : (
         <ScrollView contentContainerStyle={styles.content}>
           <Text style={[styles.introText, { color: colors.textSecondary }]}>
-            Categories detected by auto-classification, plus your own. Tap one to change its color
-            or keywords.
+            {t('categories.intro')}
           </Text>
-          {renderGroup('YOUR CATEGORIES', customCategories)}
-          {renderGroup('BUILT-IN', builtInCategories)}
+          {renderGroup(t('categories.yours'), customCategories)}
+          {renderGroup(t('categories.builtIn'), builtInCategories)}
         </ScrollView>
       )}
 

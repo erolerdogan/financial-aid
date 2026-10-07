@@ -1,4 +1,5 @@
 import { CATEGORY_COLORS, setCustomCategoryColors } from '@/constants/colors';
+import type { Message } from '@/i18n';
 import { DebtMatchStrength, evaluateDebtKeyword } from '@/utils/debt';
 import { buildDebtSuggestions, type DebtSuggestion } from '@/utils/debtSuggestion';
 import {
@@ -532,13 +533,13 @@ export type FixedSource = 'MANUAL' | 'RULE' | 'DEBT' | 'AUTO';
 export interface FixedResolution {
   isFixed: boolean;
   source: FixedSource;
-  reason: string;
+  reason: Message[];
 }
 
 export interface FixedExplanation {
   state: FixedOverrideState;
   autoIsFixed: boolean;
-  reason: string;
+  reason: Message[];
 }
 
 type FixedResolvable = Pick<Transaction, 'amount' | 'merchant' | 'rawDescription' | 'category'> & {
@@ -550,7 +551,7 @@ type FixedResolvable = Pick<Transaction, 'amount' | 'merchant' | 'rawDescription
 interface FixedResolver {
   rules: FixedRule[];
   /** Detection result ignoring manual overrides and rules. */
-  auto: (tx: FixedResolvable) => { isFixed: boolean; reason: string };
+  auto: (tx: FixedResolvable) => { isFixed: boolean; reason: Message[]; debtLinked?: boolean };
   resolve: (tx: FixedResolvable) => FixedResolution;
 }
 
@@ -578,9 +579,9 @@ async function loadFixedResolver(db: SQLiteDatabase, profileId: number): Promise
     linked.forEach((row) => debtLinked.add(row.transactionId));
   } catch {}
 
-  const auto = (tx: FixedResolvable) => {
+  const auto: FixedResolver['auto'] = (tx) => {
     if (tx.id !== undefined && tx.amount < 0 && debtLinked.has(tx.id)) {
-      return { isFixed: true, reason: 'Linked debt payment' };
+      return { isFixed: true, reason: [{ key: 'fixed.reason.debt' }], debtLinked: true };
     }
     const text = `${tx.merchant ?? ''} ${tx.rawDescription ?? ''}`;
     return scoreFixed(profiles.get(merchantKey(tx)), tx.category, text, tx.amount > 0, tx.txType === 'DIRECT_DEBIT');
@@ -588,16 +589,21 @@ async function loadFixedResolver(db: SQLiteDatabase, profileId: number): Promise
 
   const resolve = (tx: FixedResolvable): FixedResolution => {
     if (tx.is_fixed === 1 || tx.is_fixed === 0) {
-      return { isFixed: tx.is_fixed === 1, source: 'MANUAL', reason: 'Set manually' };
+      return { isFixed: tx.is_fixed === 1, source: 'MANUAL', reason: [{ key: 'fixed.reason.manual' }] };
     }
     const rule = matchRule(fixedMatchText(tx), rules);
     if (rule) {
-      return { isFixed: rule.overrideState === 'FIXED', source: 'RULE', reason: `Rule: ${rule.keyword}` };
+      return {
+        isFixed: rule.overrideState === 'FIXED',
+        source: 'RULE',
+        reason: [{ key: 'fixed.reason.rule', params: { keyword: rule.keyword } }],
+      };
     }
     const detected = auto(tx);
     return {
-      ...detected,
-      source: detected.reason === 'Linked debt payment' ? 'DEBT' : 'AUTO',
+      isFixed: detected.isFixed,
+      reason: detected.reason,
+      source: detected.debtLinked ? 'DEBT' : 'AUTO',
     };
   };
 
@@ -1319,7 +1325,7 @@ export async function getTransactionFixedExplanation(
   transaction: Transaction,
   profileId: number = 1
 ): Promise<FixedExplanation> {
-  if (!db || !transaction) return { state: 'AUTO', autoIsFixed: false, reason: '' };
+  if (!db || !transaction) return { state: 'AUTO', autoIsFixed: false, reason: [] };
 
   const resolver = await getFixedResolver(db, profileId);
   const detected = resolver.auto(transaction);
@@ -1726,7 +1732,7 @@ export async function getYearCoverageStatus(
   db: SQLiteDatabase,
   year: string,
   profileId: number = 1
-): Promise<{ status: 'IN_PROGRESS' | 'PARTIAL' | 'COMPLETE' | 'EMPTY'; minDate?: string; maxDate?: string; label: string }> {
+): Promise<{ status: 'IN_PROGRESS' | 'PARTIAL' | 'COMPLETE' | 'EMPTY'; minDate?: string; maxDate?: string }> {
   try {
     const res = await db.getFirstAsync<{ minDate: string; maxDate: string }>(
       `SELECT MIN(date) as minDate, MAX(date) as maxDate 
@@ -1739,51 +1745,24 @@ export async function getYearCoverageStatus(
     const isCurrentYear = year === currentYear;
 
     if (!res || !res.minDate) {
-      return { status: 'EMPTY', label: 'Statement Pending' };
+      return { status: 'EMPTY' };
     }
 
     const maxMonth = parseInt(res.maxDate.slice(5, 7), 10);
     const maxDay = parseInt(res.maxDate.slice(-2), 10);
 
     if (isCurrentYear) {
-      const startMonthStr = formatMonthName(res.minDate);
-      const endMonthStr = formatMonthName(res.maxDate);
-      return {
-        status: 'IN_PROGRESS',
-        minDate: res.minDate,
-        maxDate: res.maxDate,
-        label: `In Progress (${startMonthStr} – ${endMonthStr})`,
-      };
+      return { status: 'IN_PROGRESS', minDate: res.minDate, maxDate: res.maxDate };
     } else if (maxMonth < 12 || maxDay < 25) {
-      const startMonthStr = formatMonthName(res.minDate);
-      const endMonthStr = formatMonthName(res.maxDate);
-      return {
-        status: 'PARTIAL',
-        minDate: res.minDate,
-        maxDate: res.maxDate,
-        label: `Partial Year (${startMonthStr} – ${endMonthStr})`,
-      };
+      return { status: 'PARTIAL', minDate: res.minDate, maxDate: res.maxDate };
     } else {
-      return {
-        status: 'COMPLETE',
-        minDate: res.minDate,
-        maxDate: res.maxDate,
-        label: `Full Year (${year})`,
-      };
+      return { status: 'COMPLETE', minDate: res.minDate, maxDate: res.maxDate };
     }
   } catch (error) {
     console.error('Failed to get year coverage status:', error);
-    return { status: 'EMPTY', label: 'Statement Pending' };
+    return { status: 'EMPTY' };
   }
 }
-
-const formatMonthName = (dateStr: string): string => {
-  if (!dateStr || dateStr.length < 7) return dateStr;
-  const [, month] = dateStr.split('-');
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const monthIdx = parseInt(month, 10) - 1;
-  return monthNames[monthIdx] || month;
-};
 
 /** Categories the user confirmed per IBAN and merchant; see `buildLearnedCategories`. */
 export async function getLearnedCategories(

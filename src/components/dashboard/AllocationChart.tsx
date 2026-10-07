@@ -1,4 +1,5 @@
 import { getCategoryColor } from '@/constants/colors';
+import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { CategoryTotal, Transaction } from '@/db/database';
@@ -32,6 +33,7 @@ export function AllocationChart({
 }: AllocationChartProps) {
   const { colors } = useTheme();
   const { currencySymbol } = useProfile();
+  const { t, format, categoryName } = useI18n();
   const [showAllCategories, setShowAllCategories] = useState(false);
 
   if (categoryData.length === 0) return null;
@@ -51,9 +53,9 @@ export function AllocationChart({
     <View style={[styles.chartCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
       {/* Header */}
       <View style={styles.chartHeaderRow}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Spending Allocation</Text>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('home.allocation')}</Text>
         <TouchableOpacity activeOpacity={0.7} onPress={onOpenBudgets} hitSlop={8}>
-          <Text style={[styles.resetFilterText, { color: colors.accent }]}>Budgets</Text>
+          <Text style={[styles.resetFilterText, { color: colors.accent }]}>{t('settings.budgets')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -87,9 +89,9 @@ export function AllocationChart({
           </Svg>
           <View style={styles.centerTextContainer}>
             <Text style={[styles.totalAmount, { color: colors.text }]}>
-              {currencySymbol}{totalSpending.toFixed(0)}
+              {format.money(totalSpending, currencySymbol)}
             </Text>
-            <Text style={[styles.totalLabel, { color: colors.textSecondary }]}>Total Expenses</Text>
+            <Text style={[styles.totalLabel, { color: colors.textSecondary }]}>{t('home.totalExpenses')}</Text>
           </View>
         </View>
       </View>
@@ -117,16 +119,16 @@ export function AllocationChart({
                   <View style={styles.legendLeft}>
                     <View style={[styles.dot, { backgroundColor: color }]} />
                     <Text style={[styles.legendLabel, { color: colors.text }]} numberOfLines={1}>
-                      {item.category}
+                      {categoryName(item.category)}
                     </Text>
                   </View>
 
                   <View style={styles.legendRight}>
                     <Text style={[styles.amountText, { color: isOver ? '#FF3B30' : colors.text }]}>
-                      {currencySymbol}{item.totalAmount.toFixed(0)}
+                      {format.money(item.totalAmount, currencySymbol)}
                       {budget > 0 && (
                         <Text style={[styles.budgetText, { color: colors.textSecondary }]}>
-                          {' '}/ {currencySymbol}{budget.toFixed(0)}
+                          {' '}/ {format.money(budget, currencySymbol)}
                         </Text>
                       )}
                     </Text>
@@ -170,7 +172,7 @@ export function AllocationChart({
                     <ActivityIndicator size="small" color={colors.accent} style={styles.inlineLoader} />
                   ) : expandedTransactions.length === 0 ? (
                     <Text style={[styles.noTrxText, { color: colors.textSecondary }]}>
-                      No transactions in this category.
+                      {t('home.noCategoryTransactions')}
                     </Text>
                   ) : (
                     expandedTransactions.map((trx, idx) => (
@@ -194,8 +196,8 @@ export function AllocationChart({
                         </View>
                         <Text style={[styles.trxAmount, { color: trx.amount < 0 ? colors.text : '#34C759' }]}>
                           {trx.amount < 0
-                            ? `-${currencySymbol}${Math.abs(trx.amount).toFixed(2)}`
-                            : `+${currencySymbol}${trx.amount.toFixed(2)}`}
+                            ? `-${format.money(Math.abs(trx.amount), currencySymbol, 2)}`
+                            : `+${format.money(trx.amount, currencySymbol, 2)}`}
                         </Text>
                       </TouchableOpacity>
                     ))
@@ -213,7 +215,7 @@ export function AllocationChart({
             onPress={() => setShowAllCategories(true)}
           >
             <Text style={[styles.expandLegendText, { color: colors.accent }]}>
-              View All {categoryData.length} Categories
+              {t('home.viewAllCategories', { count: categoryData.length })}
             </Text>
             <Ionicons name="chevron-down" size={14} color={colors.accent} />
           </TouchableOpacity>
@@ -225,7 +227,7 @@ export function AllocationChart({
             activeOpacity={0.7}
             onPress={() => setShowAllCategories(false)}
           >
-            <Text style={[styles.expandLegendText, { color: colors.accent }]}>Show Less</Text>
+            <Text style={[styles.expandLegendText, { color: colors.accent }]}>{t('home.showLess')}</Text>
             <Ionicons name="chevron-up" size={14} color={colors.accent} />
           </TouchableOpacity>
         )}

@@ -1,7 +1,8 @@
+import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { InboxItem } from '@/services/inboxService';
-import { formatPayoffMonth, getDebtTypeIcon } from '@/utils/debt';
+import { getDebtTypeIcon } from '@/utils/debt';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -46,13 +47,12 @@ interface RowContent {
   action: string;
 }
 
-const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
-
 const dayOfMonth = (date: string) => String(parseInt(date.slice(8, 10), 10));
 
 export function InboxModal({ visible, anchor, items, onClose, onAction, onDismissItem }: InboxModalProps) {
   const { colors, isDark } = useTheme();
   const { currencySymbol } = useProfile();
+  const { t, format } = useI18n();
 
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
 
@@ -88,50 +88,51 @@ export function InboxModal({ visible, anchor, items, onClose, onAction, onDismis
         if (rest.length === 0) {
           return {
             icon: getDebtTypeIcon(first.type),
-            title: `Possible debt: ${first.name}`,
-            subtitle: `${currencySymbol}${first.payment.toLocaleString('en-US', {
-              maximumFractionDigits: 0,
-            })} / month • ${plural(first.count, 'payment', 'payments')} in your statements`,
-            action: 'Add',
+            title: t('inbox.possibleDebt', { name: first.name }),
+            subtitle: t('inbox.debtSub', {
+              payment: format.money(first.payment, currencySymbol, { maximumFractionDigits: 0 }),
+              count: first.count,
+            }),
+            action: t('common.add'),
           };
         }
         return {
           icon: 'trending-down-outline',
-          title: `${item.suggestions.length} possible debts in your statements`,
+          title: t('inbox.possibleDebts', { count: item.suggestions.length }),
           subtitle:
             rest.length === 1
-              ? `${first.name} and ${rest[0].name}`
-              : `${first.name}, ${rest[0].name} and ${rest.length - 1} more`,
-          action: 'View',
+              ? t('inbox.twoNames', { first: first.name, second: rest[0].name })
+              : t('inbox.moreNames', { first: first.name, second: rest[0].name, count: rest.length - 1 }),
+          action: t('common.view'),
         };
       }
       case 'UNCATEGORISED':
         return {
           icon: 'pricetag-outline',
-          title: plural(item.count, 'uncategorised transaction', 'uncategorised transactions'),
-          subtitle: 'Pick a category once and it is remembered',
-          action: 'Review',
+          title: t('transactions.uncategorised', { count: item.count }),
+          subtitle: t('inbox.uncategorisedSub'),
+          action: t('transactions.review'),
         };
       case 'DEBT_MATCHES':
         return {
           icon: 'link-outline',
-          title: `${plural(item.count, 'possible payment', 'possible payments')} for ${item.debtName}`,
-          subtitle: 'Check them and link the ones that belong',
-          action: 'Check',
+          title: t('inbox.debtMatches', { count: item.count, name: item.debtName }),
+          subtitle: t('inbox.debtMatchesSub'),
+          action: t('inbox.check'),
         };
       case 'PARTIAL_MONTH':
         return {
           icon: 'download-outline',
-          title: `${formatPayoffMonth(item.month)} is incomplete`,
-          subtitle: `Statement only covers day ${dayOfMonth(item.minDate)} to ${dayOfMonth(item.maxDate)}`,
-          action: 'Import',
+          title: t('inbox.partialTitle', { month: format.monthYear(item.month, 'short') }),
+          subtitle: t('inbox.partialSub', { from: dayOfMonth(item.minDate), to: dayOfMonth(item.maxDate) }),
+          action: t('inbox.import'),
         };
       case 'BACKUP':
         return {
           icon: 'shield-checkmark-outline',
-          title: item.daysSince === null ? 'No backup yet' : `Last backup ${item.daysSince} days ago`,
-          subtitle: 'Your data only lives on this device',
-          action: 'Back Up',
+          title: item.daysSince === null ? t('inbox.noBackup') : t('inbox.lastBackup', { count: item.daysSince }),
+          subtitle: t('inbox.backupSub'),
+          action: t('inbox.backUp'),
         };
     }
   };
@@ -167,9 +168,9 @@ export function InboxModal({ visible, anchor, items, onClose, onAction, onDismis
           ]}
         >
           <View style={styles.headerRow}>
-            <Text style={[styles.sheetTitle, { color: colors.text }]}>For You</Text>
+            <Text style={[styles.sheetTitle, { color: colors.text }]}>{t('inbox.title')}</Text>
             <Text style={[styles.sheetSubtitle, { color: colors.textSecondary }]}>
-              {items.length === 0 ? 'Nothing to do' : 'Found in your statements'}
+              {items.length === 0 ? t('inbox.nothing') : t('inbox.found')}
             </Text>
           </View>
 
@@ -178,9 +179,9 @@ export function InboxModal({ visible, anchor, items, onClose, onAction, onDismis
               <View style={[styles.emptyIcon, { backgroundColor: colors.tintBackground }]}>
                 <Ionicons name="checkmark" size={28} color={colors.accent} />
               </View>
-              <Text style={[styles.emptyTitle, { color: colors.text }]}>All caught up</Text>
+              <Text style={[styles.emptyTitle, { color: colors.text }]}>{t('review.doneTitle')}</Text>
               <Text style={[styles.emptySub, { color: colors.textSecondary }]}>
-                Possible debts, uncategorised transactions and incomplete statements show up here.
+                {t('inbox.emptySub')}
               </Text>
             </View>
           ) : (
@@ -216,7 +217,7 @@ export function InboxModal({ visible, anchor, items, onClose, onAction, onDismis
                         onDismissItem(item);
                       }}
                       hitSlop={10}
-                      accessibilityLabel={`Dismiss: ${row.title}`}
+                      accessibilityLabel={t('inbox.dismissA11y', { title: row.title })}
                     >
                       <Ionicons name="close" size={18} color={colors.textSecondary} />
                     </TouchableOpacity>
