@@ -1,3 +1,4 @@
+import { ProBadge } from '@/components/pro/ProBadge';
 import { SelectableText } from '@/components/SelectableText';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -16,6 +17,8 @@ const MODES: { key: ValueMode; label: TranslationKey }[] = [
 interface ImpactSectionProps {
   mode: ValueMode;
   onModeChange: (mode: ValueMode) => void;
+  /** Today's prices need Pro: the segment shows a badge, and picking it is left to the caller. */
+  realLocked?: boolean;
   inflationPct: number;
   /** Final balances in the selected mode. */
   fee: FeeImpact;
@@ -30,6 +33,7 @@ const percent = (value: number): string => `${Number((value * 100).toFixed(2))}%
 export function ImpactSection({
   mode,
   onModeChange,
+  realLocked = false,
   inflationPct,
   fee,
   feePct,
@@ -86,6 +90,7 @@ export function ImpactSection({
               >
                 {t(item.label)}
               </Text>
+              {realLocked && item.key === 'REAL' && <ProBadge locked />}
             </TouchableOpacity>
           );
         })}
@@ -112,7 +117,16 @@ const styles = StyleSheet.create({
   card: { borderRadius: 18, padding: 16, borderWidth: StyleSheet.hairlineWidth },
   title: { fontSize: 11, fontWeight: '700', letterSpacing: 0.5, marginBottom: 10 },
   segmentedContainer: { flexDirection: 'row', borderRadius: 10, padding: 2 },
-  segmentBtn: { flex: 1, paddingVertical: 7, paddingHorizontal: 4, alignItems: 'center', borderRadius: 8 },
+  segmentBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 7,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
   segmentBtnActive: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },

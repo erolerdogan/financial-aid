@@ -1,11 +1,14 @@
 import { MonthStepper } from '@/components/dashboard/MonthStepper';
 import { HeaderActions } from '@/components/HeaderActions';
 import { DateRangeModal } from '@/components/modals/DateRangeModal';
+import { ProBadge } from '@/components/pro/ProBadge';
+import { ProGate } from '@/components/pro/ProGate';
 import { TransactionDetailModal } from '@/components/modals/TransactionDetailModal';
 import { TransactionListModal } from '@/components/modals/TransactionListModal';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { SelectableText } from '@/components/SelectableText';
 import { COMPARE_SERIES_COLORS, getCategoryColor } from '@/constants/colors';
+import { useEntitlement } from '@/contexts/EntitlementContext';
 import { usePeriod } from '@/contexts/PeriodContext';
 import { useBlockTabSwipe } from '@/contexts/TabSwipeContext';
 import { useI18n } from '@/contexts/LanguageContext';
@@ -30,6 +33,8 @@ import {
   setMerchantFixedOverride,
   Transaction
 } from '@/db/database';
+import { useBudgetGate } from '@/hooks/useBudgetGate';
+import { usePaywall } from '@/hooks/usePaywall';
 import type { Message } from '@/i18n';
 import type { Formatters } from '@/i18n/format';
 import { parseNumber } from '@/utils/debt';
@@ -131,6 +136,9 @@ export default function TrendsScreen() {
   const { width: screenWidth } = useWindowDimensions();
   const { activeProfile, currencySymbol, dataVersion } = useProfile();
   const activeProfileId = activeProfile?.id ?? 1;
+  const { can, source } = useEntitlement();
+  const { openPaywall } = usePaywall();
+  const { guardBudget, reload: reloadBudgetGate } = useBudgetGate();
   const { period } = usePeriod();
   const sharedYear = period.kind === 'MONTH' ? period.month.slice(0, 4) : null;
 
@@ -159,6 +167,7 @@ export default function TrendsScreen() {
   }
 
   const isDailyMode =
+    can('trendsDaily') &&
     rangeFilter !== null && getRangeDayCount(rangeFilter.from, rangeFilter.to) <= RANGE_DAILY_MAX_DAYS;
 
   const MONTH_NAMES = rangeFilter
@@ -393,8 +402,10 @@ export default function TrendsScreen() {
     () => Object.keys(yearTotals).filter((yr) => yearTotals[yr].some((v) => v > 0)),
     [yearTotals]
   );
+  const canCompareYears = can('trendsLastYear');
   const compareSeries = React.useMemo(() => {
-    if (isRange) return [];
+    // Comparing with other years is a Pro feature; without it only the selected year is drawn.
+    if (isRange || !canCompareYears) return [];
     const years = resolveCompareYears(selectedYear, yearsWithData, pickedCompareYears);
     const seriesColors = pickSeriesColors(years.length, COMPARE_SERIES_COLORS, activeColor);
     return years.map((year, i) => ({
@@ -403,7 +414,7 @@ export default function TrendsScreen() {
       values: yearTotals[year],
       data: yearTotals[year].map((value) => ({ value })),
     }));
-  }, [isRange, selectedYear, yearsWithData, pickedCompareYears, activeColor, yearTotals]);
+  }, [isRange, canCompareYears, selectedYear, yearsWithData, pickedCompareYears, activeColor, yearTotals]);
   const compareYears = compareSeries.map((s) => s.year);
   const compareAtLimit = compareYears.length >= MAX_COMPARE_YEARS;
 
@@ -449,6 +460,10 @@ export default function TrendsScreen() {
 
   const handleOpenRangePicker = () => {
     setYearPickerVisible(false);
+    if (!can('trendsCustomRange')) {
+      setTimeout(() => openPaywall('trends'), 300);
+      return;
+    }
     setTimeout(() => setRangeModalVisible(true), 250);
   };
 
@@ -492,6 +507,16 @@ export default function TrendsScreen() {
       setCategoryBudget(0);
     }
     setIsEditingInline(false);
+    reloadBudgetGate();
+    await loadAnalyticsData();
+  };
+
+  // Removing a budget is never gated.
+  const handleRemoveInlineBudget = async () => {
+    if (!db) return;
+    await setCategoryGoal(db, selectedCategory, 0, activeProfileId);
+    setCategoryBudget(0);
+    reloadBudgetGate();
     await loadAnalyticsData();
   };
 
@@ -855,6 +880,7 @@ export default function TrendsScreen() {
           </View>
 
           {!isRange && availableYears.length > 1 && (
+            <ProGate feature="trendsLastYear" paywall="trends" label={t('paywall.benefit.trendsCompare')} compact>
             <View style={styles.yearChipBlock}>
               <ScrollView
                 horizontal
@@ -917,6 +943,7 @@ export default function TrendsScreen() {
                 </SelectableText>
               )}
             </View>
+            </ProGate>
           )}
 
           {(loading && !refreshing) || !chartReady ? (
@@ -1092,10 +1119,15 @@ export default function TrendsScreen() {
                   ]}
                   activeOpacity={isEditingInline ? 1 : 0.8}
                   onPress={() => {
-                    if (!isEditingInline) {
-                      setInlineInputVal(categoryBudget > 0 ? categoryBudget.toString() : '');
-                      setIsEditingInline(true);
-                    }
+                    if (isEditingInline) return;
+                    guardBudget(
+                      selectedCategory,
+                      () => {
+                        setInlineInputVal(categoryBudget > 0 ? categoryBudget.toString() : '');
+                        setIsEditingInline(true);
+                      },
+                      handleRemoveInlineBudget
+                    );
                   }}
                 >
                   <View style={styles.gridCardHeader}>
@@ -1201,7 +1233,11 @@ export default function TrendsScreen() {
                       {t('period.customRange')}
                     </Text>
                   </View>
-                  {rangeFilter ? (
+                  {!can('trendsCustomRange') ? (
+                    <ProBadge locked />
+                  ) : source === 'free' ? (
+                    <ProBadge />
+                  ) : rangeFilter ? (
                     <Ionicons name="checkmark-circle" size={20} color={colors.accent} />
                   ) : (
                     <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />

@@ -1,3 +1,4 @@
+import { ReadOnlyNote } from '@/components/pro/ReadOnlySheet';
 import { SelectableText } from '@/components/SelectableText';
 import { getCategoryColor } from '@/constants/colors';
 import { useI18n } from '@/contexts/LanguageContext';
@@ -9,6 +10,7 @@ import {
   Transaction,
   updateTransactionCategory,
 } from '@/db/database';
+import { useProfileAccess } from '@/hooks/useProfileAccess';
 import type { Message } from '@/i18n';
 import { INCOME_CATEGORY, UNCATEGORISED } from '@/utils/parser';
 import { Ionicons } from '@expo/vector-icons';
@@ -62,6 +64,8 @@ export function TransactionDetailModal({
   const { currencySymbol, activeProfile } = useProfile();
   const db = useSQLiteContext();
   const profileId = activeProfile?.id ?? 1;
+  // A profile beyond the free limit: the transaction is shown, its category and classification are fixed.
+  const { readOnly } = useProfileAccess();
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [categoryNames, setCategoryNames] = useState<string[]>([]);
@@ -74,7 +78,7 @@ export function TransactionDetailModal({
   }, [visible, db, profileId]);
 
   const handlePickCategory = async (category: string) => {
-    if (!transaction) return;
+    if (!transaction || readOnly) return;
     setPickerOpen(false);
     if (category === transaction.category) return;
     try {
@@ -224,6 +228,7 @@ export function TransactionDetailModal({
                 style={[styles.categoryPill, { backgroundColor: getCategoryColor(transaction.category) + '20' }]}
                 activeOpacity={0.7}
                 hitSlop={10}
+                disabled={readOnly}
                 accessibilityRole="button"
                 accessibilityLabel={t('detail.categoryChange', { category: categoryName(transaction.category) })}
                 onPress={() => {
@@ -235,18 +240,22 @@ export function TransactionDetailModal({
                 <Text style={[styles.categoryText, { color: getCategoryColor(transaction.category) }]}>
                   {categoryName(transaction.category)}
                 </Text>
-                <Ionicons
-                  name={pickerOpen ? 'chevron-up' : 'chevron-down'}
-                  size={12}
-                  color={getCategoryColor(transaction.category)}
-                  style={styles.categoryChevron}
-                />
+                {!readOnly && (
+                  <Ionicons
+                    name={pickerOpen ? 'chevron-up' : 'chevron-down'}
+                    size={12}
+                    color={getCategoryColor(transaction.category)}
+                    style={styles.categoryChevron}
+                  />
+                )}
               </TouchableOpacity>
               <SelectableText style={[styles.dateText, { color: colors.textSecondary }]}>{transaction.date}</SelectableText>
             </View>
           </View>
 
-          {pickerOpen && (
+          {readOnly && <ReadOnlyNote />}
+
+          {pickerOpen && !readOnly && (
             <View style={[styles.sectionContainer, { backgroundColor: colors.surface }]}>
               <SelectableText style={[styles.sectionTitle, { color: colors.textSecondary }]}>{t('detail.category')}</SelectableText>
               <ScrollView style={styles.categoryScroll} contentContainerStyle={styles.categoryGrid}>
@@ -287,6 +296,7 @@ export function TransactionDetailModal({
                   effectiveState === 'FIXED' && [styles.overrideOptionActive, { backgroundColor: colors.raised }],
                 ]}
                 onPress={() => onSelectFixedState('FIXED')}
+                disabled={readOnly}
               >
                 <Text style={[styles.optionText, { color: colors.textSecondary }, effectiveState === 'FIXED' && { color: '#5856D6', fontWeight: '700' }]}>
                   {t('fixed.fixed')}
@@ -299,6 +309,7 @@ export function TransactionDetailModal({
                   effectiveState === 'FLEXIBLE' && [styles.overrideOptionActive, { backgroundColor: colors.raised }],
                 ]}
                 onPress={() => onSelectFixedState('FLEXIBLE')}
+                disabled={readOnly}
               >
                 <Text style={[styles.optionText, { color: colors.textSecondary }, effectiveState === 'FLEXIBLE' && { color: '#FF9500', fontWeight: '700' }]}>
                   {t('fixed.flexible')}
@@ -311,7 +322,7 @@ export function TransactionDetailModal({
                 {autoReasonText ? `${t('detail.autoDetected')} · ${autoReasonText}` : t('detail.autoDetected')}
               </SelectableText>
             ) : (
-              <TouchableOpacity onPress={() => onSelectFixedState('AUTO')} hitSlop={8}>
+              <TouchableOpacity onPress={() => onSelectFixedState('AUTO')} hitSlop={8} disabled={readOnly}>
                 <Text style={[styles.autoHint, { color: colors.textSecondary }]}>
                   {t('detail.setByYou')} · <Text style={{ color: colors.accent }}>{t('detail.resetAuto')}</Text>
                 </Text>

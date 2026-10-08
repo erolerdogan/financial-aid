@@ -15,7 +15,9 @@ import { ImpactSection, type ValueMode } from '@/components/freedom/ImpactSectio
 import { ResultCards } from '@/components/freedom/ResultCards';
 import { ScenarioSelector } from '@/components/freedom/ScenarioSelector';
 import { YearlyTable } from '@/components/freedom/YearlyTable';
+import { ProGate } from '@/components/pro/ProGate';
 import { SelectableText } from '@/components/SelectableText';
+import { useEntitlement } from '@/contexts/EntitlementContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -27,6 +29,8 @@ import {
   setAppMeta,
   type FreedomPlan,
 } from '@/db/database';
+import { usePaywall } from '@/hooks/usePaywall';
+import { useProfileAccess } from '@/hooks/useProfileAccess';
 import { parseNumber } from '@/utils/debt';
 import {
   clampYears,
@@ -48,7 +52,17 @@ import * as Haptics from 'expo-haptics';
 import { useFocusEffect } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, AppState, Keyboard, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  AppState,
+  Keyboard,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
 const SAVE_DELAY_MS = 500;
 
@@ -58,6 +72,10 @@ export function FreedomScreen() {
   const { t } = useI18n();
   const { activeProfile, dataVersion, currencySymbol } = useProfile();
   const profileId = activeProfile?.id ?? 1;
+  const { can, source } = useEntitlement();
+  const { openPaywall } = usePaywall();
+  const { readOnly, guardWrite } = useProfileAccess();
+  const canSeeDetails = can('growthDetails');
 
   const [draft, setDraft] = useState<FreedomDraft | null>(null);
   // The cards keep showing the last valid plan while a field is being edited into an invalid state.
@@ -143,7 +161,8 @@ export function FreedomScreen() {
   }, [flushSave]);
 
   const errors = useMemo(() => (draft ? parseDraft(draft).errors : {}), [draft]);
-  const real = mode === 'REAL';
+  // Today's prices are a Pro feature; without it every amount stays in future prices.
+  const real = mode === 'REAL' && can('growthRealPrices');
   const years = clampYears(lastValid.years);
   const nominalRows = useMemo(() => projectGrowth(lastValid), [lastValid]);
   // Cards, chart and table all read these, so the toggle switches them together.
@@ -189,6 +208,8 @@ export function FreedomScreen() {
   const showOptions = optionsOpen || ADVANCED_FIELD_KEYS.some((key) => errors[key]);
 
   const applyDraft = (nextDraft: FreedomDraft, key?: FreedomFieldKey) => {
+    // A profile beyond the free limit: the plan is shown as saved and cannot be changed.
+    if (!guardWrite()) return;
     const next = parseDraft(nextDraft);
     setDraft(nextDraft);
 
@@ -232,6 +253,10 @@ export function FreedomScreen() {
   };
 
   const handleMode = (next: ValueMode) => {
+    if (next === 'REAL' && !can('growthRealPrices')) {
+      openPaywall('growth');
+      return;
+    }
     if (next === mode) return;
     Haptics.selectionAsync().catch(() => {});
     Keyboard.dismiss();
@@ -256,6 +281,16 @@ export function FreedomScreen() {
     Keyboard.dismiss();
     setIntroVisible(true);
   };
+
+  // On a read-only profile the inputs do not take focus; a tap on them explains why.
+  const editable = (node: React.ReactNode) =>
+    readOnly ? (
+      <Pressable onPress={() => guardWrite()} accessibilityRole="button" accessibilityLabel={t('pro.readOnly.note')}>
+        <View pointerEvents="none">{node}</View>
+      </Pressable>
+    ) : (
+      node
+    );
 
   if (introSeen === false) {
     return <FreedomIntro currencySymbol={currencySymbol} actionLabel={t('freedom.intro.start')} onDone={handleIntroDone} />;
@@ -308,20 +343,26 @@ export function FreedomScreen() {
           <Ionicons name="help-circle-outline" size={16} color={colors.accent} />
           <Text style={[styles.introLinkText, { color: colors.accent }]}>{t('freedom.howItWorks')}</Text>
         </TouchableOpacity>
-        <FreedomInputs
-          fields="BASIC"
-          draft={draft}
-          errors={errors}
-          onChange={handleChange}
-          currencySymbol={currencySymbol}
-        />
-        <ScenarioSelector
-          scenarios={scenarios}
-          active={activeScenario}
-          onSelect={handleScenario}
-          currencySymbol={currencySymbol}
-          stale={stale}
-        />
+        {editable(
+          <FreedomInputs
+            fields="BASIC"
+            draft={draft}
+            errors={errors}
+            onChange={handleChange}
+            currencySymbol={currencySymbol}
+          />
+        )}
+        <ProGate feature="growthScenarios" paywall="growth" label={t('freedom.outlook')}>
+          {editable(
+            <ScenarioSelector
+              scenarios={scenarios}
+              active={activeScenario}
+              onSelect={handleScenario}
+              currencySymbol={currencySymbol}
+              stale={stale}
+            />
+          )}
+        </ProGate>
         <ResultCards
           summary={summary}
           years={years}
@@ -330,6 +371,8 @@ export function FreedomScreen() {
           stale={stale}
         />
         <GrowthChart rows={rows} currencySymbol={currencySymbol} ready={chartReady} real={real} stale={stale} />
+        <ProGate feature="growthGoals" paywall="growth" label={t('freedom.field.goalBalance')}>
+        {editable(
         <GoalSection
           key={profileId}
           goalType={draft.goalType}
@@ -345,32 +388,38 @@ export function FreedomScreen() {
           real={real}
           stale={stale}
         />
+        )}
+        </ProGate>
         <DisclosureRow
           title={t('freedom.moreOptions')}
           subtitle={t('freedom.moreOptionsSub')}
           expanded={showOptions}
           onToggle={() => setOptionsOpen(!showOptions)}
         />
-        {showOptions && (
-          <FreedomInputs
-            fields="ADVANCED"
-            draft={draft}
-            errors={errors}
-            onChange={handleChange}
-            currencySymbol={currencySymbol}
-          />
-        )}
+        {showOptions &&
+          editable(
+            <FreedomInputs
+              fields="ADVANCED"
+              draft={draft}
+              errors={errors}
+              onChange={handleChange}
+              currencySymbol={currencySymbol}
+            />
+          )}
         <DisclosureRow
           title={t('freedom.details')}
           subtitle={t('freedom.detailsSub')}
-          expanded={detailsOpen}
-          onToggle={() => setDetailsOpen((value) => !value)}
+          expanded={detailsOpen && canSeeDetails}
+          onToggle={() => (canSeeDetails ? setDetailsOpen((value) => !value) : openPaywall('growth'))}
+          locked={!canSeeDetails}
+          pro={source === 'free'}
         />
-        {detailsOpen && (
+        {detailsOpen && canSeeDetails && (
           <>
             <ImpactSection
-              mode={mode}
+              mode={real ? 'REAL' : 'NOMINAL'}
               onModeChange={handleMode}
+              realLocked={!can('growthRealPrices')}
               inflationPct={lastValid.inflationPct}
               fee={fee}
               feePct={lastValid.feePct}

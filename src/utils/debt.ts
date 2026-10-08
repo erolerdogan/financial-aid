@@ -80,6 +80,25 @@ export const estimateApr = (originalAmount: number, payment: number, termMonths:
   return Math.round(((low + high) / 2) * 1200 * 100) / 100;
 };
 
+// Months left and interest still to pay on a fixed monthly payment (apr in percent). null when the payment never clears the balance.
+export function projectDebtPayoff(
+  balance: number,
+  apr: number,
+  payment: number
+): { months: number | null; totalInterest: number | null } {
+  if (balance <= 0.005) return { months: 0, totalInterest: 0 };
+  if (payment <= 0) return { months: null, totalInterest: null };
+
+  const monthlyRate = apr / 1200;
+  if (monthlyRate === 0) {
+    return { months: Math.ceil(balance / payment), totalInterest: 0 };
+  }
+  if (payment <= balance * monthlyRate) return { months: null, totalInterest: null };
+
+  const months = Math.ceil(-Math.log(1 - (balance * monthlyRate) / payment) / Math.log(1 + monthlyRate));
+  return { months, totalInterest: Math.max(0, payment * months - balance) };
+}
+
 export const MIN_DEBT_KEYWORD_LENGTH = 3;
 // Keywords this long may also match the start of a longer word (VODAF -> VODAFONE).
 const PREFIX_KEYWORD_LENGTH = 5;

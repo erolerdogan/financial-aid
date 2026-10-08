@@ -1,7 +1,7 @@
 import { SelectableText } from '@/components/SelectableText';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { getNiceScale } from '@/utils/chartScale';
+import { formatAxisValue, getNiceScale } from '@/utils/chartScale';
 import { type YearRow } from '@/utils/freedom';
 import React, { useMemo } from 'react';
 import { ActivityIndicator, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
@@ -29,17 +29,6 @@ const MAX_X_LABELS = 6;
 const HORIZONTAL_CHROME = 40 + 32;
 // Height of the chart plus its own axis padding, so the loading state takes the same space.
 const CHART_BLOCK_HEIGHT = CHART_HEIGHT + 30;
-
-const formatAxisValue = (label: string): string => {
-  const value = Number(label);
-  if (!Number.isFinite(value)) return label;
-  const abs = Math.abs(value);
-  const trim = (n: number) => String(Number(n.toFixed(n < 10 ? 1 : 0)));
-  if (abs >= 1e9) return `${trim(value / 1e9)}B`;
-  if (abs >= 1e6) return `${trim(value / 1e6)}M`;
-  if (abs >= 1e3) return `${trim(value / 1e3)}k`;
-  return String(Math.round(value));
-};
 
 const labelStep = (count: number): number => {
   for (const step of [1, 2, 5, 10, 20]) {

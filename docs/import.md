@@ -53,7 +53,7 @@ On the device only: no file or text leaves the app.
 - **Across files** (`runImport`): `checkChain` (`chain.ts`) sorts the statements per IBAN, leaves out a statement given twice, and reports a balance that does not carry over (a statement is probably missing) and a skipped statement number. `numberIdenticalRows` then adds ` (2)`, ` (3)` to identical same-day bookings so the dedup key does not collapse them.
 - **Summary.** `ImportSummaryModal` shows statements read with the period, "Checked against statement totals", possible duplicates, and each chain problem and left-out file with its reason.
 - **Share sheet.** `application/pdf` is in the Android share types in `app.json`; iOS accepts any single file.
-- **Pro gate.** None yet: `// TODO(pro)` in `useStatementImporter`.
+- **Pro gate.** PDF statements need the `pdfImport` flag ([subscription.md](subscription.md)). `runImport` passes `allowPdf` to `readStatementFile`, which throws `ProRequiredError` as soon as the first bytes say PDF, before any text is extracted. Those files are left out without a failure row; CSV / Excel files of the same pick are imported; the paywall opens (on top of the summary, which shows once it is closed). An import into a read-only profile is stopped before the picker by `guardWrite`.
 - Tests: `npm test -- pdfStatements`. `abnamro.test.ts` uses made-up pages from `fixtures.ts`. `abnamro.private.test.ts` compares the parser row by row with the Python reference on real statements in `scripts/fixtures/private/` (gitignored; it is skipped when the folder or `pdfplumber` is missing, and reports differences by row number and field only). Never commit a real statement or JSON made from one.
 
 Known limits:

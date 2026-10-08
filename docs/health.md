@@ -8,7 +8,8 @@ Purpose: answer "Is our money in good shape, and what's the one thing to fix?"
 - Always labelled "Guidance, not financial advice." (`health.disclaimer`).
 - Tone: warm and factual, never shaming. Include positive messages too.
 - Respect the `dataVersion` refresh.
-- Pro items (score history on the Health screen, "Export PDF" in the report) are enabled for everyone: there is no `useEntitlement()` / `FEATURES` yet, and each gate is marked `// TODO(pro)`.
+- Pro items (score history on the Health screen, "Export PDF" in the report) are enabled for everyone: their flags `healthFull` and `reportPdf` are placeholders in `FEATURES`, and each place is marked `// TODO(pro)`.
+- On a read-only profile ([subscription.md](subscription.md)) the household editor, the long-press actions and the options are off; the household question is not asked.
 
 ## Benchmarks
 

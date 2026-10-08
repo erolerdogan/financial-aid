@@ -153,6 +153,8 @@ npm run site       # writes site-dist/
 - Removing a keyword removes the payments it linked; deleted transactions drop out of the history.
 - Each payment is split into principal and interest.
 - Shows the remaining balance, progress, interest paid so far, estimated future interest and estimated debt-free month.
+- A "Debt-free" card on top of the Debts tab and on Home shows the estimated month in which all debts are paid.
+- Payoff plan: see the order in which your debts are paid off, and plan to get there sooner with an extra monthly amount, one-off payments and a strategy (Avalanche: highest interest first; Snowball: smallest debt first). It shows the months and interest saved against your current payments, a balance chart of both paths and how the two strategies compare. The date and the order are free; planning is part of Pro. Estimates only, not financial advice.
 - Suggests debts from your statements: a steady monthly payment to a lender (mortgage, student loan, credit) that no debt covers yet appears as a card on the Debts tab. Add opens the form with name, type and keyword prefilled; monthly payment, payment day and start date follow from the matching payments. Dismissed suggestions stay hidden.
 
 ### Future Growth Calculator
@@ -205,9 +207,20 @@ npm run site       # writes site-dist/
 - Copy text: long-press a text that is not a button or a tappable row (a merchant name, an amount, the bank description, an export guide step, the legal texts, a result figure, the app version) to copy it.
 - About: Frequently asked questions answers how the app works in six groups (getting started, importing statements, categories and budgets, the Plan tab, privacy and backups, profiles and settings); tap a question to open its answer. Personal Data & Privacy explains in a few lines what is stored on the device, that nothing is collected, where saved files go and how to delete everything. The same screen holds the legal documents: Privacy Policy, Terms of Use and Disclaimer open inside the app, in the app's language and without a connection, and Open-Source Licenses lists the packages the app is built with and their license texts. The app version is shown below the row. The welcome screen links to the terms and the privacy policy.
 
+### Free and Pro
+
+- The app has a free plan and Pro. Buying Pro is not possible yet: the screen that shows what Pro adds is there, the purchase is not.
+- Free: one profile, three budgets, two debts, CSV and Excel import, yearly Trends, the basic Future Growth plan, and the Classic and Sunset themes.
+- Pro adds: PDF statement import, custom date ranges with the daily view and year comparison in Trends, unlimited budgets and debts, Future Growth outlooks, goals, today's prices and details, more profiles, and all themes.
+- Always free: backup and restore, export, deleting, the passcode lock, all languages and categorisation.
+- Nothing is removed without Pro. Profiles, budgets and debts beyond the free limits stay visible and can be deleted; they are read-only, marked "Renew to edit".
+- Pro features stay visible with a "Pro" badge; a tap shows what Pro adds. The app offers Pro unasked once, after the second import, and as a quiet item under the bell that can be dismissed.
+- Settings → Subscription shows the plan, "See Pro" and "Restore purchases".
+- No account and no tracking, also with Pro.
+
 ### Demo workspace
 
-- A separate demo profile with three months of sample transactions and two sample debts.
+- A separate demo profile with three months of sample transactions and two sample debts. Everything is unlocked there, including the Pro features.
 - Import, backup and restore, reset, profile switching and import reminders are switched off (grayed out) in the demo; leave it with "Exit Demo" to use your own data.
 
 ### Backup and restore

@@ -1,3 +1,4 @@
+import { ReadOnlySheetHost } from '@/components/pro/ReadOnlySheet';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { SelectableText } from '@/components/SelectableText';
 import { getCategoryColor } from '@/constants/colors';
@@ -8,6 +9,7 @@ import {
   getCategoryGoalsWithProgress,
   setCategoryGoal
 } from '@/db/database';
+import { useBudgetGate } from '@/hooks/useBudgetGate';
 import { parseNumber } from '@/utils/debt';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -35,6 +37,7 @@ export default function GoalsScreen() {
   const { t, format, categoryName } = useI18n();
   const { activeProfile, dataVersion, currencySymbol } = useProfile();
   const activeProfileId = activeProfile?.id ?? 1;
+  const { isReadOnly, guardBudget, reload: reloadBudgetGate } = useBudgetGate();
 
   const [loading, setLoading] = useState(true);
   const [goals, setGoals] = useState<CategoryGoalWithProgress[]>([]);
@@ -77,6 +80,15 @@ export default function GoalsScreen() {
     setEditingCategory('');
     setInputLimit('');
     loadGoals();
+    reloadBudgetGate();
+  };
+
+  // Removing is never gated, also not for a budget beyond the free limit.
+  const handleRemoveGoal = async (category: string) => {
+    if (!db) return;
+    await setCategoryGoal(db, category, 0, activeProfileId);
+    loadGoals();
+    reloadBudgetGate();
   };
 
   return (
@@ -106,22 +118,34 @@ export default function GoalsScreen() {
           goals.map((item) => {
             const catColor = getCategoryColor(item.category);
             const isOver = item.monthlyLimit > 0 && item.spent > item.monthlyLimit;
+            const locked = isReadOnly(item.category);
 
             return (
               <TouchableOpacity
                 key={item.category}
                 style={[styles.goalCard, { backgroundColor: colors.card, borderColor: colors.border }]}
                 activeOpacity={0.8}
-                onPress={() => {
-                  setEditingCategory(item.category);
-                  setInputLimit(item.monthlyLimit > 0 ? item.monthlyLimit.toString() : '');
-                  setModalVisible(true);
-                }}
+                onPress={() =>
+                  guardBudget(
+                    item.category,
+                    () => {
+                      setEditingCategory(item.category);
+                      setInputLimit(item.monthlyLimit > 0 ? item.monthlyLimit.toString() : '');
+                      setModalVisible(true);
+                    },
+                    () => handleRemoveGoal(item.category)
+                  )
+                }
               >
                 <View style={styles.goalCardHeader}>
                   <View style={styles.goalLeft}>
                     <View style={[styles.dot, { backgroundColor: catColor }]} />
-                    <Text style={[styles.categoryName, { color: colors.text }]}>{categoryName(item.category)}</Text>
+                    <View style={styles.categoryNameWrap}>
+                      <Text style={[styles.categoryName, { color: colors.text }]}>{categoryName(item.category)}</Text>
+                      {locked && (
+                        <Text style={[styles.lockedNote, { color: colors.textSecondary }]}>{t('pro.renewToEdit')}</Text>
+                      )}
+                    </View>
                   </View>
                   <View style={styles.goalRight}>
                     <Text style={[styles.spentText, { color: colors.text }]}>
@@ -130,7 +154,7 @@ export default function GoalsScreen() {
                         / {item.monthlyLimit > 0 ? format.money(item.monthlyLimit, currencySymbol) : t('budgets.noLimit')}
                       </Text>
                     </Text>
-                    <Ionicons name="chevron-forward" size={14} color={colors.textSecondary} />
+                    <Ionicons name={locked ? 'lock-closed' : 'chevron-forward'} size={14} color={colors.textSecondary} />
                   </View>
                 </View>
 
@@ -208,6 +232,7 @@ export default function GoalsScreen() {
           </TouchableOpacity>
         </KeyboardAvoidingView>
       </Modal>
+      <ReadOnlySheetHost />
     </ScreenContainer>
   );
 }
@@ -252,7 +277,9 @@ const styles = StyleSheet.create({
   },
   goalLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
   dot: { width: 10, height: 10, borderRadius: 5 },
+  categoryNameWrap: { flexShrink: 1 },
   categoryName: { fontSize: 15, fontWeight: '600' },
+  lockedNote: { fontSize: 11, marginTop: 1 },
   goalRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   spentText: { fontSize: 14, fontWeight: '700' },
   progressTrack: {

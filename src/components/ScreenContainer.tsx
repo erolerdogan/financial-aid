@@ -1,4 +1,5 @@
 import { DemoBanner } from '@/components/DemoBanner';
+import { ReadOnlyBanner } from '@/components/pro/ReadOnlyBanner';
 import { useTheme } from '@/contexts/ThemeContext';
 import React from 'react';
 import {
@@ -38,6 +39,7 @@ export function ScreenContainer({ children, style, showDemoBanner = true }: Scre
       >
         <View style={[styles.flexOne, { backgroundColor: colors.background }]}>
           {showDemoBanner && <DemoBanner />}
+          <ReadOnlyBanner />
           {children}
         </View>
       </KeyboardAvoidingView>

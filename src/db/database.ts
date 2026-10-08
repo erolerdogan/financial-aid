@@ -8,7 +8,7 @@ import {
 import { CATEGORY_COLORS, setCustomCategoryColors } from '@/constants/colors';
 import type { Message } from '@/i18n';
 import type { HealthDebt, HealthDebtPayment, HealthTransaction } from '@/utils/budgetHealth';
-import { DebtMatchStrength, evaluateDebtKeyword } from '@/utils/debt';
+import { DebtMatchStrength, evaluateDebtKeyword, projectDebtPayoff } from '@/utils/debt';
 import { buildDebtSuggestions, type DebtSuggestion } from '@/utils/debtSuggestion';
 import {
   buildMerchantProfiles,
@@ -19,6 +19,7 @@ import {
   merchantKey,
   scoreFixed,
 } from '@/utils/fixedCost';
+import { DEFAULT_DEBT_PLAN, sanitizeDebtPlan, type DebtPlan } from '@/utils/debtSimulator';
 import { type FreedomInput, type GoalType } from '@/utils/freedom';
 import type { AlertStatus, AlertType, HealthAlert } from '@/utils/healthAlerts';
 import {
@@ -234,6 +235,15 @@ export async function initDatabase(db: SQLiteDatabase): Promise<void> {
       goal_type TEXT NOT NULL DEFAULT 'BALANCE',
       goal_balance REAL NOT NULL DEFAULT 0,
       goal_income REAL NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS debt_plan (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      profile_id INTEGER NOT NULL UNIQUE,
+      extra_monthly REAL NOT NULL DEFAULT 0,
+      strategy TEXT NOT NULL DEFAULT 'AVALANCHE',
+      lump_sums TEXT NOT NULL DEFAULT '[]',
       updated_at TEXT NOT NULL
     );
 
@@ -482,6 +492,7 @@ export async function deleteProfile(
     await db.runAsync(`DELETE FROM category_goals WHERE profileId = ?;`, [id]);
     await db.runAsync(`DELETE FROM category_rules WHERE profileId = ?;`, [id]);
     await db.runAsync(`DELETE FROM fixed_cost_rules WHERE profileId = ?;`, [id]);
+    await db.runAsync(`DELETE FROM debt_plan WHERE profile_id = ?;`, [id]);
     await clearHealthTables(db, id);
     await db.runAsync(`DELETE FROM profiles WHERE id = ?;`, [id]);
   });
@@ -731,6 +742,15 @@ export async function getCategoryGoalsWithProgress(
       percentage: Math.round(percentage),
     };
   });
+}
+
+/** Categories that have a budget, oldest first: the free limit keeps the oldest ones editable. */
+export async function getBudgetOrder(db: SQLiteDatabase, profileId: number): Promise<string[]> {
+  const rows = await db.getAllAsync<{ category: string }>(
+    `SELECT category FROM category_goals WHERE profileId = ? AND monthly_limit > 0 ORDER BY rowid ASC;`,
+    [profileId]
+  );
+  return rows.map((row) => row.category);
 }
 
 export async function setCategoryGoal(
@@ -1028,6 +1048,7 @@ export async function clearAllData(
       await db.runAsync(`DELETE FROM debt_rules WHERE profileId = ?;`, [profileId]);
       await db.runAsync(`DELETE FROM debts WHERE profileId = ?;`, [profileId]);
       await db.runAsync(`DELETE FROM freedom_plans WHERE profile_id = ?;`, [profileId]);
+      await db.runAsync(`DELETE FROM debt_plan WHERE profile_id = ?;`, [profileId]);
       await clearHealthTables(db, profileId);
     });
   } else {
@@ -1041,6 +1062,7 @@ export async function clearAllData(
       DROP TABLE IF EXISTS debt_rules;
       DROP TABLE IF EXISTS debts;
       DROP TABLE IF EXISTS freedom_plans;
+      DROP TABLE IF EXISTS debt_plan;
       DROP TABLE IF EXISTS household_profile;
       DROP TABLE IF EXISTS category_range_overrides;
       DROP TABLE IF EXISTS health_alerts;
@@ -2093,24 +2115,6 @@ const debtDaysBetween = (a: string, b: string): number => {
 
 const roundMoney = (value: number): number => Math.round(value * 100) / 100;
 
-export function projectDebtPayoff(
-  balance: number,
-  apr: number,
-  payment: number
-): { months: number | null; totalInterest: number | null } {
-  if (balance <= 0.005) return { months: 0, totalInterest: 0 };
-  if (payment <= 0) return { months: null, totalInterest: null };
-
-  const monthlyRate = apr / 1200;
-  if (monthlyRate === 0) {
-    return { months: Math.ceil(balance / payment), totalInterest: 0 };
-  }
-  if (payment <= balance * monthlyRate) return { months: null, totalInterest: null };
-
-  const months = Math.ceil(-Math.log(1 - (balance * monthlyRate) / payment) / Math.log(1 + monthlyRate));
-  return { months, totalInterest: Math.max(0, payment * months - balance) };
-}
-
 export async function recomputeDebtPayments(db: SQLiteDatabase, debtId: number): Promise<void> {
   const debt = await db.getFirstAsync<Debt>(`SELECT * FROM debts WHERE id = ?;`, [debtId]);
   if (!debt) return;
@@ -2536,7 +2540,48 @@ export async function convertDebtAmounts(
      WHERE profileId = ?;`,
     [factor, factor, factor, profileId]
   );
+
+  // The payoff plan is typed next to the debts, so its amounts follow them.
+  const plan = await getSavedDebtPlan(db, profileId);
+  if (plan) {
+    await saveDebtPlan(db, profileId, {
+      ...plan,
+      extraMonthly: roundMoney(plan.extraMonthly * factor),
+      lumpSums: plan.lumpSums.map((lump) => ({ ...lump, amount: roundMoney(lump.amount * factor) })),
+    });
+  }
 }
+
+/** The payoff plan stored for this profile, or null when none has been saved yet. */
+export async function getSavedDebtPlan(db: SQLiteDatabase, profileId: number): Promise<DebtPlan | null> {
+  if (!db) return null;
+
+  const row = await db.getFirstAsync<{ extra_monthly: number; strategy: string; lump_sums: string }>(
+    `SELECT extra_monthly, strategy, lump_sums FROM debt_plan WHERE profile_id = ?;`,
+    [profileId]
+  );
+  return row ? sanitizeDebtPlan(row.extra_monthly, row.strategy, row.lump_sums) : null;
+}
+
+export async function getDebtPlan(db: SQLiteDatabase, profileId: number): Promise<DebtPlan> {
+  return (await getSavedDebtPlan(db, profileId)) ?? { ...DEFAULT_DEBT_PLAN, lumpSums: [] };
+}
+
+export async function saveDebtPlan(db: SQLiteDatabase, profileId: number, plan: DebtPlan): Promise<void> {
+  if (!db) return;
+
+  await db.runAsync(
+    `INSERT INTO debt_plan (profile_id, extra_monthly, strategy, lump_sums, updated_at)
+     VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(profile_id) DO UPDATE SET
+       extra_monthly = excluded.extra_monthly,
+       strategy = excluded.strategy,
+       lump_sums = excluded.lump_sums,
+       updated_at = excluded.updated_at;`,
+    [profileId, plan.extraMonthly, plan.strategy, JSON.stringify(plan.lumpSums), new Date().toISOString()]
+  );
+}
+
 const dismissedDebtSuggestionsKey = (profileId: number): string => `debt_suggestions_dismissed:${profileId}`;
 
 async function getDismissedDebtSuggestions(db: SQLiteDatabase, profileId: number): Promise<string[]> {

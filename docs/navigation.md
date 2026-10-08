@@ -5,7 +5,8 @@
 - Routes in `src/app`, tabs in `src/app/(tabs)`: Home (`index.tsx`), Trends, Plan.
 - Transactions is not a tab: `src/app/transactions.tsx` is a card pushed on the root `Stack` (own header with a back button, iOS edge swipe goes back). It is opened with `router.push('/transactions')` from the header search icon, "See all" on Home and "Review" in the import summary. Back falls back to `router.replace('/(tabs)')` when nothing is underneath (opened by a link).
 - The Plan tab's route is `debts` (`src/app/(tabs)/debts.tsx`) with three segments, Debts, Health and Future Growth; see [debts.md](debts.md), [health.md](health.md) and [freedom.md](freedom.md).
-- Budgets is `src/app/goals.tsx`. Review is `src/app/review.tsx`. Modal routes in the root `Stack` include `export-guide`, `health-report`, `data-privacy`, `legal`, `faq` and `licenses`.
+- The payoff plan is `src/app/debt-plan.tsx`, a pushed card like Transactions, opened from the hero card of the Debts segment; back falls back to the Plan tab. See [debts.md](debts.md).
+- Budgets is `src/app/goals.tsx`. Review is `src/app/review.tsx`. Modal routes in the root `Stack` include `export-guide`, `health-report`, `data-privacy`, `legal`, `faq`, `licenses` and `paywall` ([subscription.md](subscription.md)).
 - Typed routes: after adding a route file, `npx expo customize tsconfig.json` regenerates `.expo/types/router.d.ts` so `tsc` knows the new path.
 
 ## Welcome
@@ -115,12 +116,13 @@
   - the uncategorised count,
   - `POSSIBLE` debt payment matches,
   - partial past months (not in demo mode),
-  - the backup reminder (not in demo mode).
+  - the backup reminder (not in demo mode),
+  - the Pro offer (`PRO_OFFER`): last, for a free user whose profile has transactions; once dismissed it stays away ([subscription.md](subscription.md)).
 - `InboxProvider` / `InboxHost` (`src/contexts/InboxContext.tsx`) wrap the tabs layout. The host owns `InboxModal` plus the `DebtFormModal` and `BackupRestoreModal` its rows open.
 - `InboxModal` is not a bottom sheet: `HeaderActions` measures the bell (`measureInWindow`) and passes it to `openInbox(anchor)`, and the panel scales out of that point (`transformOrigin`).
 - Refresh: `HeaderActions` calls `refreshInbox` on focus. It is skipped while profile, `dataVersion`, `total_changes()` and day are unchanged. Screens that write without bumping `dataVersion` call `refreshInbox` themselves (Debts `load`).
 - Dismissals: a JSON map in `app_meta` (`inbox_dismissed:<profileId>`, key → number). An item stays hidden while the stored number is >= its threshold: max transaction id for uncategorised / debt matches, snooze timestamp for backup. Debt suggestions use `dismissDebtSuggestion`.
-- The bell badge counts everything except quiet items (`isQuietInboxItem`: backup and good-news health alerts), which show a dot.
+- The bell badge counts everything except quiet items (`isQuietInboxItem`: backup, the Pro offer and good-news health alerts), which show a dot.
 
 ## Themes
 
@@ -128,6 +130,7 @@
 - Besides the base tokens there are `surface`, `track`, `field`, `raised` (use these instead of `isDark ? grey : grey`) and `gradient` / `onGradient` for hero surfaces (`LinearGradient`).
 - Theme name and mode are saved in `app_meta` (`theme_name`, `theme_mode`) and read synchronously on launch. With no saved mode the system scheme is followed.
 - Never hardcode light / dark colors; take them from `useTheme()`.
+- Classic and Sunset are free; the others show a lock in Settings and open the paywall (`isThemeLocked`, [subscription.md](subscription.md)). `ThemeProvider` itself does not check the tier, so a Pro theme that is active at a downgrade stays.
 
 ## Copyable text
 

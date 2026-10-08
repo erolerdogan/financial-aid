@@ -53,11 +53,13 @@ interface DebtFormModalProps {
   visible: boolean;
   debt: DebtSummary | null; // null = create
   prefill?: DebtPrefill | null; // create only: start from a statement suggestion
+  /** Open scrolled to the interest rate field (from the payoff plan's "add the rate" hint). */
+  focusApr?: boolean;
   onClose: () => void;
   onSaved: () => void;
 }
 
-export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: DebtFormModalProps) {
+export function DebtFormModal({ visible, debt, prefill, focusApr = false, onClose, onSaved }: DebtFormModalProps) {
   const db = useSQLiteContext();
   const { colors } = useTheme();
   const { t, format } = useI18n();
@@ -80,6 +82,16 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
   const keywordInputRef = useRef<TextInput>(null);
   const scrollRef = useRef<ScrollView>(null);
   const keywordSectionY = useRef(0);
+  const aprSectionY = useRef(0);
+
+  // After the sheet has presented and the fields are laid out.
+  useEffect(() => {
+    if (!visible || !focusApr) return;
+    const timer = setTimeout(() => {
+      scrollRef.current?.scrollTo({ y: Math.max(0, aprSectionY.current - 8), animated: true });
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [visible, focusApr]);
 
   // Bring the keyword section above the keyboard once it has finished opening.
   const scrollToKeywords = () => {
@@ -606,10 +618,16 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
                 })}
               </View>
             </View>
-            {renderField(t('debt.form.apr'), apr, setApr, '0', {
-              keyboard: 'decimal-pad',
-              suffix: '%',
-            })}
+            <View
+              onLayout={(event) => {
+                aprSectionY.current = event.nativeEvent.layout.y;
+              }}
+            >
+              {renderField(t('debt.form.apr'), apr, setApr, '0', {
+                keyboard: 'decimal-pad',
+                suffix: '%',
+              })}
+            </View>
             {showAprEstimate && (
               <View style={styles.estimateRow}>
                 <SelectableText style={[styles.estimateText, { color: colors.textSecondary }]}>

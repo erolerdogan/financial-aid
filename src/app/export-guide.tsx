@@ -30,6 +30,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { ReadOnlySheetHost } from '@/components/pro/ReadOnlySheet';
 
 // `OTHER` is the general guide for a bank that has none of its own.
 type Selection = BankGuide | 'OTHER' | null;
@@ -239,6 +240,7 @@ export default function ExportGuideScreen() {
         </ScrollView>
       )}
       <ImportProgressOverlay />
+      <ReadOnlySheetHost />
     </SafeAreaView>
   );
 }

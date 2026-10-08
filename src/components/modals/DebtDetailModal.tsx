@@ -1,3 +1,4 @@
+import { ReadOnlyNote } from '@/components/pro/ReadOnlySheet';
 import { DebtProgressBar } from '@/components/debts/DebtProgressBar';
 import { SelectableText } from '@/components/SelectableText';
 import { useI18n } from '@/contexts/LanguageContext';
@@ -34,10 +35,12 @@ interface DebtDetailModalProps {
   debt: DebtSummary | null;
   onClose: () => void;
   onEdit: () => void;
+  /** Beyond the free limit, or on a read-only profile: shown without the ways to change it. */
+  readOnly?: boolean;
   onChanged: () => void;
 }
 
-export function DebtDetailModal({ visible, debt, onClose, onEdit, onChanged }: DebtDetailModalProps) {
+export function DebtDetailModal({ visible, debt, onClose, onEdit, readOnly = false, onChanged }: DebtDetailModalProps) {
   const db = useSQLiteContext();
   const { colors } = useTheme();
   const { t, format } = useI18n();
@@ -166,7 +169,7 @@ export function DebtDetailModal({ visible, debt, onClose, onEdit, onChanged }: D
             <SelectableText style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>
               {debt.name}
             </SelectableText>
-            <TouchableOpacity onPress={onEdit} hitSlop={8}>
+            <TouchableOpacity onPress={onEdit} hitSlop={8} disabled={readOnly} style={readOnly && styles.hidden}>
               <Text style={[styles.headerAction, styles.bold, { color: colors.accent }]}>{t('common.edit')}</Text>
             </TouchableOpacity>
           </View>
@@ -230,7 +233,9 @@ export function DebtDetailModal({ visible, debt, onClose, onEdit, onChanged }: D
               ))}
             </View>
 
-            {!debt.isPaidOff && (
+            {readOnly && <ReadOnlyNote />}
+
+            {!debt.isPaidOff && !readOnly && (
               <>
                 <SelectableText style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t('debt.detail.addPayment')}</SelectableText>
                 <View style={styles.addRow}>
@@ -322,9 +327,11 @@ export function DebtDetailModal({ visible, debt, onClose, onEdit, onChanged }: D
                         </SelectableText>
                       </View>
                     </View>
-                    <TouchableOpacity onPress={() => handleRemovePayment(payment)} hitSlop={10} style={styles.removeBtn}>
-                      <Ionicons name="close-circle-outline" size={18} color={colors.textSecondary} />
-                    </TouchableOpacity>
+                    {!readOnly && (
+                      <TouchableOpacity onPress={() => handleRemovePayment(payment)} hitSlop={10} style={styles.removeBtn}>
+                        <Ionicons name="close-circle-outline" size={18} color={colors.textSecondary} />
+                      </TouchableOpacity>
+                    )}
                   </View>
                 ))}
               </View>
@@ -337,6 +344,8 @@ export function DebtDetailModal({ visible, debt, onClose, onEdit, onChanged }: D
 }
 
 const styles = StyleSheet.create({
+  // Keeps the title centred while the action is not offered.
+  hidden: { opacity: 0 },
   root: { flex: 1 },
   flex: { flex: 1 },
   header: {
