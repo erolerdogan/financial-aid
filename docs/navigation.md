@@ -8,6 +8,16 @@
 - Budgets is `src/app/goals.tsx`. Review is `src/app/review.tsx`. Modal routes in the root `Stack` include `export-guide`, `health-report`, `data-privacy`, `legal`, `faq` and `licenses`.
 - Typed routes: after adding a route file, `npx expo customize tsconfig.json` regenerates `.expo/types/router.d.ts` so `tsc` knows the new path.
 
+## Welcome
+
+- The root layout sends the app to `/welcome` once per launch when the active profile has no transactions (`hasData`). "Reset" and leaving the demo go there too.
+- Before the screen, `WelcomeIntro` (`src/components/welcome/`) plays seven animated scenes (`scenes/`, one file per scene; about 23 seconds in all, the three questions get the longest); Welcome itself is the eighth. A tap moves to the next scene, "Skip" ends it. Scene order and durations, the donut split and the dot positions are in the pure `src/utils/welcomeIntro.ts` (`npx tsx src/utils/welcomeIntro.test.ts`).
+- It plays once: `welcome_intro_seen` in `app_meta` is written when the intro ends or is skipped. The flag survives "Reset", so later visits open on Welcome directly; a restore replaces it. "Replay intro" at the top of Welcome plays it again without touching the flag. A failed read counts as seen.
+- Scenes use RN `Animated` with the native driver (`useSceneValues` in `scenes/shared.tsx`): every value runs 0 → 1 and 1 is the finished picture. `PACE` there stretches every step; how long a scene stays is `INTRO_SCENE_DURATIONS_MS`. In the questions scene the newest question is enlarged (a scale, so it stays on the native driver) and drawn in the theme's `accent`; the earlier ones shrink back and fade to a dimmed `text` colour (two stacked texts cross-fade, since a colour cannot run on the native driver). With Reduce Motion the values start at 1, so each scene appears finished and scenes only cross-fade.
+- The intro waits while the passcode lock or the app switcher covers the app (`locked`, `covered`, `AppState` not active): the scene is unmounted and starts again afterwards. With a screen reader on it does not advance by itself; captions are announced.
+- Everything in the scenes is drawn (placeholder bars, plain cards, no bank names); the milestone dates are example values with an "Example" note. Colours come from the theme and `CATEGORY_COLORS`.
+- The buttons are "Get started" (opens the statement picker, `welcome.getStarted`) and "Try the demo" (`welcome.tryDemo`). `welcome.import` is still the label of the import buttons on Home and in the export guide.
+
 ## Legal pages
 
 - Settings ends with an About section with one row, Personal Data & Privacy, and the app version from `expo-constants` below it.

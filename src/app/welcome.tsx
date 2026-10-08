@@ -1,18 +1,23 @@
 import { ImportProgressOverlay } from '@/components/ImportProgressOverlay';
 import { BackupRestoreModal } from '@/components/modals/BackupRestoreModal';
 import { SelectableText } from '@/components/SelectableText';
+import { WelcomeIntro } from '@/components/welcome/WelcomeIntro';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { getAppMeta, setAppMeta } from '@/db/database';
 import { useStatementImporter } from '@/hooks/useStatementImporter';
+import { WELCOME_INTRO_SEEN_KEY } from '@/utils/welcomeIntro';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import React, { useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Animated, Easing, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+const APP_ICON = require('../../assets/images/icon.png');
 
 export default function WelcomeScreen() {
   const db = useSQLiteContext();
@@ -20,6 +25,23 @@ export default function WelcomeScreen() {
   const { colors } = useTheme();
   const { t } = useI18n();
   const [restoreVisible, setRestoreVisible] = useState(false);
+  // Null until read; false plays the intro before the screen.
+  const [introSeen, setIntroSeen] = useState<boolean | null>(null);
+  const [contentOpacity] = useState(() => new Animated.Value(1));
+
+  useEffect(() => {
+    let active = true;
+    getAppMeta(db, WELCOME_INTRO_SEEN_KEY)
+      .then((value) => {
+        if (active) setIntroSeen(value === '1');
+      })
+      .catch(() => {
+        if (active) setIntroSeen(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [db]);
 
   const { importStatement, importing } = useStatementImporter({
     onSuccess: async () => {
@@ -51,132 +73,157 @@ export default function WelcomeScreen() {
     router.replace('/(tabs)');
   };
 
+  const handleIntroDone = () => {
+    setIntroSeen(true);
+    setAppMeta(db, WELCOME_INTRO_SEEN_KEY, '1').catch((error) => console.error('Failed to save the intro flag:', error));
+    contentOpacity.setValue(0);
+    Animated.timing(contentOpacity, {
+      toValue: 1,
+      duration: 450,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handleReplayIntro = () => {
+    Haptics.selectionAsync().catch(() => {});
+    setIntroSeen(false);
+  };
+
   const gradientColors = [colors.background, colors.tintBackground, colors.background] as const;
 
   return (
     <LinearGradient colors={gradientColors} style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.heroSlot}>
-          <View style={[styles.iconGlowRing, { borderColor: colors.accent + '33' }]}>
-            <View style={[styles.iconContainer, { backgroundColor: colors.card }]}>
-              <Ionicons name="wallet-outline" size={38} color={colors.accent} />
-            </View>
-          </View>
-          
-          <View style={styles.badgeRow}>
-            <Ionicons name="shield-checkmark" size={13} color="#34C759" />
-            <SelectableText style={styles.badgeText}>{t('welcome.badge')}</SelectableText>
-          </View>
-        </View>
-
-        <View style={styles.header}>
-          <SelectableText style={[styles.title, { color: colors.text }]}>
-            {t('welcome.title')}
-          </SelectableText>
-          <SelectableText style={[styles.subtitle, { color: colors.textSecondary }]}>
-            {t('welcome.subtitle')}
-          </SelectableText>
-        </View>
-
-        <View style={styles.actionContainer}>
-          <TouchableOpacity 
-            style={[styles.primaryButton, { backgroundColor: colors.accent, shadowColor: colors.accent }]} 
-            onPress={importStatement} 
-            activeOpacity={0.85}
-            disabled={importing}
-          >
-            {importing ? (
-              <ActivityIndicator size="small" color="#FFFFFF" style={styles.buttonIcon} />
-            ) : (
-              <Ionicons name="document-text-outline" size={20} color="#FFFFFF" style={styles.buttonIcon} />
-            )}
-            <View style={styles.buttonTextWrapper}>
-              <Text style={styles.primaryButtonText}>
-                {importing ? t('welcome.processing') : t('welcome.import')}
-              </Text>
-              <Text style={styles.buttonSubtext}>{t('welcome.importSub')}</Text>
-            </View>
-            {!importing && <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.7)" />}
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={[
-              styles.secondaryButton, 
-              { 
-                backgroundColor: colors.card,
-                borderColor: colors.border 
-              }
-            ]} 
-            onPress={handleDemoMode} 
-            activeOpacity={0.85}
-            disabled={importing}
-          >
-            <Ionicons name="sparkles-outline" size={20} color={colors.accent} style={styles.buttonIcon} />
-            <View style={styles.buttonTextWrapper}>
-              <Text style={[styles.secondaryButtonText, { color: colors.text }]}>{t('welcome.demo')}</Text>
-              <Text style={[styles.buttonSubtextSecondary, { color: colors.textSecondary }]}>
-                {t('welcome.demoSub')}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
-          </TouchableOpacity>
-
-          <View style={styles.linkRow}>
-            <TouchableOpacity
-              style={styles.link}
-              onPress={() => router.push('/export-guide')}
-              activeOpacity={0.7}
-              disabled={importing}
-              accessibilityRole="link"
-              accessibilityLabel={t('guide.link')}
-            >
-              <Ionicons name="help-circle-outline" size={16} color={colors.accent} />
-              <Text style={[styles.linkText, { color: colors.accent }]} numberOfLines={2}>
-                {t('welcome.helpLink')}
-              </Text>
-            </TouchableOpacity>
-
-            <View style={[styles.linkDivider, { backgroundColor: colors.border }]} />
-
-            <TouchableOpacity
-              style={styles.link}
-              onPress={handleOpenRestore}
-              activeOpacity={0.7}
-              disabled={importing}
-              accessibilityRole="button"
-              accessibilityLabel={t('backup.restoreFrom')}
-            >
-              <Ionicons name="cloud-download-outline" size={16} color={colors.accent} />
-              <Text style={[styles.linkText, { color: colors.accent }]} numberOfLines={2}>
-                {t('welcome.restoreLink')}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.legal}>
-            <SelectableText style={[styles.legalText, { color: colors.textSecondary }]}>{t('welcome.legal')}</SelectableText>
-            <View style={styles.legalLinks}>
+      {introSeen === false && <WelcomeIntro onDone={handleIntroDone} />}
+      {introSeen === true && (
+        <Animated.View style={[styles.container, { opacity: contentOpacity }]}>
+          <SafeAreaView style={styles.safeArea}>
+            <View>
               <TouchableOpacity
-                style={styles.legalLink}
-                onPress={() => router.push({ pathname: '/legal', params: { page: 'terms' } })}
+                style={styles.replay}
+                onPress={handleReplayIntro}
                 activeOpacity={0.7}
-                accessibilityRole="link"
+                disabled={importing}
+                accessibilityRole="button"
               >
-                <Text style={[styles.legalLinkText, { color: colors.accent }]}>{t('settings.terms')}</Text>
+                <Ionicons name="play-circle-outline" size={16} color={colors.textSecondary} />
+                <Text style={[styles.replayText, { color: colors.textSecondary }]}>{t('welcome.intro.replay')}</Text>
               </TouchableOpacity>
-              <View style={[styles.linkDivider, { backgroundColor: colors.border }]} />
-              <TouchableOpacity
-                style={styles.legalLink}
-                onPress={() => router.push({ pathname: '/legal', params: { page: 'privacy' } })}
-                activeOpacity={0.7}
-                accessibilityRole="link"
-              >
-                <Text style={[styles.legalLinkText, { color: colors.accent }]}>{t('settings.privacyPolicy')}</Text>
-              </TouchableOpacity>
+
+              <View style={styles.heroSlot}>
+                <View style={styles.appIconShadow}>
+                  <Image source={APP_ICON} style={styles.appIcon} accessible={false} />
+                </View>
+              </View>
             </View>
-          </View>
-        </View>
-      </SafeAreaView>
+
+            <View style={styles.header}>
+              <SelectableText style={[styles.title, { color: colors.text }]} accessibilityRole="header">
+                {t('welcome.tagline')}
+              </SelectableText>
+            </View>
+
+            <View style={styles.actionContainer}>
+              <TouchableOpacity 
+                style={[styles.primaryButton, { backgroundColor: colors.accent, shadowColor: colors.accent }]} 
+                onPress={importStatement} 
+                activeOpacity={0.85}
+                disabled={importing}
+              >
+                {importing ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" style={styles.buttonIcon} />
+                ) : (
+                  <Ionicons name="document-text-outline" size={20} color="#FFFFFF" style={styles.buttonIcon} />
+                )}
+                <View style={styles.buttonTextWrapper}>
+                  <Text style={styles.primaryButtonText}>
+                    {importing ? t('welcome.processing') : t('welcome.getStarted')}
+                  </Text>
+                  <Text style={styles.buttonSubtext}>{t('welcome.importSub')}</Text>
+                </View>
+                {!importing && <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.7)" />}
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[
+                  styles.secondaryButton, 
+                  { 
+                    backgroundColor: colors.card,
+                    borderColor: colors.border 
+                  }
+                ]} 
+                onPress={handleDemoMode} 
+                activeOpacity={0.85}
+                disabled={importing}
+              >
+                <Ionicons name="sparkles-outline" size={20} color={colors.accent} style={styles.buttonIcon} />
+                <View style={styles.buttonTextWrapper}>
+                  <Text style={[styles.secondaryButtonText, { color: colors.text }]}>{t('welcome.tryDemo')}</Text>
+                  <Text style={[styles.buttonSubtextSecondary, { color: colors.textSecondary }]}>
+                    {t('welcome.demoSub')}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
+              </TouchableOpacity>
+
+              <View style={styles.linkRow}>
+                <TouchableOpacity
+                  style={styles.link}
+                  onPress={() => router.push('/export-guide')}
+                  activeOpacity={0.7}
+                  disabled={importing}
+                  accessibilityRole="link"
+                  accessibilityLabel={t('guide.link')}
+                >
+                  <Ionicons name="help-circle-outline" size={16} color={colors.accent} />
+                  <Text style={[styles.linkText, { color: colors.accent }]} numberOfLines={2}>
+                    {t('welcome.helpLink')}
+                  </Text>
+                </TouchableOpacity>
+
+                <View style={[styles.linkDivider, { backgroundColor: colors.border }]} />
+
+                <TouchableOpacity
+                  style={styles.link}
+                  onPress={handleOpenRestore}
+                  activeOpacity={0.7}
+                  disabled={importing}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('backup.restoreFrom')}
+                >
+                  <Ionicons name="cloud-download-outline" size={16} color={colors.accent} />
+                  <Text style={[styles.linkText, { color: colors.accent }]} numberOfLines={2}>
+                    {t('welcome.restoreLink')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.legal}>
+                <SelectableText style={[styles.legalText, { color: colors.textSecondary }]}>{t('welcome.legal')}</SelectableText>
+                <View style={styles.legalLinks}>
+                  <TouchableOpacity
+                    style={styles.legalLink}
+                    onPress={() => router.push({ pathname: '/legal', params: { page: 'terms' } })}
+                    activeOpacity={0.7}
+                    accessibilityRole="link"
+                  >
+                    <Text style={[styles.legalLinkText, { color: colors.accent }]}>{t('settings.terms')}</Text>
+                  </TouchableOpacity>
+                  <View style={[styles.linkDivider, { backgroundColor: colors.border }]} />
+                  <TouchableOpacity
+                    style={styles.legalLink}
+                    onPress={() => router.push({ pathname: '/legal', params: { page: 'privacy' } })}
+                    activeOpacity={0.7}
+                    accessibilityRole="link"
+                  >
+                    <Text style={[styles.legalLinkText, { color: colors.accent }]}>{t('settings.privacyPolicy')}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </SafeAreaView>
+        </Animated.View>
+      )}
       <ImportProgressOverlay />
       <BackupRestoreModal
         restoreOnly
@@ -197,41 +244,27 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 32,
   },
-  heroSlot: { alignItems: 'center', marginTop: 36 },
-  iconGlowRing: {
-    width: 92,
-    height: 92,
-    borderRadius: 46,
-    borderWidth: 2,
-    justifyContent: 'center',
+  replay: {
+    alignSelf: 'flex-end',
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    gap: 5,
+    minHeight: 44,
+    paddingHorizontal: 4,
   },
-  iconContainer: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    justifyContent: 'center',
-    alignItems: 'center',
+  replayText: { fontSize: 13, fontWeight: '600' },
+  heroSlot: { alignItems: 'center', marginTop: 12 },
+  appIconShadow: {
+    borderRadius: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.18,
     shadowRadius: 16,
     elevation: 6,
   },
-  badgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(52, 199, 89, 0.12)',
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-  },
-  badgeText: { fontSize: 11, fontWeight: '700', color: '#34C759', letterSpacing: 0.8 },
+  appIcon: { width: 104, height: 104, borderRadius: 24, borderCurve: 'continuous' },
   header: { alignItems: 'center', paddingHorizontal: 12 },
-  title: { fontSize: 38, fontWeight: '800', textAlign: 'center', letterSpacing: -1, lineHeight: 44, marginBottom: 14 },
-  subtitle: { fontSize: 16, textAlign: 'center', lineHeight: 24, paddingHorizontal: 8 },
+  title: { fontSize: 30, fontWeight: '800', textAlign: 'center', letterSpacing: -0.8, lineHeight: 36 },
   actionContainer: { width: '100%', gap: 14 },
   primaryButton: {
     flexDirection: 'row',

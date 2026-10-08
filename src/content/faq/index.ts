@@ -33,7 +33,7 @@ export const FAQ_APP_NAMES = {
   categories: 'settings.categories',
   budgets: 'settings.budgets',
   reminders: 'settings.importReminders',
-  demo: 'welcome.demo',
+  demo: 'welcome.tryDemo',
   exitDemo: 'demo.exit',
   restore: 'welcome.restoreLink',
   undo: 'backup.undo',

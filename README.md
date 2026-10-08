@@ -32,7 +32,7 @@ npx tsc --noEmit   # type check (also run in CI)
 npm test           # every src/**/*.test.ts with tsx; "npm test -- freedom" runs matching files
 ```
 
-On first launch the welcome screen offers two paths: import a statement, or open the demo workspace to explore the app with sample data. A backup from another device or an earlier install can be restored from the same screen.
+The first launch opens with a short animated intro (about 23 seconds, tap to move on, "Skip" at any time) that says what the app is for; it plays once and "Replay intro" on the welcome screen shows it again. The welcome screen then offers two paths: "Get started" imports a statement, "Try the demo" opens the demo workspace to explore the app with sample data. A backup from another device or an earlier install can be restored from the same screen.
 
 ### Website
 
