@@ -6,7 +6,7 @@ Categorisation of the imported rows is in [classifier.md](classifier.md). Debt p
 
 ## Flow
 
-- Custom rules and learned categories are passed to the parser at import (`useStatementImporter` → `readStatementFile`; `parseFileToTransactions` is the one-file form).
+- Custom rules and learned categories are passed to the parser at import (`useStatementImporter` → `readStatementFile`).
 - `readStatementFile` returns `{ kind: 'table', parsed }` for CSV / Excel or `{ kind: 'pdf', statement }` for a PDF statement (see [PDF statements](#pdf-statements)).
 - The picker allows several files. `runImport` reads them one after the other, then makes one `processBatchImport` call and shows one summary. With one file an error is an alert, as before; with several, a file that fails is left out and listed in the summary (`ImportResultSummary.failedFiles`, reasons from `src/utils/importFailure.ts`).
 - While several files are read, `ImportProgressOverlay` shows "Reading statement 12 of 45" (`progress` in `ImportResultContext`). It is a `View`, rendered by `ImportSummaryHost` (tabs, Settings) and by Welcome and the export guide.

@@ -36,7 +36,6 @@ import {
   INCOME_CATEGORY,
   type LearnedCategories,
   merchantRuleKeyword,
-  normalizeMerchantName,
   UNCATEGORISED,
 } from '@/utils/parser';
 import { backupDatabaseAsync, type SQLiteDatabase } from 'expo-sqlite';
@@ -82,12 +81,6 @@ export interface CategoryRule {
   category: string;
 }
 
-export interface CategoryGoal {
-  category: string;
-  profileId: number;
-  monthlyLimit: number;
-}
-
 export interface CategoryGoalWithProgress {
   category: string;
   monthlyLimit: number;
@@ -103,22 +96,6 @@ export interface FixedCostSummary {
   fixedItemsCount: number;
 }
 
-export interface TransactionRecord {
-  id: number;
-  date: string;
-  amount: number;
-  category: string;
-  monthName: string;
-  description: string;
-  rawDescription?: string;
-  is_fixed?: number | null;
-}
-
-export interface MonthlyTrend {
-  monthName: string;
-  totalAmount: number;
-}
-
 export interface MonthlySummary {
   totalIncome: number;
   totalExpenses: number;
@@ -132,13 +109,6 @@ export interface DetectedRecurringItem {
   type: 'INCOME' | 'EXPENSE';
   occurrenceCount: number;
   monthsSeen: string[];
-}
-
-export interface YearlyTrendPoint {
-  monthName: string;
-  income: number;
-  expenses: number;
-  net: number;
 }
 
 export async function initDatabase(db: SQLiteDatabase): Promise<void> {
@@ -442,18 +412,6 @@ export async function createProfile(db: SQLiteDatabase, name: string, avatarColo
   }
 }
 
-export async function updateProfile(
-  db: SQLiteDatabase,
-  id: number,
-  name: string,
-  avatarColor: string
-): Promise<void> {
-  await db.runAsync(
-    `UPDATE profiles SET name = ?, avatarColor = ? WHERE id = ?;`,
-    [name.trim(), avatarColor, id]
-  );
-}
-
 export async function updateProfileCurrency(
   db: SQLiteDatabase,
   id: number,
@@ -526,40 +484,6 @@ export async function deleteProfile(
     await db.runAsync(`DELETE FROM fixed_cost_rules WHERE profileId = ?;`, [id]);
     await clearHealthTables(db, id);
     await db.runAsync(`DELETE FROM profiles WHERE id = ?;`, [id]);
-  });
-}
-
-/**
- * Dynamic Feedback Loop: Saves a category rule and updates ALL historical 
- * non-overridden transactions matching the clean merchant keyword.
- */
-export async function updateMerchantCategoryAndApplyGlobally(
-  db: SQLiteDatabase,
-  merchantName: string,
-  newCategory: string,
-  profileId: number = 1
-): Promise<void> {
-  if (!db || !merchantName) return;
-  const cleanKeyword = normalizeMerchantName(merchantName);
-  if (!cleanKeyword) return;
-
-  const searchPattern = `%${cleanKeyword}%`;
-
-  await db.withTransactionAsync(async () => {
-    await db.runAsync(
-      `INSERT INTO category_rules (profileId, keyword, category) 
-       VALUES (?, ?, ?)
-       ON CONFLICT(keyword, profileId) DO UPDATE SET category = excluded.category;`,
-      [profileId, cleanKeyword, newCategory]
-    );
-
-    await db.runAsync(
-      `UPDATE transactions 
-       SET category = ?, userOverridden = 1 
-       WHERE profileId = ? 
-         AND (UPPER(merchant) LIKE ? OR UPPER(rawDescription) LIKE ?);`,
-      [newCategory, profileId, searchPattern, searchPattern]
-    );
   });
 }
 const RANGE_KEY_PATTERN = /^(\d{4}-\d{2}-\d{2})\.\.(\d{4}-\d{2}-\d{2})$/;
@@ -864,14 +788,6 @@ export async function insertTransactions(
   return { insertedCount, skippedCount };
 }
 
-export async function clearAllTransactions(
-  db: SQLiteDatabase,
-  profileId: number = 1
-): Promise<void> {
-  if (!db) return;
-  await db.runAsync(`DELETE FROM transactions WHERE profileId = ?;`, [profileId]);
-}
-
 export async function updateTransactionCategory(
   db: SQLiteDatabase,
   id: number,
@@ -892,63 +808,6 @@ export async function getAvailableMonths(
     [profileId]
   );
   return rows.map((r) => r.monthName);
-}
-
-
-
-export async function getFullYearSpendingTrend(
-  db: SQLiteDatabase,
-  year: string = '2026',
-  category?: string,
-  profileId: number = 1
-): Promise<MonthlyTrend[]> {
-  try {
-    let query = `
-      SELECT monthName, TOTAL(ABS(amount)) as totalAmount
-      FROM transactions
-      WHERE monthName LIKE ? AND profileId = ? AND amount < 0
-    `;
-    const params: (string | number)[] = [`${year}-%`, profileId];
-
-    if (category && category !== 'All') {
-      query += ` AND category = ?`;
-      params.push(category);
-    }
-
-    query += ` GROUP BY monthName ORDER BY monthName ASC;`;
-
-    return await db.getAllAsync<MonthlyTrend>(query, params);
-  } catch (error) {
-    console.error('Error fetching yearly trend:', error);
-    return [];
-  }
-}
-
-
-export async function getTransactionsByMonth(
-  db: SQLiteDatabase,
-  monthName: string,
-  searchQuery: string = '',
-  categoryFilter: string = 'ALL',
-  profileId: number = 1
-): Promise<Transaction[]> {
-  let query = `SELECT * FROM transactions WHERE monthName = ? AND profileId = ?`;
-  const params: (string | number)[] = [monthName, profileId];
-
-  if (categoryFilter !== 'ALL') {
-    query += ` AND category = ?`;
-    params.push(categoryFilter);
-  }
-
-  if (searchQuery.trim().length > 0) {
-    query += ` AND (rawDescription LIKE ? OR merchant LIKE ?)`;
-    const searchPattern = `%${searchQuery.trim()}%`;
-    params.push(searchPattern, searchPattern);
-  }
-
-  query += ` ORDER BY date DESC, id DESC;`;
-
-  return await db.getAllAsync<Transaction>(query, params);
 }
 export async function getMonthlySummary(
   db: SQLiteDatabase,
@@ -1058,8 +917,6 @@ export async function getRecentTransactions(
   );
 }
 
-export type TransactionTypeFilter = 'ALL' | 'INCOME' | 'EXPENSE' | 'FIXED' | 'FLEXIBLE';
-
 export async function getAllTransactionsByDate(
   db: SQLiteDatabase,
   profileId: number = 1,
@@ -1068,8 +925,7 @@ export async function getAllTransactionsByDate(
   offset: number = 0,
   dateFrom?: string,
   dateTo?: string,
-  category?: string,
-  type: TransactionTypeFilter = 'ALL'
+  category?: string
 ): Promise<Transaction[]> {
   const params: (string | number)[] = [profileId];
   let sql = `SELECT * FROM transactions WHERE profileId = ?`;
@@ -1084,12 +940,6 @@ export async function getAllTransactionsByDate(
     params.push(category);
   }
 
-  if (type === 'INCOME') {
-    sql += ` AND amount > 0`;
-  } else if (type !== 'ALL') {
-    sql += ` AND amount < 0`;
-  }
-
   const term = searchQuery.trim();
   if (term.length > 0) {
     sql += ` AND (rawDescription LIKE ? OR merchant LIKE ? OR category LIKE ?)`;
@@ -1097,17 +947,7 @@ export async function getAllTransactionsByDate(
     params.push(pattern, pattern, pattern);
   }
 
-  sql += ` ORDER BY date DESC, id DESC`;
-
-  // Fixed / flexible is resolved in JS, so page after filtering. Rows keep their stored `is_fixed`.
-  if (type === 'FIXED' || type === 'FLEXIBLE') {
-    const rows = await db.getAllAsync<Transaction>(`${sql};`, params);
-    const resolver = await getFixedResolver(db, profileId);
-    const wantFixed = type === 'FIXED';
-    return rows.filter((tx) => resolver.resolve(tx).isFixed === wantFixed).slice(offset, offset + limit);
-  }
-
-  sql += ` LIMIT ? OFFSET ?;`;
+  sql += ` ORDER BY date DESC, id DESC LIMIT ? OFFSET ?;`;
   params.push(limit, offset);
 
   return await db.getAllAsync<Transaction>(sql, params);
@@ -1117,8 +957,7 @@ export async function getTransactionCategories(
   db: SQLiteDatabase,
   profileId: number = 1,
   dateFrom?: string,
-  dateTo?: string,
-  type: TransactionTypeFilter = 'ALL'
+  dateTo?: string
 ): Promise<string[]> {
   const params: (string | number)[] = [profileId];
   let sql = `SELECT category FROM transactions WHERE profileId = ?`;
@@ -1126,12 +965,6 @@ export async function getTransactionCategories(
   if (dateFrom && dateTo) {
     sql += ` AND date >= ? AND date < ?`;
     params.push(dateFrom, dateTo);
-  }
-
-  if (type === 'INCOME') {
-    sql += ` AND amount > 0`;
-  } else if (type !== 'ALL') {
-    sql += ` AND amount < 0`;
   }
 
   sql += ` GROUP BY category ORDER BY SUM(ABS(amount)) DESC;`;
@@ -1150,63 +983,6 @@ export async function getTransactionDateBounds(
   );
   if (!row?.minDate || !row?.maxDate) return null;
   return { minDate: row.minDate.slice(0, 10), maxDate: row.maxDate.slice(0, 10) };
-}
-export async function searchTransactions(
-  db: SQLiteDatabase,
-  searchQuery: string = '',
-  category: string = 'All',
-  profileId: number = 1
-): Promise<TransactionRecord[]> {
-  if (!db) return [];
-
-  try {
-    let sql = `
-      SELECT id, date, amount, category, monthName, rawDescription AS description, rawDescription, is_fixed
-      FROM transactions
-      WHERE profileId = ?
-    `;
-    const params: (string | number)[] = [profileId];
-
-    if (searchQuery.trim().length > 0) {
-      sql += ` AND (rawDescription LIKE ? OR merchant LIKE ? OR category LIKE ?)`;
-      const term = `%${searchQuery.trim()}%`;
-      params.push(term, term, term);
-    }
-
-    if (category && category !== 'All') {
-      sql += ` AND category = ?`;
-      params.push(category);
-    }
-
-    sql += ` ORDER BY date DESC LIMIT 200;`;
-
-    return await db.getAllAsync<TransactionRecord>(sql, params);
-  } catch (error) {
-    console.error('Error searching transactions:', error);
-    return [];
-  }
-}
-
-export async function getCategoryTransactionsForMonth(
-  db: SQLiteDatabase,
-  monthName: string,
-  category: string,
-  profileId: number = 1
-): Promise<TransactionRecord[]> {
-  if (!db) return [];
-
-  try {
-    const query = `
-      SELECT id, date, amount, category, monthName, rawDescription AS description, is_fixed
-      FROM transactions
-      WHERE monthName = ? AND category = ? AND profileId = ?
-      ORDER BY date DESC;
-    `;
-    return await db.getAllAsync<TransactionRecord>(query, [monthName, category, profileId]);
-  } catch (error) {
-    console.error('Error fetching category transactions:', error);
-    return [];
-  }
 }
 
 export async function getCustomRules(
@@ -1233,31 +1009,6 @@ export async function addCustomRule(
 
 export async function deleteCustomRule(db: SQLiteDatabase, id: number): Promise<void> {
   await db.runAsync(`DELETE FROM category_rules WHERE id = ?;`, [id]);
-}
-
-export async function getFullYearTrendData(
-  db: SQLiteDatabase,
-  year: string = '2026',
-  profileId: number = 1
-): Promise<YearlyTrendPoint[]> {
-  const rows = await db.getAllAsync<{ monthName: string; income: number; expenses: number }>(
-    `SELECT 
-       monthName,
-       TOTAL(CASE WHEN amount > 0 THEN amount ELSE 0 END) AS income,
-       TOTAL(CASE WHEN amount < 0 THEN ABS(amount) ELSE 0 END) AS expenses
-     FROM transactions
-     WHERE monthName LIKE ? AND profileId = ?
-     GROUP BY monthName
-     ORDER BY monthName ASC;`,
-    [`${year}-%`, profileId]
-  );
-
-  return rows.map((r) => ({
-    monthName: r.monthName,
-    income: r.income,
-    expenses: r.expenses,
-    net: r.income - r.expenses,
-  }));
 }
 
 export async function clearAllData(
@@ -1377,22 +1128,6 @@ export async function detectRecurringPatterns(
   }
 }
 
-export async function isTransactionFixed(
-  db: SQLiteDatabase,
-  merchantOrDesc: string,
-  profileId: number = 1
-): Promise<boolean> {
-  if (!db || !merchantOrDesc) return false;
-
-  const resolver = await getFixedResolver(db, profileId);
-  return resolver.resolve({
-    amount: -1,
-    merchant: merchantOrDesc,
-    rawDescription: merchantOrDesc,
-    category: '',
-  }).isFixed;
-}
-
 export async function getTransactionFixedExplanation(
   db: SQLiteDatabase,
   transaction: Transaction,
@@ -1420,14 +1155,6 @@ export async function getTransactionFixedExplanation(
   }
 
   return { state, autoIsFixed: detected.isFixed, reason: detected.reason };
-}
-
-export async function getTransactionFixedState(
-  db: SQLiteDatabase,
-  transaction: Transaction,
-  profileId: number = 1
-): Promise<FixedOverrideState> {
-  return (await getTransactionFixedExplanation(db, transaction, profileId)).state;
 }
 
 export async function setMerchantFixedOverride(
@@ -1473,27 +1200,6 @@ export async function setMerchantFixedOverride(
       [isFixedVal, searchPattern, searchPattern, profileId]
     );
   }
-}
-
-export async function addFixedCostRule(
-  db: SQLiteDatabase,
-  keyword: string,
-  category: string,
-  profileId: number = 1
-): Promise<void> {
-  await setMerchantFixedOverride(db, keyword, category, 'FIXED', profileId);
-}
-
-export async function toggleFixedCostRule(
-  db: SQLiteDatabase,
-  keyword: string,
-  category: string,
-  profileId: number = 1
-): Promise<boolean> {
-  const currentState = await isTransactionFixed(db, keyword, profileId);
-  const newState: FixedOverrideState = currentState ? 'FLEXIBLE' : 'FIXED';
-  await setMerchantFixedOverride(db, keyword, category, newState, profileId);
-  return newState === 'FIXED';
 }
 
 export interface RecurringCandidate {
@@ -1762,64 +1468,6 @@ export async function getIncomeFixedVsFlexibleSummary(
   return summarizeFixed(transactions, await getFixedResolver(db, profileId));
 }
 
-export async function clearDemoWorkspace(db: SQLiteDatabase, demoProfileId: number = 1): Promise<void> {
-  if (!db) return;
-
-  await db.execAsync(`
-    CREATE TABLE IF NOT EXISTS transactions (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      profileId INTEGER NOT NULL DEFAULT 1,
-      date TEXT NOT NULL,
-      amount REAL NOT NULL,
-      rawDescription TEXT NOT NULL,
-      merchant TEXT NOT NULL,
-      category TEXT NOT NULL,
-      monthName TEXT NOT NULL,
-      userOverridden INTEGER DEFAULT 0,
-      isZeroFlagged INTEGER DEFAULT 0,
-      dateAmbiguous INTEGER DEFAULT 0,
-      is_fixed INTEGER,
-      counterpartyIban TEXT,
-      txType TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS category_goals (
-      category TEXT NOT NULL,
-      profileId INTEGER NOT NULL DEFAULT 1,
-      monthly_limit REAL NOT NULL,
-      PRIMARY KEY (category, profileId)
-    );
-
-    CREATE TABLE IF NOT EXISTS category_rules (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      profileId INTEGER NOT NULL DEFAULT 1,
-      keyword TEXT NOT NULL,
-      category TEXT NOT NULL,
-      UNIQUE(keyword, profileId)
-    );
-
-    CREATE TABLE IF NOT EXISTS fixed_cost_rules (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      profileId INTEGER NOT NULL DEFAULT 1,
-      keyword TEXT NOT NULL,
-      category TEXT NOT NULL,
-      overrideState TEXT NOT NULL DEFAULT 'FIXED',
-      UNIQUE(keyword, profileId)
-    );
-  `);
-
-  await db.withTransactionAsync(async () => {
-    await db.runAsync('DELETE FROM transactions WHERE profileId = ?;', [demoProfileId]);
-    await db.runAsync('DELETE FROM category_goals WHERE profileId = ?;', [demoProfileId]);
-    await db.runAsync('DELETE FROM category_rules WHERE profileId = ?;', [demoProfileId]);
-    await db.runAsync('DELETE FROM fixed_cost_rules WHERE profileId = ?;', [demoProfileId]);
-    await db.runAsync('DELETE FROM debt_payments WHERE profileId = ?;', [demoProfileId]);
-    await db.runAsync('DELETE FROM debt_rules WHERE profileId = ?;', [demoProfileId]);
-    await db.runAsync('DELETE FROM debts WHERE profileId = ?;', [demoProfileId]);
-    await clearHealthTables(db, demoProfileId);
-  });
-}
-
 export async function getAvailableYears(db: SQLiteDatabase, profileId: number = 1): Promise<string[]> {
   try {
     const results = await db.getAllAsync<{ year: string }>(
@@ -1943,27 +1591,6 @@ export async function reclassifyAllUnoverriddenTransactions(
   });
 
   return updatedCount;
-}
-
-// Inside db/database.ts
-
-export async function safeExecuteQuery<T>(
-  db: SQLiteDatabase,
-  queryFn: () => Promise<T>
-): Promise<T | null> {
-  if (!db) return null;
-  try {
-    return await queryFn();
-  } catch (error: any) {
-    if (
-      error?.message?.includes('Access closed resource') ||
-      error?.message?.includes('AccessClosedResourceException')
-    ) {
-      console.warn('SQLite handle closed during async operation. Execution skipped.');
-      return null;
-    }
-    throw error;
-  }
 }
 
 export interface UncategorisedGroup {

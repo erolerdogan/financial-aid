@@ -20,7 +20,7 @@ Purpose: answer "Is our money in good shape, and what's the one thing to fix?"
 ## Tables
 
 - `household_profile` (one row per profile), `category_range_overrides`, `health_alerts` (unique `profile_id, month, type, key`), `alert_settings`.
-- `clearAllData`, `clearDemoWorkspace` and `deleteProfile` clear them (`clearHealthTables`).
+- `clearAllData` and `deleteProfile` clear them (`clearHealthTables`).
 - Renaming or deleting a category carries or drops its override.
 - A currency switch converts `net_income_override` and `safety_savings` (`convertHouseholdAmounts`).
 

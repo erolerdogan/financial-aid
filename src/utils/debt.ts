@@ -16,13 +16,6 @@ export const DEBT_TYPE_OPTIONS: { key: DebtType; label: TranslationKey; icon: Ic
 export const getDebtTypeIcon = (type: DebtType): IconName =>
   DEBT_TYPE_OPTIONS.find((o) => o.key === type)?.icon ?? 'cash-outline';
 
-export const formatPayoffMonth = (monthKey: string | null): string => {
-  if (!monthKey) return '—';
-  const [y, m] = monthKey.split('-').map(Number);
-  if (!y || !m) return monthKey;
-  return new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
-};
-
 export const todayKey = (): string => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;

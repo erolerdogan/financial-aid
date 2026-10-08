@@ -136,8 +136,6 @@ export const setActiveLanguage = (language: LanguageCode, tag: string): void => 
   activeLanguage = language;
   activeTag = tag;
 };
-
-export const getActiveLanguage = (): LanguageCode => activeLanguage;
 export const getActiveTag = (): string => activeTag;
 
 export const tNow: TFunction = (key, params) => translate(activeLanguage, key, params, activeTag);

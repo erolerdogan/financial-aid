@@ -40,4 +40,3 @@
 - The override is per merchant keyword (`fixed_cost_rules`), not per transaction; it rewrites `is_fixed` on all matching rows.
 - The resolver is cached per profile and keyed on SQLite `total_changes()`, so any write on the connection refreshes it. There is no manual invalidation.
 - Reasons are `Message`s: `scoreFixed`, `getFixedResolver`; `FixedExplanation.reason` is a `Message[]`.
-- `getAllTransactionsByDate` has a `type` argument (`FIXED | FLEXIBLE`, resolved in JS, paged after filtering) that is currently unused: the Transactions screen has no type filter.

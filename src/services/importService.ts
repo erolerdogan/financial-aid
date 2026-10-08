@@ -148,17 +148,6 @@ export function pdfStatementsToTransactions(
   return pdfRowsToTransactions(rows, banks.size === 1 ? [...banks][0] : null, customRules, learned);
 }
 
-/** One file as import rows. Several PDF statements go through `readStatementFile` and `pdfStatementsToTransactions`. */
-export async function parseFileToTransactions(
-  fileUri: string,
-  fileName: string,
-  customRules: CategoryRule[] = [],
-  learned?: LearnedCategories
-): Promise<ParsedStatement> {
-  const file = await readStatementFile(fileUri, fileName, customRules, learned);
-  return file.kind === 'pdf' ? pdfStatementsToTransactions([file.statement], customRules, learned) : file.parsed;
-}
-
 /**
  * Reads a picked or shared file. A PDF (by its first bytes) goes to the PDF statement readers and
  * throws when its totals do not match; anything else is read as CSV or Excel.

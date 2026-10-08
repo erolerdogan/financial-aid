@@ -104,7 +104,7 @@
 
 - Search is live: every keystroke queries, no debounce. `requestRef` in `src/app/transactions.tsx` drops superseded results.
 - The list query runs in its own focus effect, so typing does not reload the filter options.
-- Filters: date range and category. There is no type filter (the unused `type` argument is noted in [classifier.md](classifier.md)).
+- Filters: date range and category. There is no type filter.
 - Search and filters compare the stored English category name ([i18n.md](i18n.md)).
 
 ## For You inbox

@@ -54,7 +54,6 @@ Naming traps:
 - "Future Growth" in the UI is "Freedom" in code (`src/components/freedom/`, `freedom_plans`, `segment: 'freedom'`).
 - Budgets is `src/app/goals.tsx`. Home is `src/app/(tabs)/index.tsx`. Transactions is `src/app/transactions.tsx`, a pushed screen, not a tab.
 - Freedom keys keep old names: Outlook is `PESSIMISTIC | NEUTRAL | OPTIMISTIC`, the prices switch is `ValueMode` `NOMINAL | REAL`, Starting amount is `lumpSum`.
-- `getAllTransactionsByDate` has an unused `type` argument; the Transactions screen has no type filter.
 - Not wired up (exists, nothing calls it): `detectRecurringPatterns` / `getRecurringCandidates` in `database.ts`.
 
 ## Feature docs
