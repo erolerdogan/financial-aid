@@ -433,7 +433,7 @@ export default function HealthReportScreen() {
               )}
             </View>
 
-            {/* TODO(pro): "Export PDF" is a Pro item; gate it here once useEntitlement() / FEATURES exists. */}
+            {/* TODO(pro): "Export PDF" is a Pro item (flag `reportPdf`, a placeholder for now); gate it with useEntitlement().can(). */}
             <TouchableOpacity
               style={[styles.exportBtn, { backgroundColor: colors.accent }, exporting && styles.disabled]}
               onPress={handleExport}

@@ -1,3 +1,4 @@
+import { DebtFreeHero } from '@/components/debts/DebtFreeHero';
 import { DebtProgressBar } from '@/components/debts/DebtProgressBar';
 import { FreedomScreen } from '@/components/freedom/FreedomScreen';
 import { HealthScreen } from '@/components/health/HealthScreen';
@@ -6,6 +7,7 @@ import { DebtDetailModal } from '@/components/modals/DebtDetailModal';
 import { DebtFormModal, DebtPrefill } from '@/components/modals/DebtFormModal';
 import { ScreenContainer } from '@/components/ScreenContainer';
 import { SelectableText } from '@/components/SelectableText';
+import { useEntitlement } from '@/contexts/EntitlementContext';
 import { useInbox } from '@/contexts/InboxContext';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -17,16 +19,22 @@ import {
   dismissDebtSuggestion,
   getDebtSuggestions,
   getDebtSummaries,
+  getSavedDebtPlan,
   syncDebtPayments,
 } from '@/db/database';
+import { usePaywall } from '@/hooks/usePaywall';
+import { useProfileAccess } from '@/hooks/useProfileAccess';
 import type { TranslationKey } from '@/i18n';
+import { buildDebtOutlook } from '@/services/debtPlanService';
 import { getDebtTypeIcon } from '@/utils/debt';
+import type { DebtPlan } from '@/utils/debtSimulator';
+import { canAdd, isItemReadOnly } from '@/utils/entitlement';
 import { DebtSuggestion } from '@/utils/debtSuggestion';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Swipeable, { SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 
@@ -73,8 +81,13 @@ export default function DebtsScreen() {
   const { activeProfile, dataVersion, currencySymbol } = useProfile();
   const profileId = activeProfile?.id ?? 1;
   const { refreshInbox } = useInbox();
+  const { isPro, can, showReadOnly } = useEntitlement();
+  const canPlan = can('debtSimulator');
+  const { openPaywall } = usePaywall();
+  const { readOnly: profileReadOnly, guardWrite } = useProfileAccess();
 
   const [debts, setDebts] = useState<DebtSummary[]>([]);
+  const [savedPlan, setSavedPlan] = useState<DebtPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [formVisible, setFormVisible] = useState(false);
   const [formDebt, setFormDebt] = useState<DebtSummary | null>(null);
@@ -97,6 +110,7 @@ export default function DebtsScreen() {
       await syncDebtPayments(db, profileId);
       const rows = await getDebtSummaries(db, profileId);
       setDebts(rows);
+      setSavedPlan(await getSavedDebtPlan(db, profileId));
       setSuggestions(await getDebtSuggestions(db, profileId));
       setDetailDebt((prev) => (prev ? rows.find((r) => r.id === prev.id) ?? null : null));
       // Taken after the sync, so its own writes do not count as a change.
@@ -136,21 +150,47 @@ export default function DebtsScreen() {
   const overallPercent = totalOriginal > 0 ? (totalPaid / totalOriginal) * 100 : 0;
   const activeCount = debts.filter((d) => !d.isPaidOff).length;
 
-  const openCreate = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    setFormDebt(null);
-    setFormPrefill(null);
-    setFormVisible(true);
+  // Free: what the current payments give. Pro: the saved payoff plan, when there is one.
+  const outlook = useMemo(() => buildDebtOutlook(debts, savedPlan, canPlan), [debts, savedPlan, canPlan]);
+
+  const openPlan = () => {
+    Haptics.selectionAsync().catch(() => {});
+    router.push('/debt-plan');
   };
 
-  const openSuggestion = (suggestion: DebtSuggestion) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    setFormDebt(null);
-    setFormPrefill({ name: suggestion.name, type: suggestion.type, keywords: [suggestion.keyword] });
-    setFormVisible(true);
-  };
+  // The list is oldest first; debts beyond the free limit stay visible and can only be deleted.
+  const debtIds = debts.map((d) => d.id);
+  const isOverLimit = (debt: DebtSummary) => isItemReadOnly(isPro, 'maxDebts', debtIds, debt.id);
+  const isDebtLocked = (debt: DebtSummary) => profileReadOnly || isOverLimit(debt);
+
+  // One more debt: not on a read-only profile, and not beyond the free limit.
+  const guardAdd = (action: () => void) =>
+    guardWrite(() => {
+      if (!canAdd(isPro, 'maxDebts', debts.length)) {
+        openPaywall('debts');
+        return;
+      }
+      action();
+    });
+
+  const openCreate = () =>
+    guardAdd(() => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      setFormDebt(null);
+      setFormPrefill(null);
+      setFormVisible(true);
+    });
+
+  const openSuggestion = (suggestion: DebtSuggestion) =>
+    guardAdd(() => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      setFormDebt(null);
+      setFormPrefill({ name: suggestion.name, type: suggestion.type, keywords: [suggestion.keyword] });
+      setFormVisible(true);
+    });
 
   const dismissSuggestion = async (suggestion: DebtSuggestion) => {
+    if (!guardWrite()) return;
     Haptics.selectionAsync().catch(() => {});
     setSuggestions((prev) => prev.filter((s) => s.key !== suggestion.key));
     try {
@@ -180,11 +220,18 @@ export default function DebtsScreen() {
   };
 
   const openEdit = (debt: DebtSummary) => {
-    Haptics.selectionAsync().catch(() => {});
     closeSwipes();
-    setFormDebt(debt);
-    setFormPrefill(null);
-    setFormVisible(true);
+    guardWrite(() => {
+      if (isOverLimit(debt)) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+        showReadOnly({ kind: 'debt' });
+        return;
+      }
+      Haptics.selectionAsync().catch(() => {});
+      setFormDebt(debt);
+      setFormPrefill(null);
+      setFormVisible(true);
+    });
   };
 
   const confirmDelete = (debt: DebtSummary) => {
@@ -213,16 +260,18 @@ export default function DebtsScreen() {
 
   const renderSwipeActions = (debt: DebtSummary) => (
     <View style={styles.swipeActions}>
-      <TouchableOpacity
-        activeOpacity={0.8}
-        style={[styles.swipeAction, { backgroundColor: colors.accent }]}
-        onPress={() => openEdit(debt)}
-        accessibilityRole="button"
-        accessibilityLabel={t('debt.a11yEdit', { name: debt.name })}
-      >
-        <Ionicons name="pencil" size={18} color="#FFFFFF" />
-        <Text style={styles.swipeActionText}>{t('common.edit')}</Text>
-      </TouchableOpacity>
+      {!isDebtLocked(debt) && (
+        <TouchableOpacity
+          activeOpacity={0.8}
+          style={[styles.swipeAction, { backgroundColor: colors.accent }]}
+          onPress={() => openEdit(debt)}
+          accessibilityRole="button"
+          accessibilityLabel={t('debt.a11yEdit', { name: debt.name })}
+        >
+          <Ionicons name="pencil" size={18} color="#FFFFFF" />
+          <Text style={styles.swipeActionText}>{t('common.edit')}</Text>
+        </TouchableOpacity>
+      )}
       <TouchableOpacity
         activeOpacity={0.8}
         style={[styles.swipeAction, styles.swipeDelete]}
@@ -360,21 +409,17 @@ export default function DebtsScreen() {
         </ScrollView>
       ) : (
         <ScrollView contentContainerStyle={styles.content}>
-          <View style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <SelectableText style={[styles.summaryLabel, { color: colors.textSecondary }]}>{t('debt.totalRemaining')}</SelectableText>
-            <SelectableText style={[styles.summaryValue, { color: colors.text }]}>{fmt(totalBalance)}</SelectableText>
-            <View style={styles.summaryBar}>
-              <DebtProgressBar percent={overallPercent} color={colors.accent} height={12} />
-            </View>
-            <View style={styles.summaryFooter}>
-              <SelectableText style={[styles.summaryFooterText, { color: colors.textSecondary }]}>
-                {t('debt.percentPaid', { percent: overallPercent.toFixed(0) })} • {t('home.debts.active', { count: activeCount })}
-              </SelectableText>
-              <SelectableText style={[styles.summaryFooterText, { color: colors.textSecondary }]}>
-                {t('debt.interestEst', { amount: fmt(totalInterest) })}
-              </SelectableText>
-            </View>
-          </View>
+          <DebtFreeHero
+            month={outlook.debtFreeMonth}
+            allPaid={activeCount === 0}
+            fromPlan={outlook.fromPlan}
+            totalBalance={totalBalance}
+            percentPaid={overallPercent}
+            interestPaid={totalInterest}
+            activeCount={activeCount}
+            currencySymbol={currencySymbol}
+            onPress={openPlan}
+          />
 
           {debts.map((debt) => (
             <TabSwipeBlocker key={debt.id}>
@@ -403,7 +448,9 @@ export default function DebtsScreen() {
                       {debt.name}
                     </Text>
                     <Text style={[styles.debtSub, { color: colors.textSecondary }]} numberOfLines={1}>
-                      {debt.isPaidOff
+                      {isOverLimit(debt)
+                        ? `${t('pro.readOnly.title')} · ${t('pro.renewToEdit')}`
+                        : debt.isPaidOff
                         ? t('debt.paidOff')
                         : debt.payoffMonth
                         ? t('debt.debtFree', { month: format.monthYear(debt.payoffMonth, 'short') })
@@ -411,7 +458,11 @@ export default function DebtsScreen() {
                     </Text>
                   </View>
                   <View style={styles.debtAmountWrap}>
-                    <Text style={[styles.debtBalance, { color: colors.text }]}>{fmt(debt.balance)}</Text>
+                    <Text style={[styles.debtBalance, { color: colors.text }]}>
+                      {isOverLimit(debt) && <Ionicons name="lock-closed" size={12} color={colors.textSecondary} />}
+                      {isOverLimit(debt) ? ' ' : ''}
+                      {fmt(debt.balance)}
+                    </Text>
                     <Text style={[styles.debtOf, { color: colors.textSecondary }]}>
                       {t('debt.ofAmount', { amount: fmt(debt.originalAmount) })}
                     </Text>
@@ -444,6 +495,7 @@ export default function DebtsScreen() {
         debt={detailDebt}
         onClose={() => setDetailVisible(false)}
         onEdit={handleEditFromDetail}
+        readOnly={detailDebt ? isDebtLocked(detailDebt) : false}
         onChanged={load}
       />
 
@@ -488,12 +540,6 @@ const styles = StyleSheet.create({
   segmentTextActive: { fontWeight: '700' },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { paddingHorizontal: 20, paddingBottom: 40, gap: 12 },
-  summaryCard: { borderRadius: 18, padding: 18, borderWidth: StyleSheet.hairlineWidth },
-  summaryLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
-  summaryValue: { fontSize: 32, fontWeight: '800', letterSpacing: -0.8, marginTop: 2 },
-  summaryBar: { marginTop: 14 },
-  summaryFooter: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
-  summaryFooterText: { fontSize: 12, fontWeight: '600' },
   debtCard: { borderRadius: 16, padding: 14, borderWidth: StyleSheet.hairlineWidth },
   debtTop: { flexDirection: 'row', alignItems: 'center' },
   debtIcon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', marginRight: 12 },

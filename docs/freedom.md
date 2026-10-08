@@ -14,6 +14,12 @@ Plan tab (Debts | Health | Future Growth) with a compound-growth investment proj
 - Label projections "est." and show the disclaimer "Projection, not guaranteed. Not financial advice."
 - Use the profile currency symbol.
 
+## Free and Pro
+
+- Free: basic inputs, "More options", the result cards and the chart.
+- Pro ([subscription.md](subscription.md)): the outlook (`growthScenarios`) and the goal (`growthGoals`) are wrapped in `ProGate`; "Details" (`growthDetails`) is a locked `DisclosureRow` that opens the paywall; today's prices (`growthRealPrices`) keeps `real` false, so every amount stays in future prices.
+- On a read-only profile the inputs take no focus (`editable()` in `FreedomScreen`) and `applyDraft` saves nothing.
+
 ## Layout
 
 Layered, top to bottom: basic inputs → outlook (`ScenarioSelector`) → `ResultCards` → `GrowthChart` → `GoalSection` → "More options" → "Details".
@@ -100,3 +106,7 @@ Solvers in `src/utils/freedom.ts`:
 - In Real mode `FreedomScreen` passes the plan's inflation, so the target is in today's money.
 
 Tests: `npx tsx src/utils/freedom.test.ts`.
+
+## Debt-free first (TODO)
+
+There is no "debt-free first" option yet. When one is added, take the debt-free month from the payoff simulator (`buildDebtOutlook` in `src/services/debtPlanService.ts`) and add the freed-up payments (the debts' monthly payments plus the plan's `extraMonthly`) to the monthly contribution from that month on. See [debts.md](debts.md), "Payoff simulator".

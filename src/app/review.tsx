@@ -1,4 +1,6 @@
+import { ReadOnlySheetHost } from '@/components/pro/ReadOnlySheet';
 import { SelectableText } from '@/components/SelectableText';
+import { useProfileAccess } from '@/hooks/useProfileAccess';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -33,6 +35,7 @@ export default function ReviewScreen() {
   const { colors } = useTheme();
   const { t, format, categoryName, describe } = useI18n();
   const { activeProfile, dataVersion, currencySymbol } = useProfile();
+  const { readOnly, guardWrite } = useProfileAccess();
   const profileId = activeProfile?.id ?? 1;
 
   const [groups, setGroups] = useState<UncategorisedGroup[]>([]);
@@ -60,13 +63,14 @@ export default function ReviewScreen() {
     load();
   }, [load, dataVersion]);
 
-  const openPicker = (group: UncategorisedGroup) => {
-    Haptics.selectionAsync().catch(() => {});
-    setSelected(group);
-  };
+  const openPicker = (group: UncategorisedGroup) =>
+    guardWrite(() => {
+      Haptics.selectionAsync().catch(() => {});
+      setSelected(group);
+    });
 
   const assign = async (group: UncategorisedGroup, category: string) => {
-    if (!db) return;
+    if (!db || readOnly) return;
     setSelected(null);
     try {
       await categoriseMerchantGroup(db, group, category, profileId);
@@ -211,6 +215,7 @@ export default function ReviewScreen() {
           </View>
         </View>
       </Modal>
+      <ReadOnlySheetHost />
     </SafeAreaView>
   );
 }

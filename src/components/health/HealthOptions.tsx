@@ -1,4 +1,6 @@
+import { ReadOnlyNote } from '@/components/pro/ReadOnlySheet';
 import { SelectableText } from '@/components/SelectableText';
+import { useProfileAccess } from '@/hooks/useProfileAccess';
 import type { Household } from '@/constants/benchmarks';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -37,6 +39,8 @@ export function HealthOptions({ household, onEditHousehold, onRangesReset }: Hea
   const { colors } = useTheme();
   const { t } = useI18n();
   const { activeProfile, dataVersion } = useProfile();
+  // Shown in a sheet, where the read-only sheet cannot present: the controls are off with a note.
+  const { readOnly } = useProfileAccess();
   const profileId = activeProfile?.id ?? 1;
 
   // Tagged with its profile, so a switch never shows the previous profile's switches.
@@ -104,7 +108,14 @@ export function HealthOptions({ household, onEditHousehold, onRangesReset }: Hea
 
   return (
     <View>
-      <TouchableOpacity style={styles.row} activeOpacity={0.7} onPress={onEditHousehold} accessibilityRole="button">
+      {readOnly && <ReadOnlyNote />}
+      <TouchableOpacity
+        style={styles.row}
+        activeOpacity={0.7}
+        onPress={onEditHousehold}
+        disabled={readOnly}
+        accessibilityRole="button"
+      >
         <View style={styles.rowLeft}>
           <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
             <Ionicons name="people-outline" size={18} color={colors.accent} />
@@ -126,7 +137,7 @@ export function HealthOptions({ household, onEditHousehold, onRangesReset }: Hea
           <SelectableText style={[styles.rowTitle, styles.rowText, { color: colors.text }]}>{t(`health.alertType.${type}`)}</SelectableText>
           <Switch
             value={enabled?.includes(type) ?? false}
-            disabled={!enabled}
+            disabled={!enabled || readOnly}
             onValueChange={(value) => handleToggle(type, value)}
             trackColor={{ false: '#78788029', true: colors.accent }}
             thumbColor="#FFFFFF"
@@ -137,7 +148,13 @@ export function HealthOptions({ household, onEditHousehold, onRangesReset }: Hea
       ))}
 
       <View style={[styles.divider, { backgroundColor: colors.border }]} />
-      <TouchableOpacity style={styles.row} activeOpacity={0.7} onPress={handleResetRanges} accessibilityRole="button">
+      <TouchableOpacity
+        style={styles.row}
+        activeOpacity={0.7}
+        onPress={handleResetRanges}
+        disabled={readOnly}
+        accessibilityRole="button"
+      >
         <View style={styles.rowLeft}>
           <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
             <Ionicons name="refresh-outline" size={18} color={colors.accent} />

@@ -1,6 +1,7 @@
 import { PasscodeLockHost } from '@/components/passcode/PasscodeLockHost';
 import { PdfTextHost } from '@/components/PdfTextHost';
 import { SharedImportHost } from '@/components/SharedImportHost';
+import { EntitlementProvider } from '@/contexts/EntitlementContext';
 import { ImportResultProvider } from '@/contexts/ImportResultContext';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { PasscodeProvider } from '@/contexts/PasscodeContext';
@@ -59,6 +60,7 @@ function AppInitializer() {
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="welcome" options={{ headerShown: false, gestureEnabled: false }} />
       <Stack.Screen name="transactions" options={{ headerShown: false }} />
+      <Stack.Screen name="debt-plan" options={{ headerShown: false }} />
       <Stack.Screen
         name="settings"
         options={{
@@ -123,6 +125,13 @@ function AppInitializer() {
         }}
       />
       <Stack.Screen
+        name="paywall"
+        options={{
+          headerShown: false,
+          presentation: 'modal',
+        }}
+      />
+      <Stack.Screen
         name="licenses"
         options={{
           headerShown: false,
@@ -146,11 +155,13 @@ export default function RootLayout() {
             <ThemeProvider>
               <PasscodeProvider>
                 <ProfileProvider>
-                  <PeriodProvider>
-                    <ImportResultProvider>
-                      <AppInitializer />
-                    </ImportResultProvider>
-                  </PeriodProvider>
+                  <EntitlementProvider>
+                    <PeriodProvider>
+                      <ImportResultProvider>
+                        <AppInitializer />
+                      </ImportResultProvider>
+                    </PeriodProvider>
+                  </EntitlementProvider>
                 </ProfileProvider>
               </PasscodeProvider>
             </ThemeProvider>

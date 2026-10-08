@@ -1,7 +1,11 @@
 import { BackupRestoreModal } from '@/components/modals/BackupRestoreModal';
 import { DebtFormModal, DebtPrefill } from '@/components/modals/DebtFormModal';
 import { InboxAnchor, InboxModal } from '@/components/modals/InboxModal';
+import { useEntitlement } from '@/contexts/EntitlementContext';
 import { useProfile } from '@/contexts/ProfileContext';
+import { usePaywall } from '@/hooks/usePaywall';
+import { useProfileAccess } from '@/hooks/useProfileAccess';
+import { canAdd, isItemReadOnly } from '@/utils/entitlement';
 import { DebtSummary, getDebtSummaries } from '@/db/database';
 import { useStatementImporter } from '@/hooks/useStatementImporter';
 import { dismissInboxItem, getInboxItems, InboxItem, isQuietInboxItem } from '@/services/inboxService';
@@ -41,6 +45,9 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
   const db = useSQLiteContext();
   const { activeProfile, dataVersion, isDemoMode, refreshProfiles } = useProfile();
   const profileId = activeProfile?.id ?? 1;
+  const { source } = useEntitlement();
+  const { readOnly } = useProfileAccess();
+  const offerPro = source === 'free' && !readOnly;
 
   const [items, setItems] = useState<InboxItem[]>([]);
   const [visible, setVisible] = useState(false);
@@ -53,19 +60,19 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
     if (!db) return;
     try {
       const row = await db.getFirstAsync<{ changes: number }>(`SELECT total_changes() AS changes;`);
-      const stamp = `${profileId}:${dataVersion}:${isDemoMode}:${row?.changes ?? -1}:${new Date().toDateString()}`;
+      const stamp = `${profileId}:${dataVersion}:${isDemoMode}:${offerPro}:${row?.changes ?? -1}:${new Date().toDateString()}`;
       if (!force && row && stamp === stampRef.current) return;
 
       // Counted only for calls that load, so a skipped call cannot discard one still in flight.
       const request = ++requestRef.current;
-      const next = await getInboxItems(db, profileId, { isDemo: isDemoMode });
+      const next = await getInboxItems(db, profileId, { isDemo: isDemoMode, offerPro });
       if (request !== requestRef.current) return;
       stampRef.current = stamp;
       setItems(next);
     } catch (error) {
       console.error('Failed to load inbox:', error);
     }
-  }, [db, profileId, dataVersion, isDemoMode]);
+  }, [db, profileId, dataVersion, isDemoMode, offerPro]);
 
   const dismissItem = useCallback(
     async (item: InboxItem) => {
@@ -121,6 +128,9 @@ export function InboxHost() {
   const { items, visible, anchor, closeInbox, refreshInbox, dismissItem } = useInbox();
   const { importStatement } = useStatementImporter();
   const profileId = activeProfile?.id ?? 1;
+  const { isPro, showReadOnly } = useEntitlement();
+  const { guardWrite } = useProfileAccess();
+  const { openPaywall } = usePaywall();
 
   const [formVisible, setFormVisible] = useState(false);
   const [formDebt, setFormDebt] = useState<DebtSummary | null>(null);
@@ -135,6 +145,12 @@ export function InboxHost() {
           router.navigate({ pathname: '/debts', params: { segment: 'debts' } });
           break;
         }
+        // The same gates as the add button on the Debts tab.
+        if (!guardWrite()) break;
+        if (!canAdd(isPro, 'maxDebts', (await getDebtSummaries(db, profileId)).length)) {
+          openPaywall('debts');
+          break;
+        }
         const [suggestion] = item.suggestions;
         setFormDebt(null);
         setFormPrefill({ name: suggestion.name, type: suggestion.type, keywords: [suggestion.keyword] });
@@ -142,8 +158,15 @@ export function InboxHost() {
         break;
       }
       case 'DEBT_MATCHES': {
-        const debt = (await getDebtSummaries(db, profileId)).find((d) => d.id === item.debtId);
+        const debts = await getDebtSummaries(db, profileId);
+        const debt = debts.find((d) => d.id === item.debtId);
         if (!debt) return;
+        if (!guardWrite()) return;
+        // A debt beyond the free limit cannot be edited, so nothing can be linked to it either.
+        if (isItemReadOnly(isPro, 'maxDebts', debts.map((d) => d.id), debt.id)) {
+          showReadOnly({ kind: 'debt' });
+          return;
+        }
         setFormDebt(debt);
         setFormPrefill(null);
         setFormVisible(true);
@@ -161,6 +184,9 @@ export function InboxHost() {
         break;
       case 'BACKUP':
         setBackupVisible(true);
+        break;
+      case 'PRO_OFFER':
+        openPaywall('offer');
         break;
     }
   };

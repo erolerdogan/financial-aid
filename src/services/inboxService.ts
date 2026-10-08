@@ -34,11 +34,13 @@ export type InboxItem =
   | (InboxItemBase & { kind: 'UNCATEGORISED'; count: number })
   | (InboxItemBase & { kind: 'DEBT_MATCHES'; debtId: number; debtName: string; count: number })
   | (InboxItemBase & { kind: 'PARTIAL_MONTH'; month: string; minDate: string; maxDate: string })
-  | (InboxItemBase & { kind: 'BACKUP'; daysSince: number | null });
+  | (InboxItemBase & { kind: 'BACKUP'; daysSince: number | null })
+  // What Pro adds, for a free user who has imported; once dismissed it stays away.
+  | (InboxItemBase & { kind: 'PRO_OFFER' });
 
 /** Reminders show a dot on the bell; everything else needs a decision and is counted. */
 export const isQuietInboxItem = (item: InboxItem): boolean =>
-  item.kind === 'BACKUP' || (item.kind === 'HEALTH_ALERT' && item.alert.severity <= 1);
+  item.kind === 'BACKUP' || item.kind === 'PRO_OFFER' || (item.kind === 'HEALTH_ALERT' && item.alert.severity <= 1);
 
 const dismissedKey = (profileId: number) => `inbox_dismissed:${profileId}`;
 
@@ -65,7 +67,7 @@ const currentMonthKey = (): string => {
 export async function getInboxItems(
   db: SQLiteDatabase,
   profileId: number,
-  options: { isDemo: boolean }
+  options: { isDemo: boolean; offerPro?: boolean }
 ): Promise<InboxItem[]> {
   const [healthAlerts, dismissed, suggestions, uncategorised, debts, months, lastBackup] = await Promise.all([
     loadNewAlerts(db, profileId),
@@ -161,6 +163,11 @@ export async function getInboxItems(
     if (due && !hidden('backup', now - BACKUP_INTERVAL_DAYS * DAY_MS)) {
       items.push({ kind: 'BACKUP', key: 'backup', dismissValue: now, daysSince });
     }
+  }
+
+  // Last: it is an offer, not something to do.
+  if (options.offerPro && !options.isDemo && months.length > 0 && !hidden('pro-offer', 1)) {
+    items.push({ kind: 'PRO_OFFER', key: 'pro-offer', dismissValue: 1 });
   }
 
   return items;

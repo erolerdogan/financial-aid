@@ -1,3 +1,4 @@
+import { ReadOnlySheetHost } from '@/components/pro/ReadOnlySheet';
 import { ImportSummaryHost } from '@/contexts/ImportResultContext';
 import { InboxHost, InboxProvider } from '@/contexts/InboxContext';
 import { useI18n } from '@/contexts/LanguageContext';
@@ -109,6 +110,7 @@ export default function TabLayout() {
     </Tabs>
     </TabSwipeProvider>
     <ImportSummaryHost />
+    <ReadOnlySheetHost />
     <InboxHost />
     </InboxProvider>
   );

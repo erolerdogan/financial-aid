@@ -1,5 +1,7 @@
 import { CategoryFormModal } from '@/components/modals/CategoryFormModal';
+import { ReadOnlySheetHost } from '@/components/pro/ReadOnlySheet';
 import { SelectableText } from '@/components/SelectableText';
+import { useProfileAccess } from '@/hooks/useProfileAccess';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -25,6 +27,7 @@ export default function CategoriesScreen() {
   const { colors } = useTheme();
   const { t, format, categoryName } = useI18n();
   const { activeProfile, dataVersion, currencySymbol } = useProfile();
+  const { guardWrite } = useProfileAccess();
   const profileId = activeProfile?.id ?? 1;
 
   const [categories, setCategories] = useState<CategoryInfo[]>([]);
@@ -51,17 +54,19 @@ export default function CategoriesScreen() {
   const customCategories = categories.filter((c) => c.isBuiltIn === 0);
   const builtInCategories = categories.filter((c) => c.isBuiltIn === 1);
 
-  const openCreate = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    setEditing(null);
-    setFormVisible(true);
-  };
+  const openCreate = () =>
+    guardWrite(() => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      setEditing(null);
+      setFormVisible(true);
+    });
 
-  const openEdit = (category: CategoryInfo) => {
-    Haptics.selectionAsync().catch(() => {});
-    setEditing(category);
-    setFormVisible(true);
-  };
+  const openEdit = (category: CategoryInfo) =>
+    guardWrite(() => {
+      Haptics.selectionAsync().catch(() => {});
+      setEditing(category);
+      setFormVisible(true);
+    });
 
   const formatSubtitle = (category: CategoryInfo): string => {
     const parts: string[] = [];
@@ -165,6 +170,7 @@ export default function CategoriesScreen() {
         onClose={() => setFormVisible(false)}
         onChanged={load}
       />
+      <ReadOnlySheetHost />
     </SafeAreaView>
   );
 }

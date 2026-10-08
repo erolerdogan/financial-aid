@@ -1,8 +1,18 @@
 import { ImportProgressOverlay } from '@/components/ImportProgressOverlay';
 import { ImportSummaryModal } from '@/components/modals/ImportSummaryModal';
+import { useEntitlement } from '@/contexts/EntitlementContext';
+import { useProfile } from '@/contexts/ProfileContext';
+import { getAppMeta, setAppMeta } from '@/db/database';
+import { usePaywall } from '@/hooks/usePaywall';
+import { useProfileAccess } from '@/hooks/useProfileAccess';
 import { ImportResultSummary } from '@/services/importService';
+import { PRO_OFFER_IMPORTS_KEY, PRO_OFFER_SHOWN_KEY, shouldOfferPro } from '@/utils/entitlement';
 import { useIsFocused } from 'expo-router';
+import { useSQLiteContext } from 'expo-sqlite';
 import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
+
+// The summary sheet has to be gone before a screen can present.
+const OFFER_DELAY_MS = 400;
 
 interface ImportResultState {
   summary: ImportResultSummary;
@@ -56,6 +66,34 @@ export const useImportResult = () => useContext(ImportResultContext);
 export function ImportSummaryHost() {
   const { result, progress, dismissImportResult } = useImportResult();
   const isFocused = useIsFocused();
+  const db = useSQLiteContext();
+  const { source } = useEntitlement();
+  const { isDemoMode } = useProfile();
+  const { readOnly } = useProfileAccess();
+  const { openPaywall } = usePaywall();
+
+  // The one unasked Pro offer: once ever, when the summary of a later import is closed.
+  const handleClose = async () => {
+    dismissImportResult();
+    try {
+      const [imports, shown] = await Promise.all([
+        getAppMeta(db, PRO_OFFER_IMPORTS_KEY),
+        getAppMeta(db, PRO_OFFER_SHOWN_KEY),
+      ]);
+      const due = shouldOfferPro({
+        isPro: source !== 'free',
+        isDemo: isDemoMode,
+        readOnly,
+        imports: Number(imports) || 0,
+        shown: shown !== null,
+      });
+      if (!due) return;
+      await setAppMeta(db, PRO_OFFER_SHOWN_KEY, '1');
+      setTimeout(() => openPaywall('offer'), OFFER_DELAY_MS);
+    } catch (error) {
+      console.warn('Pro offer warning:', error);
+    }
+  };
 
   if (!isFocused) return null;
   if (progress) return <ImportProgressOverlay />;
@@ -66,7 +104,7 @@ export function ImportSummaryHost() {
       visible
       summary={result.summary}
       profileName={result.profileName}
-      onClose={dismissImportResult}
+      onClose={handleClose}
     />
   );
 }

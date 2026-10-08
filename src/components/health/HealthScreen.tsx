@@ -11,6 +11,7 @@ import { ScoreRing } from '@/components/health/ScoreRing';
 import { TransactionDetailModal } from '@/components/modals/TransactionDetailModal';
 import { TransactionListModal } from '@/components/modals/TransactionListModal';
 import { SelectableText } from '@/components/SelectableText';
+import { useProfileAccess } from '@/hooks/useProfileAccess';
 import type { BenchmarkGroupId, Household } from '@/constants/benchmarks';
 import { useI18n } from '@/contexts/LanguageContext';
 import { usePeriod } from '@/contexts/PeriodContext';
@@ -66,6 +67,7 @@ export function HealthScreen() {
   const { colors } = useTheme();
   const { t, format, categoryName } = useI18n();
   const { activeProfile, dataVersion } = useProfile();
+  const { readOnly, guardWrite } = useProfileAccess();
   const profileId = activeProfile?.id ?? 1;
   // Follows the month picked on Home and Transactions; the latest month with data otherwise.
   const { period } = usePeriod();
@@ -135,11 +137,11 @@ export function HealthScreen() {
 
   // First visit without a household profile: ask the few questions.
   useEffect(() => {
-    if (introSeen !== true || !snapshot || !snapshot.result || snapshot.input.household) return;
+    if (introSeen !== true || !snapshot || !snapshot.result || snapshot.input.household || readOnly) return;
     if (askedHouseholdRef.current === profileId) return;
     askedHouseholdRef.current = profileId;
     setHouseholdVisible(true);
-  }, [introSeen, snapshot, profileId]);
+  }, [introSeen, snapshot, profileId, readOnly]);
 
   // A custom category that was never given a group: ask once, ever, per category.
   useEffect(() => {
@@ -182,6 +184,7 @@ export function HealthScreen() {
   }, [introSeen, db, snapshot, householdVisible, profileId, t, categoryName]);
 
   const handleSaveHousehold = async (next: Household) => {
+    if (readOnly) return;
     try {
       await saveHousehold(db, profileId, next);
       setHouseholdVisible(false);
@@ -230,6 +233,8 @@ export function HealthScreen() {
   };
 
   const handleCategoryLongPress = (item: CategoryStatus) => {
+    // Ranges and groups are settings of the profile: not on a read-only one.
+    if (!guardWrite()) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
 
     const actions: { label: string; run: () => void }[] = [];
@@ -429,7 +434,7 @@ export function HealthScreen() {
                   </SelectableText>
                   <TouchableOpacity
                     style={[styles.primaryBtn, { backgroundColor: colors.accent }]}
-                    onPress={() => setHouseholdVisible(true)}
+                    onPress={() => guardWrite(() => setHouseholdVisible(true))}
                     accessibilityRole="button"
                   >
                     <Text style={styles.primaryBtnText}>{t('health.addIncome')}</Text>
@@ -444,7 +449,7 @@ export function HealthScreen() {
               <View style={cardStyle}>
                 <SelectableText style={[styles.sectionTitle, { color: colors.text }]}>{t('health.pillars')}</SelectableText>
                 {result.pillars.map((pillar) => (
-                  <PillarRow key={pillar.id} pillar={pillar} onAddBuffer={() => setHouseholdVisible(true)} />
+                  <PillarRow key={pillar.id} pillar={pillar} onAddBuffer={() => guardWrite(() => setHouseholdVisible(true))} />
                 ))}
               </View>
             ) : null}
@@ -466,7 +471,7 @@ export function HealthScreen() {
               )}
             </View>
 
-            {/* TODO(pro): score history is a Pro item; gate it here once useEntitlement() / FEATURES exists. */}
+            {/* TODO(pro): score history is a Pro item (flag `healthFull`, a placeholder for now); gate it with useEntitlement().can(). */}
             <View style={cardStyle}>
               <SelectableText style={[styles.sectionTitle, { color: colors.text }]}>{t('health.history')}</SelectableText>
               <ScoreHistoryChart points={snapshot.history} />

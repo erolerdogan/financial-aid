@@ -35,6 +35,14 @@ React Native / Expo SDK 57, TypeScript, Expo Router, expo-sqlite. Local-first pe
 - Strict TypeScript. Follow Apple HIG. Don't modify unrelated files.
 - Start with a short plan; end with a summary of changed files and whether a native rebuild is needed.
 
+## Subscription
+- Tiers: Free and Pro. One entitlement "pro". Products later: monthly, yearly (7-day trial), lifetime.
+- 100% local and private: no account, no login, no analytics.
+- Never gate: backup/restore, export, delete, app lock, languages, data correctness (transfer detection, categorisation).
+- Downgrade never deletes or hides data: items beyond free limits stay visible, read-only, with a "Renew to edit" note.
+- IMPORTANT: All checks go through `useEntitlement()` and the `FEATURES` map (`src/constants/features.ts`). No scattered `isPro` checks. A new write path respects `useProfileAccess()` (read-only profile).
+- No payment SDK yet. `src/services/purchases.ts` is the only file the store plugs into. The developer switch (`pro_dev_override`) counts in `__DEV__` only.
+
 ## Map
 - Source in `src/` (`@/` alias → `src/`). Routes in `src/app`, tabs in `src/app/(tabs)`.
 - Schema and all queries: `src/db/database.ts` (debt math and payment linking at the bottom). Demo seed: `src/db/demoSeeder.ts`.
@@ -47,6 +55,7 @@ React Native / Expo SDK 57, TypeScript, Expo Router, expo-sqlite. Local-first pe
 - Legal: privacy policy, terms of use and disclaimer are in `src/content/legal/` (nine files plus `LEGAL_DOCUMENTS`), shown in the app by `src/app/legal.tsx` (Settings → About → Personal Data & Privacy, Welcome) and published by the website from the same text; `src/app/data-privacy.tsx` is the short version of the privacy policy. Licenses screen: `src/app/licenses.tsx`.
 - FAQ: questions and answers are in `src/content/faq/` (nine files plus `FAQ_GROUPS`), shown in the app by `src/app/faq.tsx` (Settings → About) and published by the website from the same text. Answers follow `README.md` and `docs/`; update them when a feature they describe changes.
 - Website: entry `scripts/build-site.ts`, page builders `scripts/site/pages/`, web-only copy `src/content/site/` (nine files, like the locales; legal texts in `src/content/legal/`, FAQ in `src/content/faq/`), images `site/`.
+- Free / Pro: limits and flags `src/constants/features.ts`, pure rules `src/utils/entitlement.ts`, `src/contexts/EntitlementContext.tsx`, hooks `usePaywall` / `useProfileAccess` / `useBudgetGate` (`src/hooks/`), UI `src/components/pro/`, paywall `src/app/paywall.tsx` + `src/constants/paywall.ts`, purchase stub `src/services/purchases.ts`.
 - Budget Health: engine `src/utils/budgetHealth.ts`, alerts `src/utils/healthAlerts.ts`, loaders `src/services/healthService.ts`, UI `src/components/health/`.
 
 Naming traps:
@@ -67,6 +76,7 @@ Naming traps:
 | `docs/backup.md` | Backup and restore, encrypted `.fabackup` format, transaction export |
 | `docs/navigation.md` | Routes, headers, passcode lock, tab swipe, picked period, drill-down, Home chart, Trends, Transactions, For You inbox, themes |
 | `docs/i18n.md` | Languages, keys and plurals, `format`, category names, `Message`, what stays English |
+| `docs/subscription.md` | Free and Pro: limits and flags, read-only rules, every gated location, paywall, purchase stub, Pro offers |
 | `docs/website.md` | Website pages, copy files, changelog, images, build settings, deployment |
 
 ## Definition of done

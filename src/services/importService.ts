@@ -112,6 +112,14 @@ function base64ToArrayBuffer(base64: string): ArrayBuffer {
   return bytes.buffer;
 }
 
+/** A PDF statement was picked without Pro; the file was not read. */
+export class ProRequiredError extends Error {
+  constructor() {
+    super('PDF statement import needs Pro');
+    this.name = 'ProRequiredError';
+  }
+}
+
 /** A file read for import: rows of a CSV / Excel export, or one PDF statement (checked against its totals). */
 export type StatementFile =
   | { kind: 'table'; parsed: ParsedStatement }
@@ -150,13 +158,15 @@ export function pdfStatementsToTransactions(
 
 /**
  * Reads a picked or shared file. A PDF (by its first bytes) goes to the PDF statement readers and
- * throws when its totals do not match; anything else is read as CSV or Excel.
+ * throws when its totals do not match; anything else is read as CSV or Excel. With `allowPdf: false`
+ * a PDF throws `ProRequiredError` before any of it is parsed.
  */
 export async function readStatementFile(
   fileUri: string,
   fileName: string,
   customRules: CategoryRule[] = [],
-  learned?: LearnedCategories
+  learned?: LearnedCategories,
+  options: { allowPdf?: boolean } = {}
 ): Promise<StatementFile> {
   const cleanName = (fileName || '').toLowerCase();
 
@@ -180,7 +190,10 @@ export async function readStatementFile(
     const unsupported = describeUnsupportedStatement(cleanName, head);
     if (unsupported) throw new UnsupportedFileError(unsupported);
 
-    if (isPdfFile(head)) return { kind: 'pdf', statement: await readPdfStatement(tempDestination) };
+    if (isPdfFile(head)) {
+      if (options.allowPdf === false) throw new ProRequiredError();
+      return { kind: 'pdf', statement: await readPdfStatement(tempDestination) };
+    }
 
     const base64Data = await FileSystem.readAsStringAsync(tempDestination, {
       encoding: FileSystem.EncodingType.Base64,

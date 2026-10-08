@@ -2,7 +2,10 @@ import { DebtProgressBar } from '@/components/debts/DebtProgressBar';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { DebtSummary, getDebtSummaries, syncDebtPayments } from '@/db/database';
+import { useEntitlement } from '@/contexts/EntitlementContext';
+import { DebtSummary } from '@/db/database';
+import { buildDebtOutlook, loadDebtsWithPlan } from '@/services/debtPlanService';
+import type { DebtPlan } from '@/utils/debtSimulator';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
@@ -16,8 +19,10 @@ export function DebtsCard() {
   const { t, format } = useI18n();
   const { activeProfile, dataVersion, currencySymbol } = useProfile();
   const profileId = activeProfile?.id ?? 1;
+  const { can } = useEntitlement();
 
   const [debts, setDebts] = useState<DebtSummary[]>([]);
+  const [savedPlan, setSavedPlan] = useState<DebtPlan | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   useFocusEffect(
@@ -26,10 +31,10 @@ export function DebtsCard() {
       (async () => {
         if (!db) return;
         try {
-          await syncDebtPayments(db, profileId);
-          const rows = await getDebtSummaries(db, profileId);
+          const loaded = await loadDebtsWithPlan(db, profileId);
           if (active) {
-            setDebts(rows);
+            setDebts(loaded.debts);
+            setSavedPlan(loaded.savedPlan);
             setLoaded(true);
           }
         } catch (error) {
@@ -72,6 +77,8 @@ export function DebtsCard() {
   const totalBalance = debts.reduce((sum, d) => sum + d.balance, 0);
   const percent = totalOriginal > 0 ? (totalPaid / totalOriginal) * 100 : 0;
   const activeCount = debts.filter((d) => !d.isPaidOff).length;
+  // The saved payoff plan with Pro, otherwise what the current payments give.
+  const debtFreeMonth = activeCount > 0 ? buildDebtOutlook(debts, savedPlan, can('debtSimulator')).debtFreeMonth : null;
 
   return (
     <TouchableOpacity
@@ -95,7 +102,14 @@ export function DebtsCard() {
       <View style={styles.bar}>
         <DebtProgressBar percent={percent} color={colors.accent} height={8} />
       </View>
-      <Text style={[styles.footer, { color: colors.textSecondary }]}>{t('home.debts.paidOff', { percent: percent.toFixed(0) })}</Text>
+      <View style={styles.footerRow}>
+        <Text style={[styles.footer, { color: colors.textSecondary }]}>{t('home.debts.paidOff', { percent: percent.toFixed(0) })}</Text>
+        {debtFreeMonth && (
+          <Text style={[styles.footer, { color: colors.textSecondary }]}>
+            {t('debt.debtFree', { month: format.monthYear(debtFreeMonth, 'short') })}
+          </Text>
+        )}
+      </View>
     </TouchableOpacity>
   );
 }
@@ -121,5 +135,6 @@ const styles = StyleSheet.create({
   sub: { fontSize: 12 },
   balance: { fontSize: 26, fontWeight: '800', letterSpacing: -0.6, marginTop: 8 },
   bar: { marginTop: 12 },
+  footerRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', columnGap: 12 },
   footer: { fontSize: 12, fontWeight: '600', marginTop: 6 },
 });

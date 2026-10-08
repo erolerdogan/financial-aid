@@ -1,8 +1,12 @@
+import { ProBadge } from '@/components/pro/ProBadge';
 import { SelectableText } from '@/components/SelectableText';
+import { useEntitlement } from '@/contexts/EntitlementContext';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { deleteProfile, Profile } from '@/db/database';
+import { usePaywall } from '@/hooks/usePaywall';
+import { canAdd, isProfileReadOnly } from '@/utils/entitlement';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
@@ -32,7 +36,22 @@ export function ProfileSwitcherModal({ visible, onClose }: ProfileSwitcherModalP
   const db = useSQLiteContext();
   const { colors } = useTheme();
   const { t } = useI18n();
-  const { profiles, activeProfile, switchProfile, addNewProfile, editProfile, refreshProfiles } = useProfile();
+  const { profiles, activeProfile, switchProfile, addNewProfile, editProfile, refreshProfiles, isDemoMode } = useProfile();
+  const { isPro } = useEntitlement();
+  const { openPaywall } = usePaywall();
+  const profileIds = profiles.map((profile) => profile.id);
+  const canAddProfile = canAdd(isPro, 'maxProfiles', profiles.length);
+
+  const handleAddNew = () => {
+    if (!canAddProfile) {
+      // The paywall is a screen: it can only present once this sheet has closed.
+      onClose();
+      setTimeout(() => openPaywall('profiles'), 300);
+      return;
+    }
+    resetForm();
+    setIsEditing(true);
+  };
 
   const [isEditing, setIsEditing] = useState(false);
   const [selectedForEdit, setSelectedForEdit] = useState<Profile | null>(null);
@@ -109,12 +128,15 @@ export function ProfileSwitcherModal({ visible, onClose }: ProfileSwitcherModalP
                 </SelectableText>
                 {!isEditing && (
                   <TouchableOpacity
-                    onPress={() => {
-                      resetForm();
-                      setIsEditing(true);
-                    }}
+                    style={styles.addBtn}
+                    onPress={handleAddNew}
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      canAddProfile ? t('profile.addNew') : t('pro.gateA11y', { label: t('profile.addNew') })
+                    }
                   >
                     <Text style={[styles.addText, { color: colors.accent }]}>{t('profile.addNew')}</Text>
+                    {!canAddProfile && <ProBadge locked />}
                   </TouchableOpacity>
                 )}
               </View>
@@ -159,6 +181,8 @@ export function ProfileSwitcherModal({ visible, onClose }: ProfileSwitcherModalP
                 <ScrollView style={{ maxHeight: 300 }}>
                   {profiles.map((p) => {
                     const isActive = activeProfile?.id === p.id;
+                    // Beyond the free limit: still switchable and deletable, not editable.
+                    const locked = isProfileReadOnly(isPro, profileIds, p.id, isDemoMode);
                     return (
                       <View
                         key={p.id}
@@ -174,11 +198,23 @@ export function ProfileSwitcherModal({ visible, onClose }: ProfileSwitcherModalP
                           <View style={[styles.avatar, { backgroundColor: p.avatarColor }]}>
                             <Text style={styles.avatarTxt}>{p.name.substring(0, 1)}</Text>
                           </View>
-                          <Text style={[styles.profileName, { color: colors.text }]}>{p.name}</Text>
+                          <View style={styles.profileNameWrap}>
+                            <Text style={[styles.profileName, { color: colors.text }]}>{p.name}</Text>
+                            {locked && (
+                              <Text style={[styles.profileLocked, { color: colors.textSecondary }]}>
+                                {t('pro.readOnly.title')} · {t('pro.renewToEdit')}
+                              </Text>
+                            )}
+                          </View>
                           {isActive && <Ionicons name="checkmark-circle" size={18} color={colors.accent} />}
                         </TouchableOpacity>
 
                         <View style={styles.profileActions}>
+                          {locked ? (
+                            <View style={styles.iconBtn}>
+                              <Ionicons name="lock-closed" size={16} color={colors.textSecondary} />
+                            </View>
+                          ) : (
                           <TouchableOpacity
                             onPress={() => {
                               setSelectedForEdit(p);
@@ -190,6 +226,7 @@ export function ProfileSwitcherModal({ visible, onClose }: ProfileSwitcherModalP
                           >
                             <Ionicons name="pencil-outline" size={16} color={colors.textSecondary} />
                           </TouchableOpacity>
+                          )}
                           <TouchableOpacity
                             onPress={() => handleDelete(p)}
                             style={styles.iconBtn}
@@ -216,6 +253,7 @@ const styles = StyleSheet.create({
   handle: { width: 36, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   title: { fontSize: 18, fontWeight: '700' },
+  addBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   addText: { fontSize: 14, fontWeight: '600' },
   formContainer: { gap: 14 },
   input: { height: 46, borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, paddingHorizontal: 14, fontSize: 15, fontWeight: '600' },
@@ -232,7 +270,9 @@ const styles = StyleSheet.create({
   profileInfoArea: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
   avatar: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
   avatarTxt: { color: '#FFF', fontWeight: '700', fontSize: 13 },
-  profileName: { fontSize: 15, fontWeight: '600', flex: 1 },
+  profileNameWrap: { flex: 1 },
+  profileName: { fontSize: 15, fontWeight: '600' },
+  profileLocked: { fontSize: 11, marginTop: 1 },
   profileActions: { flexDirection: 'row', gap: 8 },
   iconBtn: { padding: 6 },
 });

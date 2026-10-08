@@ -1,16 +1,21 @@
+import { useEntitlement } from '@/contexts/EntitlementContext';
 import { useImportResult } from '@/contexts/ImportResultContext';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
-import { getCustomRules, getLearnedCategories, getProfiles, Profile } from '@/db/database';
+import { getAppMeta, getCustomRules, getLearnedCategories, getProfiles, Profile, setAppMeta } from '@/db/database';
+import { usePaywall } from '@/hooks/usePaywall';
+import { useProfileAccess } from '@/hooks/useProfileAccess';
 import { runHealthAlerts } from '@/services/healthService';
 import {
   type ImportResultSummary,
   type ImportTransactionPayload,
   pdfStatementsToTransactions,
   processBatchImport,
+  ProRequiredError,
   readStatementFile,
 } from '@/services/importService';
 import type { BankId } from '@/utils/bankFormats';
+import { PRO_OFFER_IMPORTS_KEY } from '@/utils/entitlement';
 import { describeImportFailure, type ImportFailure, importFailureMessage } from '@/utils/importFailure';
 import { cancelCurrentMonthReminders } from '@/utils/notifications';
 import { checkChain } from '@/utils/pdfStatements/chain';
@@ -50,6 +55,9 @@ export function useStatementImporter(options?: UseStatementImporterOptions) {
   const { activeProfile, refreshProfiles, switchProfile, currencySymbol, isDemoMode } = useProfile();
   const { showImportResult, setImportProgress } = useImportResult();
   const { t, format } = useI18n();
+  const { can } = useEntitlement();
+  const { openPaywall } = usePaywall();
+  const { guardWrite } = useProfileAccess();
   const [importing, setImporting] = useState(false);
   const isPickingRef = useRef(false);
   const router = useRouter();
@@ -117,13 +125,15 @@ export function useStatementImporter(options?: UseStatementImporterOptions) {
     const banks = new Set<BankId | null>();
     const pdfStatements: PdfStatement[] = [];
     const failedFiles: ImportResultSummary['failedFiles'] = [];
+    // PDF statements are a Pro feature: without it they are left unread and the paywall opens.
+    const allowPdf = can('pdfImport');
+    let pdfBlocked = false;
 
     try {
       for (const [index, file] of files.entries()) {
         if (!single) setImportProgress({ current: index + 1, total: files.length });
         try {
-          // TODO(pro): PDF statement import is a Pro item; gate it here once useEntitlement() / FEATURES exists.
-          const read = await readStatementFile(file.uri, file.name, customRules, learned);
+          const read = await readStatementFile(file.uri, file.name, customRules, learned, { allowPdf });
           if (read.kind === 'pdf') {
             pdfStatements.push(read.statement);
           } else if (read.parsed.transactions.length === 0) {
@@ -133,6 +143,10 @@ export function useStatementImporter(options?: UseStatementImporterOptions) {
             banks.add(read.parsed.bank);
           }
         } catch (error) {
+          if (error instanceof ProRequiredError) {
+            pdfBlocked = true;
+            continue;
+          }
           // One file: say why. Several: the others still go in, and the summary lists this one.
           if (single) {
             handleImportError(error, file.name);
@@ -153,6 +167,11 @@ export function useStatementImporter(options?: UseStatementImporterOptions) {
     const pdfParsed = pdfStatementsToTransactions(kept, customRules, learned);
     if (kept.length > 0) banks.add(pdfParsed.bank);
     const parsedTransactions = [...tableRows, ...pdfParsed.transactions];
+
+    if (pdfBlocked && parsedTransactions.length === 0 && failedFiles.length === 0) {
+      openPaywall('pdfImport');
+      return;
+    }
 
     if (parsedTransactions.length === 0 && (single || (failedFiles.length === 0 && problems.length === 0))) {
       Alert.alert(
@@ -194,6 +213,18 @@ export function useStatementImporter(options?: UseStatementImporterOptions) {
       await options.onSuccess();
     }
 
+    // Counted for the one-time Pro offer, which opens when a summary is closed.
+    if (imported.insertedCount > 0) {
+      try {
+        const count = Number(await getAppMeta(db, PRO_OFFER_IMPORTS_KEY)) || 0;
+        await setAppMeta(db, PRO_OFFER_IMPORTS_KEY, String(count + 1));
+      } catch (error) {
+        console.warn('Import count warning:', error);
+      }
+    }
+
+    // The paywall goes on top; the summary shows once it is closed.
+    if (pdfBlocked) openPaywall('pdfImport');
     showImportResult(summary, targetProfile.name);
   };
 
@@ -201,6 +232,8 @@ export function useStatementImporter(options?: UseStatementImporterOptions) {
     // The demo workspace is wiped on exit; an import there would be lost.
     if (isDemoMode) return;
     if (isPickingRef.current || importing) return;
+    // A profile beyond the free limit takes no new statements.
+    if (!guardWrite()) return;
     isPickingRef.current = true;
 
     try {
@@ -247,6 +280,7 @@ export function useStatementImporter(options?: UseStatementImporterOptions) {
       return;
     }
     if (isPickingRef.current || importing) return;
+    if (!guardWrite()) return;
     isPickingRef.current = true;
 
     try {

@@ -2,7 +2,9 @@ import { CATEGORY_COLOR_PALETTE } from '@/constants/colors';
 import {
   createDebt,
   DebtInput,
+  getSavedDebtPlan,
   insertTransactions,
+  saveDebtPlan,
   SQLiteDatabase,
   syncDebtPayments,
   Transaction,
@@ -85,6 +87,11 @@ export async function seedDemoDebts(
   }
 
   await syncDebtPayments(db, profileId);
+
+  // A plan with an extra payment, so the debt-free card and the simulator have a result to show.
+  if (!(await getSavedDebtPlan(db, profileId))) {
+    await saveDebtPlan(db, profileId, { extraMonthly: 100, strategy: 'AVALANCHE', lumpSums: [] });
+  }
 }
 
 export async function seedExpandedDemoData(db: SQLiteDatabase, profileId: number): Promise<void> {

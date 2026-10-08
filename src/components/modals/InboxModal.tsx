@@ -151,6 +151,13 @@ export function InboxModal({ visible, anchor, items, onClose, onAction, onDismis
           subtitle: t('inbox.backupSub'),
           action: t('inbox.backUp'),
         };
+      case 'PRO_OFFER':
+        return {
+          icon: 'sparkles-outline',
+          title: t('inbox.proTitle'),
+          subtitle: t('inbox.proSub'),
+          action: t('common.view'),
+        };
     }
   };
 

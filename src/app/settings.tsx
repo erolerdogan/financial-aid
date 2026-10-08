@@ -1,8 +1,10 @@
 import { BackupRestoreModal } from '@/components/modals/BackupRestoreModal';
 import { PasscodeModal, type PasscodeModalMode } from '@/components/modals/PasscodeModal';
+import { ReadOnlySheetHost } from '@/components/pro/ReadOnlySheet';
 import { ProfileSwitcherModal } from '@/components/ProfileSwitcherModal';
 import { SelectableText } from '@/components/SelectableText';
 import { faqTranslate } from '@/content/faq';
+import { useEntitlement } from '@/contexts/EntitlementContext';
 import { ImportSummaryHost } from '@/contexts/ImportResultContext';
 import { useI18n } from '@/contexts/LanguageContext';
 import { usePasscode } from '@/contexts/PasscodeContext';
@@ -10,7 +12,11 @@ import { CURRENCY_SYMBOLS, useProfile } from '@/contexts/ProfileContext';
 import { THEMES, useTheme } from '@/contexts/ThemeContext';
 import { clearAllData } from '@/db/database';
 import { LANGUAGES, LanguageCode } from '@/i18n';
+import { usePaywall } from '@/hooks/usePaywall';
+import { useProfileAccess } from '@/hooks/useProfileAccess';
 import { useStatementImporter } from '@/hooks/useStatementImporter';
+import { restore } from '@/services/purchases';
+import { isThemeLocked } from '@/utils/entitlement';
 import {
   cancelCurrentMonthReminders,
   requestAndScheduleImportReminders
@@ -45,6 +51,9 @@ export default function SettingsScreen() {
   const { t, language, storedLanguage, setLanguage } = useI18n();
   const router = useRouter();
   const db = useSQLiteContext();
+  const { isPro, source, setDevOverride, refresh: refreshEntitlement } = useEntitlement();
+  const { openPaywall } = usePaywall();
+  const { guardWrite } = useProfileAccess();
 
   const [loading, setLoading] = useState(false);
   const [profileModalVisible, setProfileModalVisible] = useState(false);
@@ -76,6 +85,23 @@ export default function SettingsScreen() {
     Haptics.selectionAsync();
     setLanguage(code);
     setLanguageModalVisible(false);
+  };
+
+  const handleRestorePurchases = async () => {
+    try {
+      const result = await restore();
+      if (result === 'success') {
+        refreshEntitlement();
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        Alert.alert(t('paywall.successTitle'), t('paywall.successMessage'));
+      } else if (result === 'nothingToRestore') {
+        Alert.alert(t('paywall.nothingToRestoreTitle'), t('paywall.nothingToRestoreMessage'));
+      } else {
+        Alert.alert(t('paywall.comingSoonTitle'), t('paywall.comingSoonMessage'));
+      }
+    } catch (error) {
+      console.error('Restore failed:', error);
+    }
   };
 
   const handleSelectCurrency = (newCurrencyCode: string) => {
@@ -271,6 +297,67 @@ export default function SettingsScreen() {
           <SelectableText style={[styles.sectionNote, { color: colors.textSecondary }]}>{t('settings.demoNote')}</SelectableText>
         )}
 
+        {/* SUBSCRIPTION SECTION */}
+        <SelectableText style={[styles.sectionHeader, { color: colors.textSecondary }]}>{t('settings.subscription')}</SelectableText>
+        <View style={[styles.cardGroup, { backgroundColor: colors.card }]}>
+          <View style={styles.rowItem}>
+            <View style={styles.rowLeft}>
+              <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
+                <Ionicons name="sparkles-outline" size={18} color={colors.accent} />
+              </View>
+              <SelectableText style={[styles.rowTitle, { color: colors.text }]}>{t('settings.planLabel')}</SelectableText>
+            </View>
+            <SelectableText style={[styles.actionBadgeText, { color: colors.accent }]}>
+              {t(source === 'dev' ? 'settings.planDev' : source === 'pro' ? 'settings.planPro' : 'settings.planFree')}
+            </SelectableText>
+          </View>
+
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+          <TouchableOpacity style={styles.rowItem} activeOpacity={0.7} onPress={() => openPaywall()}>
+            <View style={styles.rowLeft}>
+              <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
+                <Ionicons name="star-outline" size={18} color={colors.accent} />
+              </View>
+              <Text style={[styles.rowTitle, { color: colors.text }]}>{t('pro.seePro')}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+          </TouchableOpacity>
+
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+          <TouchableOpacity style={styles.rowItem} activeOpacity={0.7} onPress={handleRestorePurchases}>
+            <View style={styles.rowLeft}>
+              <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
+                <Ionicons name="refresh-outline" size={18} color={colors.accent} />
+              </View>
+              <Text style={[styles.rowTitle, { color: colors.text }]}>{t('paywall.restore')}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+          </TouchableOpacity>
+
+          {__DEV__ && (
+            <>
+              <View style={[styles.divider, { backgroundColor: colors.border }]} />
+              <View style={styles.rowItem}>
+                <View style={styles.rowLeft}>
+                  <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
+                    <Ionicons name="construct-outline" size={18} color={colors.accent} />
+                  </View>
+                  <SelectableText style={[styles.rowTitle, { color: colors.text }]}>{t('settings.devPro')}</SelectableText>
+                </View>
+                <Switch
+                  value={source === 'dev'}
+                  onValueChange={setDevOverride}
+                  trackColor={{ false: '#78788029', true: colors.accent }}
+                  thumbColor="#FFFFFF"
+                  ios_backgroundColor="#78788029"
+                />
+              </View>
+            </>
+          )}
+        </View>
+
         {/* PREFERENCES SECTION */}
         <SelectableText style={[styles.sectionHeader, { color: colors.textSecondary }]}>{t('settings.preferences')}</SelectableText>
         <View style={[styles.cardGroup, { backgroundColor: colors.card }]}>
@@ -278,7 +365,7 @@ export default function SettingsScreen() {
           <TouchableOpacity
             style={styles.rowItem}
             activeOpacity={0.7}
-            onPress={() => setCurrencyModalVisible(true)}
+            onPress={() => guardWrite(() => setCurrencyModalVisible(true))}
           >
             <View style={styles.rowLeft}>
               <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
@@ -439,15 +526,25 @@ export default function SettingsScreen() {
             {THEMES.map((theme) => {
               const selected = theme.name === themeName;
               const preview = isDark ? theme.dark : theme.light;
+              // A Pro theme that is still active stays; it is only locked once another one is picked.
+              const locked = !selected && isThemeLocked(isPro, theme.name);
               return (
                 <TouchableOpacity
                   key={theme.name}
                   style={styles.themeOption}
                   activeOpacity={0.8}
                   accessibilityRole="button"
-                  accessibilityLabel={t('settings.themeLabel', { name: theme.label })}
+                  accessibilityLabel={
+                    locked
+                      ? t('pro.gateA11y', { label: t('settings.themeLabel', { name: theme.label }) })
+                      : t('settings.themeLabel', { name: theme.label })
+                  }
                   accessibilityState={{ selected }}
                   onPress={() => {
+                    if (locked) {
+                      openPaywall('themes');
+                      return;
+                    }
                     Haptics.selectionAsync();
                     setThemeName(theme.name);
                   }}
@@ -460,6 +557,7 @@ export default function SettingsScreen() {
                       style={styles.themeSwatch}
                     >
                       {selected && <Ionicons name="checkmark" size={20} color={preview.onGradient} />}
+                      {locked && <Ionicons name="lock-closed" size={18} color={preview.onGradient} />}
                     </LinearGradient>
                   </View>
                   <Text
@@ -537,6 +635,7 @@ export default function SettingsScreen() {
 
       {/* Profile Switcher Modal */}
       <ImportSummaryHost />
+      <ReadOnlySheetHost />
 
       <ProfileSwitcherModal
         visible={profileModalVisible}
