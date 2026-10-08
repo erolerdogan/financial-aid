@@ -44,7 +44,8 @@ export const tr: Translations = {
   'welcome.processing': 'Ekstre işleniyor...',
   'welcome.import': 'Banka ekstresi içe aktar',
   'welcome.importSub': 'CSV veya XLSX dosyası',
-  'welcome.shareHint': "Ya da banka uygulamanızda dışa aktarıp Paylaş → Financial Aid'i seçin",
+  'welcome.helpLink': 'Ekstre yardımı',
+  'welcome.restoreLink': 'Yedeği geri yükle',
   'welcome.demo': 'Demo alanını keşfet',
   'welcome.demoSub': 'Hazır örnek işlemler ve analizler',
 

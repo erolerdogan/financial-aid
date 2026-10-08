@@ -32,7 +32,7 @@ npx tsc --noEmit   # type check (also run in CI)
 npm test           # every src/**/*.test.ts with tsx; "npm test -- freedom" runs matching files
 ```
 
-On first launch the welcome screen offers two paths: import a statement, or open the demo workspace to explore the app with sample data.
+On first launch the welcome screen offers two paths: import a statement, or open the demo workspace to explore the app with sample data. A backup from another device or an earlier install can be restored from the same screen.
 
 ### Website
 
@@ -56,7 +56,7 @@ npm run site       # writes site-dist/
 - Import from the share sheet: export the statement in your bank app, choose Share and pick Financial Aid. The file is imported into the active profile, the same way as a picked file.
 - Recognises the export layouts of ING, ABN AMRO, Rabobank, bunq, Revolut, Wise and N26 from the header row and reads each with its own column map: pending, reverted and cancelled rows are left out, fees are included in the amount, and day-first dates are not flagged. The summary sheet names the recognised bank. Files from other banks are read by guessing the columns from their headers.
 - Reads text files in UTF-8, UTF-16 or Windows-1252.
-- Export guides: "How do I get my statement?" on the welcome screen, the empty Home screen and in Settings opens a short, numbered guide per bank (ING, Rabobank, ABN AMRO, bunq, Revolut, N26, Wise, plus general steps for any other bank) showing where the bank keeps its CSV or Excel download. The bank's menu names are shown as the bank spells them. The "File Not Supported" and "No Transactions Found" alerts link to the same guides.
+- Export guides: "Statement help" on the welcome screen and "How do I get my statement?" on the empty Home screen and in Settings open a short, numbered guide per bank (ING, Rabobank, ABN AMRO, bunq, Revolut, N26, Wise, plus general steps for any other bank) showing where the bank keeps its CSV or Excel download. The bank's menu names are shown as the bank spells them. The "File Not Supported" and "No Transactions Found" alerts link to the same guides.
 - Skips duplicates, so importing overlapping statements is safe.
 - Shows a summary sheet after each import: transactions added, date range covered, income and spending totals, duplicates skipped, dates that need checking and debt payments linked.
 - Builds a readable merchant name per transaction: prefers the counterparty name, strips payment processor prefixes, card and terminal codes, reference numbers, IBANs and dates, and shows well-known shops under one name (for example "Albert Heijn" for every store). A row with nothing readable gets its payment type as title instead of a code.
@@ -211,6 +211,7 @@ npm run site       # writes site-dist/
 - Restore replaces all data on the device with the backup; nothing is merged. Before anything changes, the app shows what is in the backup, what is on the device, and whether the device has newer transactions that would be removed.
 - The data replaced by a restore is kept as a safety copy; "Undo Last Restore" brings it back.
 - Backups from older app versions are upgraded on restore. Files that are damaged, not a backup, or from a newer app version are refused and nothing is changed.
+- "Restore backup" is also on the welcome screen, so a new or reinstalled device needs no statement import first.
 - Export Transactions (same sheet) saves all transactions of the active profile as a CSV or Excel file (date, merchant, category, amount, bank text). It is a readable file, not a backup, and is never encrypted.
 
 ## Privacy

@@ -1,4 +1,5 @@
 import { ImportProgressOverlay } from '@/components/ImportProgressOverlay';
+import { BackupRestoreModal } from '@/components/modals/BackupRestoreModal';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -8,7 +9,7 @@ import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import React from 'react';
+import React, { useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -17,6 +18,7 @@ export default function WelcomeScreen() {
   const { setIsDemoMode, refreshProfiles, activeProfile, profiles, switchProfile } = useProfile();
   const { colors } = useTheme();
   const { t } = useI18n();
+  const [restoreVisible, setRestoreVisible] = useState(false);
 
   const { importStatement, importing } = useStatementImporter({
     onSuccess: async () => {
@@ -35,6 +37,17 @@ export default function WelcomeScreen() {
       await setIsDemoMode(true);
       router.replace('/(tabs)');
     }
+  };
+
+  const handleOpenRestore = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setRestoreVisible(true);
+  };
+
+  // The root layout routes only once, so leave Welcome here.
+  const handleRestored = () => {
+    setRestoreVisible(false);
+    router.replace('/(tabs)');
   };
 
   const gradientColors = [colors.background, colors.tintBackground, colors.background] as const;
@@ -107,21 +120,46 @@ export default function WelcomeScreen() {
             <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.guideLink}
-            onPress={() => router.push('/export-guide')}
-            activeOpacity={0.7}
-            disabled={importing}
-            accessibilityRole="link"
-          >
-            <Ionicons name="help-circle-outline" size={16} color={colors.accent} />
-            <Text style={[styles.guideLinkText, { color: colors.accent }]}>{t('guide.link')}</Text>
-          </TouchableOpacity>
+          <View style={styles.linkRow}>
+            <TouchableOpacity
+              style={styles.link}
+              onPress={() => router.push('/export-guide')}
+              activeOpacity={0.7}
+              disabled={importing}
+              accessibilityRole="link"
+              accessibilityLabel={t('guide.link')}
+            >
+              <Ionicons name="help-circle-outline" size={16} color={colors.accent} />
+              <Text style={[styles.linkText, { color: colors.accent }]} numberOfLines={2}>
+                {t('welcome.helpLink')}
+              </Text>
+            </TouchableOpacity>
 
-          <Text style={[styles.shareHint, { color: colors.textSecondary }]}>{t('welcome.shareHint')}</Text>
+            <View style={[styles.linkDivider, { backgroundColor: colors.border }]} />
+
+            <TouchableOpacity
+              style={styles.link}
+              onPress={handleOpenRestore}
+              activeOpacity={0.7}
+              disabled={importing}
+              accessibilityRole="button"
+              accessibilityLabel={t('backup.restoreFrom')}
+            >
+              <Ionicons name="cloud-download-outline" size={16} color={colors.accent} />
+              <Text style={[styles.linkText, { color: colors.accent }]} numberOfLines={2}>
+                {t('welcome.restoreLink')}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </SafeAreaView>
       <ImportProgressOverlay />
+      <BackupRestoreModal
+        restoreOnly
+        visible={restoreVisible}
+        onClose={() => setRestoreVisible(false)}
+        onRestored={handleRestored}
+      />
     </LinearGradient>
   );
 }
@@ -201,13 +239,16 @@ const styles = StyleSheet.create({
   buttonSubtext: { color: 'rgba(255,255,255,0.75)', fontSize: 12, marginTop: 2, fontWeight: '500' },
   secondaryButtonText: { fontSize: 17, fontWeight: '700', letterSpacing: -0.3 },
   buttonSubtextSecondary: { fontSize: 12, marginTop: 2, fontWeight: '500' },
-  guideLink: {
+  linkRow: { flexDirection: 'row', alignItems: 'center', minHeight: 44 },
+  link: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
     minHeight: 44,
+    paddingHorizontal: 8,
   },
-  guideLinkText: { fontSize: 15, fontWeight: '600' },
-  shareHint: { fontSize: 12, fontWeight: '500', textAlign: 'center', paddingHorizontal: 12 },
+  linkText: { flexShrink: 1, fontSize: 14, fontWeight: '600', textAlign: 'center' },
+  linkDivider: { width: StyleSheet.hairlineWidth, height: 18 },
 });

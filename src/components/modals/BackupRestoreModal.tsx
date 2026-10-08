@@ -42,6 +42,10 @@ import {
 interface BackupRestoreModalProps {
   visible: boolean;
   onClose: () => void;
+  /** Welcome screen: only the restore row, and the file picker opens as soon as the sheet shows. */
+  restoreOnly?: boolean;
+  /** Called when the user closes the "Restore Complete" alert. */
+  onRestored?: () => void;
 }
 
 type BusyAction = 'backup' | 'restore' | 'undo' | 'export';
@@ -63,7 +67,7 @@ const ERROR_MESSAGES: Record<BackupError['code'], TranslationKey> = {
 
 const DATE_OPTIONS: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' };
 
-export function BackupRestoreModal({ visible, onClose }: BackupRestoreModalProps) {
+export function BackupRestoreModal({ visible, onClose, restoreOnly, onRestored }: BackupRestoreModalProps) {
   const db = useSQLiteContext();
   const { colors } = useTheme();
   const { t, format, categoryName } = useI18n();
@@ -114,7 +118,8 @@ export function BackupRestoreModal({ visible, onClose }: BackupRestoreModalProps
 
   const handleShow = () => {
     resetStep();
-    refreshStatus();
+    if (restoreOnly) handleRestore();
+    else refreshStatus();
   };
 
   const handleClose = () => {
@@ -188,7 +193,7 @@ export function BackupRestoreModal({ visible, onClose }: BackupRestoreModalProps
     runBackup();
   };
 
-  const apply = async (backup: PendingBackup, action: BusyAction) => {
+  const apply = async (backup: PendingBackup, action: BusyAction, deviceWasEmpty: boolean) => {
     setBusy(action);
     try {
       await applyBackup(db, backup);
@@ -198,9 +203,12 @@ export function BackupRestoreModal({ visible, onClose }: BackupRestoreModalProps
       await reloadAfterRestore();
       await refreshStatus();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // Nothing was replaced on an empty device, so there is no safety copy worth mentioning.
+      const nowOnDevice = t('backup.nowOnDevice', { counts: describeCounts(backup.summary) });
       Alert.alert(
         action === 'undo' ? t('backup.undoneTitle') : t('backup.completeTitle'),
-        `${t('backup.nowOnDevice', { counts: describeCounts(backup.summary) })}\n\n${t('backup.safetyKept')}`
+        deviceWasEmpty ? nowOnDevice : `${nowOnDevice}\n\n${t('backup.safetyKept')}`,
+        [{ text: t('common.ok'), onPress: () => onRestored?.() }]
       );
     } catch (error) {
       showError(t('backup.restoreFailedTitle'), error);
@@ -222,7 +230,7 @@ export function BackupRestoreModal({ visible, onClose }: BackupRestoreModalProps
     if (device.transactions === 0) {
       Alert.alert(t('backup.restoreTitle'), backupLine, [
         cancel,
-        { text: t('backup.restore'), onPress: () => apply(backup, action) },
+        { text: t('backup.restore'), onPress: () => apply(backup, action, true) },
       ], { cancelable: false });
       return;
     }
@@ -246,7 +254,7 @@ export function BackupRestoreModal({ visible, onClose }: BackupRestoreModalProps
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     Alert.alert(t('backup.replaceTitle'), lines.join('\n\n'), [
       cancel,
-      { text: t('backup.replaceConfirm'), style: 'destructive', onPress: () => apply(backup, action) },
+      { text: t('backup.replaceConfirm'), style: 'destructive', onPress: () => apply(backup, action, false) },
     ], { cancelable: false });
   };
 
@@ -421,18 +429,24 @@ export function BackupRestoreModal({ visible, onClose }: BackupRestoreModalProps
     <>
       <View style={styles.header}>
         <View style={[styles.handle, { backgroundColor: colors.border }]} />
-        <Text style={[styles.title, { color: colors.text }]}>{t('settings.backup')}</Text>
+        <Text style={[styles.title, { color: colors.text }]}>
+          {restoreOnly ? t('backup.restoreFrom') : t('settings.backup')}
+        </Text>
       </View>
 
-      {renderRow(
-        'backup',
-        'cloud-upload-outline',
-        t('backup.backUp'),
-        lastBackup ? t('backup.lastBackup', { date: formatDate(lastBackup) }) : t('backup.never'),
-        handleBackup
-      )}
+      {!restoreOnly && (
+        <>
+          {renderRow(
+            'backup',
+            'cloud-upload-outline',
+            t('backup.backUp'),
+            lastBackup ? t('backup.lastBackup', { date: formatDate(lastBackup) }) : t('backup.never'),
+            handleBackup
+          )}
 
-      <View style={[styles.divider, { backgroundColor: colors.border }]} />
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+        </>
+      )}
 
       {renderRow(
         'restore',
@@ -442,7 +456,7 @@ export function BackupRestoreModal({ visible, onClose }: BackupRestoreModalProps
         handleRestore
       )}
 
-      {safetyCopy && (
+      {!restoreOnly && safetyCopy && (
         <>
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
           {renderRow(
@@ -455,21 +469,25 @@ export function BackupRestoreModal({ visible, onClose }: BackupRestoreModalProps
         </>
       )}
 
-      <View style={[styles.divider, { backgroundColor: colors.border }]} />
+      {!restoreOnly && (
+        <>
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
-      {renderRow(
-        'export',
-        'download-outline',
-        t('backup.export'),
-        t('backup.exportSub', { profile: activeProfile?.name ?? '' }),
-        handleExport
+          {renderRow(
+            'export',
+            'download-outline',
+            t('backup.export'),
+            t('backup.exportSub', { profile: activeProfile?.name ?? '' }),
+            handleExport
+          )}
+
+          <Text style={[styles.footer, { color: colors.textSecondary }]}>
+            {isDemoMode
+              ? t('backup.demoNote')
+              : t('backup.footer')}
+          </Text>
+        </>
       )}
-
-      <Text style={[styles.footer, { color: colors.textSecondary }]}>
-        {isDemoMode
-          ? t('backup.demoNote')
-          : t('backup.footer')}
-      </Text>
     </>
   );
 

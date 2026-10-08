@@ -44,7 +44,8 @@ export const es: Translations = {
   'welcome.processing': 'Procesando extracto...',
   'welcome.import': 'Importar extracto bancario',
   'welcome.importSub': 'Archivo CSV o XLSX',
-  'welcome.shareHint': 'O exporta desde la app de tu banco y elige Compartir → Financial Aid',
+  'welcome.helpLink': 'Ayuda con el extracto',
+  'welcome.restoreLink': 'Restaurar copia',
   'welcome.demo': 'Explorar la demo',
   'welcome.demoSub': 'Movimientos y análisis de ejemplo ya cargados',
 

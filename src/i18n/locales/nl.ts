@@ -44,7 +44,8 @@ export const nl: Translations = {
   'welcome.processing': 'Afschrift verwerken...',
   'welcome.import': 'Bankafschrift importeren',
   'welcome.importSub': 'CSV- of XLSX-bestand',
-  'welcome.shareHint': 'Of exporteer in je bankapp en kies Deel → Financial Aid',
+  'welcome.helpLink': 'Hulp bij afschrift',
+  'welcome.restoreLink': 'Back-up terugzetten',
   'welcome.demo': 'Demo-omgeving bekijken',
   'welcome.demoSub': 'Voorbeeldtransacties en analyses staan klaar',
 

@@ -44,7 +44,8 @@ export const de: Translations = {
   'welcome.processing': 'Kontoauszug wird verarbeitet...',
   'welcome.import': 'Kontoauszug importieren',
   'welcome.importSub': 'CSV- oder XLSX-Datei',
-  'welcome.shareHint': 'Oder in der Banking-App exportieren und Teilen → Financial Aid wählen',
+  'welcome.helpLink': 'Hilfe zum Kontoauszug',
+  'welcome.restoreLink': 'Backup wiederherstellen',
   'welcome.demo': 'Demo ansehen',
   'welcome.demoSub': 'Mit Beispielumsätzen und Auswertungen',
 

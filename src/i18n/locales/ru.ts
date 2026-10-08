@@ -47,7 +47,8 @@ export const ru: Translations = {
   'welcome.processing': 'Обработка выписки...',
   'welcome.import': 'Импортировать выписку',
   'welcome.importSub': 'Файл CSV или XLSX',
-  'welcome.shareHint': 'Или экспортируйте выписку в приложении банка и выберите «Поделиться» → Financial Aid',
+  'welcome.helpLink': 'Помощь с выпиской',
+  'welcome.restoreLink': 'Восстановить копию',
   'welcome.demo': 'Открыть демо',
   'welcome.demoSub': 'Готовые примеры операций и аналитики',
 

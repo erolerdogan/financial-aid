@@ -13,6 +13,8 @@
 - Restore validates an in-memory copy, writes `pre-restore.db` to the document directory (used by "Undo Last Restore"), then calls `replaceDatabaseContents` (`backupDatabaseAsync` + `initDatabase`) and `reloadAfterRestore` in ProfileContext.
 - Backups with `user_version > CLASSIFIER_VERSION` are refused.
 - A restore replaces `app_meta` as well. ("Reset" does not: `app_meta` survives it.)
+- Welcome opens the same sheet with `restoreOnly` ("Restore backup" link, `welcome.restoreLink`): only the restore row, and the file picker opens from `onShow`. A cancelled picker leaves the one-row sheet. `onRestored` fires from the "Restore Complete" alert; Welcome uses it to `router.replace('/(tabs)')`, because `AppInitializer` routes only once.
+- When the device had no transactions before the restore, the "Restore Complete" alert leaves out the safety copy sentence (`pre-restore.db` is still written).
 
 ## Encrypted backups
 

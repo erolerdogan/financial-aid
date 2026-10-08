@@ -44,7 +44,8 @@ export const fr: Translations = {
   'welcome.processing': 'Traitement du relevé...',
   'welcome.import': 'Importer un relevé bancaire',
   'welcome.importSub': 'Fichier CSV ou XLSX',
-  'welcome.shareHint': 'Ou exportez depuis l’app de votre banque et choisissez Partager → Financial Aid',
+  'welcome.helpLink': 'Aide pour le relevé',
+  'welcome.restoreLink': 'Restaurer une sauvegarde',
   'welcome.demo': 'Explorer la démo',
   'welcome.demoSub': 'Opérations et analyses d’exemple déjà chargées',
 

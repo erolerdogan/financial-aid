@@ -43,7 +43,8 @@ export const en = {
   'welcome.processing': 'Processing Statement...',
   'welcome.import': 'Import Bank Statement',
   'welcome.importSub': 'CSV or XLSX file format',
-  'welcome.shareHint': 'Or export in your bank app and choose Share → Financial Aid',
+  'welcome.helpLink': 'Statement help',
+  'welcome.restoreLink': 'Restore backup',
   'welcome.demo': 'Explore Demo Workspace',
   'welcome.demoSub': 'Pre-loaded sample transactions & analytics',
 
