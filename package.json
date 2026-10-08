@@ -62,7 +62,8 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "test": "node ./scripts/run-tests.js",
-    "site": "npx tsx scripts/build-site.ts"
+    "site": "npx tsx scripts/build-site.ts",
+    "icons": "node ./scripts/build-icons.js"
   },
   "private": true
 }

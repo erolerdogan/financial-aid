@@ -9,6 +9,7 @@ React Native / Expo SDK 57, TypeScript, Expo Router, expo-sqlite. Local-first pe
 - `npm test`: every `src/**/*.test.ts` with tsx (`scripts/run-tests.js`). `npm test -- freedom` runs the files whose path contains that word; one file: `npx tsx src/utils/freedom.test.ts`.
 - `npm run lint`: ESLint.
 - `npm run site`: builds the export-guide website into `site-dist/`.
+- `npm run icons`: regenerates the app icon PNGs and SVG sources from `scripts/build-icons.js` (macOS, needs Google Chrome); then rebuild natively.
 - `npx expo customize tsconfig.json`: after adding a route file, regenerates `.expo/types/router.d.ts` so `tsc` knows the new path.
 
 ## Hard rules
