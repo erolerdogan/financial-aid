@@ -605,8 +605,14 @@ export const it: Translations = {
   'import.noneMessage':
     'In questo file non sono stati trovati movimenti. Usa l’esportazione CSV o Excel della tua banca, con una colonna data e una colonna importo.',
   'import.unsupportedTitle': 'File non supportato',
-  'import.unsupported.pdf':
-    'Gli estratti in PDF non si possono importare. Scarica l’estratto dalla tua banca in CSV o Excel e importa quel file.',
+  'import.unsupported.pdfLayout':
+    'Questo PDF non è un estratto che l’app può leggere. L’importazione da PDF funziona con gli estratti ABN AMRO; per le altre banche scarica l’estratto in CSV o Excel.',
+  'import.unsupported.pdfScanned':
+    'Questo PDF è una scansione o una foto e non contiene testo leggibile. Scarica l’estratto dalla tua banca e importa quel file.',
+  'import.unsupported.pdfDamaged':
+    'Questo PDF non si può aprire. Potrebbe essere danneggiato o incompleto; scaricalo di nuovo dalla tua banca.',
+  'import.unsupported.pdfPassword':
+    'Questo PDF è protetto da password. Salva una copia senza password e importa quella.',
   'import.unsupported.image':
     'Foto e screenshot non si possono importare. Scarica l’estratto dalla tua banca in CSV o Excel e importa quel file.',
   'import.unsupported.bankFormat':
@@ -630,6 +636,31 @@ export const it: Translations = {
   'import.debtLinked_one': '{count} rata di debito collegata',
   'import.debtLinked_other': '{count} rate di debito collegate',
   'import.recognisedAs': 'Riconosciuto come {bank}',
+  'import.fileFailedTitle': 'Estratto non importato',
+  'import.failure.totalDebit':
+    'Gli addebiti sommano {parsed}, ma l’estratto riporta {expected}. Da questo file non è stato importato nulla.',
+  'import.failure.totalCredit':
+    'Gli accrediti sommano {parsed}, ma l’estratto riporta {expected}. Da questo file non è stato importato nulla.',
+  'import.failure.newBalance':
+    'Il nuovo saldo risulta {parsed}, ma l’estratto riporta {expected}. Da questo file non è stato importato nulla.',
+  'import.failure.unreadable':
+    'Una parte di questo estratto non è stata letta, quindi non ne è stato importato nulla.',
+  'import.failure.timeout': 'La lettura di questo PDF ha richiesto troppo tempo. Riprova.',
+  'import.failure.empty': 'Nessuna transazione trovata in questo file.',
+  'import.progress': 'Lettura dell’estratto {current} di {total}',
+  'import.statementsRead_one': '{count} estratto letto',
+  'import.statementsRead_other': '{count} estratti letti',
+  'import.totalsChecked': 'Verificato con i totali dell’estratto',
+  'import.possibleDuplicates_one': '{count} possibile duplicato saltato',
+  'import.possibleDuplicates_other': '{count} possibili duplicati saltati',
+  'import.filesSkipped_one': '{count} file non è stato importato',
+  'import.filesSkipped_other': '{count} file non sono stati importati',
+  'import.problem.duplicate':
+    'L’estratto {statement} è stato selezionato due volte; la seconda copia è stata saltata.',
+  'import.problem.gap':
+    'Gli estratti {after} e {next} non combaciano: il saldo differisce di {difference}. Probabilmente manca un estratto in mezzo.',
+  'import.problem.numbering':
+    'All’estratto {after} segue il {next}. I saldi combaciano, quindi il numero intermedio probabilmente non aveva transazioni.',
   'import.spending': 'Uscite',
   'import.viewDashboard': 'Vai alla panoramica',
 

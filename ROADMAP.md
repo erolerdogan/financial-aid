@@ -17,7 +17,8 @@ Status notes were checked against the code on 2026-10-07.
 
 ## Known gaps noted in the docs
 
-- Pro gating: score history and "Export PDF" are enabled for everyone; there is no `useEntitlement()` / `FEATURES`, and each gate is marked `// TODO(pro)`.
+- Pro gating: score history, "Export PDF" and PDF statement import are enabled for everyone; there is no `useEntitlement()` / `FEATURES`, and each gate is marked `// TODO(pro)`.
+- PDF statement import: only ABN AMRO, verified against three real statements (2023, 2024, 2025) and not yet run on a device. See the limits in `docs/import.md`.
 - Bank layouts in `src/utils/bankFormats.ts` come from the banks' documented exports and have not been checked against live files.
 - Translations have not been reviewed by native speakers.
 - Stored merchant names are not backfilled when `deriveMerchant` changes.

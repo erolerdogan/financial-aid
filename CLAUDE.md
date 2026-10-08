@@ -9,6 +9,7 @@ React Native / Expo SDK 57, TypeScript, Expo Router, expo-sqlite. Local-first pe
 - `npm test`: every `src/**/*.test.ts` with tsx (`scripts/run-tests.js`). `npm test -- freedom` runs the files whose path contains that word; one file: `npx tsx src/utils/freedom.test.ts`.
 - `npm run lint`: ESLint.
 - `npm run site`: builds the export-guide website into `site-dist/`.
+- `npm run pdfhost`: rebuilds `assets/pdf/pdfhost.html` (pdf.js inlined, for PDF statement import) after changing the `pdfjs-dist` version or the page script.
 - `npm run icons`: regenerates the app icon PNGs and SVG sources from `scripts/build-icons.js` (macOS, needs Google Chrome); then rebuild natively.
 - `npx expo customize tsconfig.json`: after adding a route file, regenerates `.expo/types/router.d.ts` so `tsc` knows the new path.
 
@@ -28,6 +29,7 @@ React Native / Expo SDK 57, TypeScript, Expo Router, expo-sqlite. Local-first pe
 - Does not resolve under this tsconfig: importing Reanimated directly (use RN `Animated` / `PanResponder`) and `@noble/hashes` v2 (stay on v1).
 - Any area with its own horizontal gesture must block the tab swipe (`useBlockTabSwipe()` or `TabSwipeBlocker`).
 - Projections are labelled "est." with "Projection, not guaranteed. Not financial advice."; Budget Health with "Guidance, not financial advice."
+- IMPORTANT: Real bank statements for tests live in `scripts/fixtures/private/` (gitignored). Never copy their content, or JSON made from them, into a committed file or a test fixture; tests use made-up data. A PDF statement whose totals do not match is never imported.
 - Bank export guide steps come from the bank's help page (`sourceUrl`); never write them from memory.
 - Strict TypeScript. Follow Apple HIG. Don't modify unrelated files.
 - Start with a short plan; end with a summary of changed files and whether a native rebuild is needed.
@@ -35,7 +37,7 @@ React Native / Expo SDK 57, TypeScript, Expo Router, expo-sqlite. Local-first pe
 ## Map
 - Source in `src/` (`@/` alias → `src/`). Routes in `src/app`, tabs in `src/app/(tabs)`.
 - Schema and all queries: `src/db/database.ts` (debt math and payment linking at the bottom). Demo seed: `src/db/demoSeeder.ts`.
-- Import: `src/hooks/useStatementImporter.ts` (picker and share sheet) → `src/services/importService.ts` → `src/utils/parser.ts`. Bank layouts: `src/utils/bankFormats.ts`.
+- Import: `src/hooks/useStatementImporter.ts` (picker and share sheet) → `src/services/importService.ts` → `src/utils/parser.ts`. Bank layouts: `src/utils/bankFormats.ts`. PDF statements: `src/services/pdfText.ts` + `src/components/PdfTextHost.tsx` (text, hidden WebView) → `src/utils/pdfStatements/` (parsers, totals check, chain check).
 - Currency, demo mode, active profile: `src/contexts/ProfileContext.tsx`. Switching currency rewrites stored transaction, debt and household amounts with hardcoded `DEFAULT_EXCHANGE_RATES` (not `freedom_plans`).
 - Picked period: `PeriodContext`. Theme and Home chart type: `ThemeContext`. Language: `LanguageContext`, `src/i18n/`.
 - `app_meta`: key/value table (theme, language, last backup date, dismissals, intro flags). It survives "Reset" and is replaced by a restore.
@@ -54,7 +56,7 @@ Naming traps:
 ## Feature docs
 | File | Covers |
 | --- | --- |
-| `docs/import.md` | Import flow, dedup, unsupported files, column detection, bank formats, merchant names, share sheet, export guides, website |
+| `docs/import.md` | Import flow, dedup, unsupported files, PDF statements, column detection, bank formats, merchant names, share sheet, export guides, website |
 | `docs/classifier.md` | Categorisation precedence, custom rules, learned history, built-in keywords, review screen, fixed vs. flexible |
 | `docs/debts.md` | Plan tab segments, payment linking, APR estimate, swipe rows, debt suggestions |
 | `docs/freedom.md` | Future Growth: layout, inputs, scenarios, persistence, math, goal solvers, reference test vector |
@@ -68,4 +70,4 @@ Naming traps:
 - New text exists in all nine locale files; no hardcoded colors, strings, month names or `toLocaleString('en-US')`.
 - Queries are scoped by `profileId`; schema changes are in `initDatabase` only.
 - Docs follow the code: the matching `docs/*.md` for behaviour and gotchas, `README.md` for the feature list (keep it updated), `ROADMAP.md` when an item is finished, this file only for rules and the map.
-- The final message lists the changed files and says whether a native rebuild is needed. It is needed after adding or upgrading a native module or changing `app.json` plugins (today: the `expo-sharing` share target, `expo-crypto`, `expo-print`).
+- The final message lists the changed files and says whether a native rebuild is needed. It is needed after adding or upgrading a native module or changing `app.json` plugins (today: the `expo-sharing` share target, `expo-crypto`, `expo-print`, `react-native-webview`).

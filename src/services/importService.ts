@@ -7,10 +7,23 @@ import {
   parseExcelContent,
   type PreviousKey,
 } from '@/utils/parser';
+import { extractPdfText } from '@/services/pdfText';
+import type { ImportFailure } from '@/utils/importFailure';
+import type { ChainProblem } from '@/utils/pdfStatements/chain';
+import { CrossFormatPool } from '@/utils/pdfStatements/crossDedup';
+import { numberIdenticalRows } from '@/utils/pdfStatements/numbering';
+import { hasNoText, parsePdfStatement } from '@/utils/pdfStatements/registry';
+import { pdfRowsToTransactions } from '@/utils/pdfStatements/toTransactions';
+import { PdfExtractError, type PdfPage, type PdfStatement } from '@/utils/pdfStatements/types';
 import {
   decodeStatementText,
   describeUnsupportedStatement,
+  isPdfFile,
   isSpreadsheetFile,
+  PDF_DAMAGED_MESSAGE,
+  PDF_LAYOUT_MESSAGE,
+  PDF_PASSWORD_MESSAGE,
+  PDF_SCANNED_MESSAGE,
   STATEMENT_HEAD_BYTES,
   UnsupportedFileError,
 } from '@/utils/statementFormat';
@@ -25,6 +38,8 @@ export interface ImportTransactionPayload {
   legacyRawDescription?: string;
   /** How earlier versions stored this row, when the bank's format changes its amount or text. */
   previousKeys?: PreviousKey[];
+  /** Rows read from a PDF statement: how to recognise the same booking in the bank's CSV export. */
+  crossKeys?: string[];
   merchant: string;
   category: string;
   monthName?: string;
@@ -47,6 +62,12 @@ export interface ImportResultSummary {
   linkedDebtPayments: number;
   /** The bank whose export layout was recognised, if any. */
   bank: BankId | null;
+  /** PDF rows left out because a stored row from another export looks like the same booking. */
+  possibleDuplicateCount: number;
+  /** PDF statements of this import: how many were read (each checked against its printed totals) and what the chain check found. */
+  statements: { read: number; dateFrom: string | null; dateTo: string | null; problems: ChainProblem[] } | null;
+  /** Files of this import that were left out, with the reason. */
+  failedFiles: { fileName: string; failure: ImportFailure }[];
 }
 
 const EMPTY_SUMMARY: ImportResultSummary = {
@@ -61,6 +82,9 @@ const EMPTY_SUMMARY: ImportResultSummary = {
   ambiguousDateCount: 0,
   linkedDebtPayments: 0,
   bank: null,
+  possibleDuplicateCount: 0,
+  statements: null,
+  failedFiles: [],
 };
 
 export function generateTransactionHash(date: string, amount: number, rawDescription: string): string {
@@ -88,16 +112,68 @@ function base64ToArrayBuffer(base64: string): ArrayBuffer {
   return bytes.buffer;
 }
 
+/** A file read for import: rows of a CSV / Excel export, or one PDF statement (checked against its totals). */
+export type StatementFile =
+  | { kind: 'table'; parsed: ParsedStatement }
+  | { kind: 'pdf'; statement: PdfStatement };
+
+async function readPdfStatement(fileUri: string): Promise<PdfStatement> {
+  let pages: PdfPage[];
+  try {
+    pages = await extractPdfText(fileUri);
+  } catch (error) {
+    if (error instanceof PdfExtractError && error.reason === 'DAMAGED') {
+      throw new UnsupportedFileError(PDF_DAMAGED_MESSAGE);
+    }
+    if (error instanceof PdfExtractError && error.reason === 'PASSWORD') {
+      throw new UnsupportedFileError(PDF_PASSWORD_MESSAGE);
+    }
+    throw error;
+  }
+
+  if (hasNoText(pages)) throw new UnsupportedFileError(PDF_SCANNED_MESSAGE);
+  const statement = parsePdfStatement(pages);
+  if (!statement) throw new UnsupportedFileError(PDF_LAYOUT_MESSAGE);
+  return statement;
+}
+
+/** The rows of PDF statements as import rows; identical same-day bookings are numbered across all of them. */
+export function pdfStatementsToTransactions(
+  statements: PdfStatement[],
+  customRules: CategoryRule[] = [],
+  learned?: LearnedCategories
+): ParsedStatement {
+  const banks = new Set(statements.map((statement) => statement.meta.bank));
+  const { rows } = numberIdenticalRows(statements.flatMap((statement) => statement.rows));
+  return pdfRowsToTransactions(rows, banks.size === 1 ? [...banks][0] : null, customRules, learned);
+}
+
+/** One file as import rows. Several PDF statements go through `readStatementFile` and `pdfStatementsToTransactions`. */
 export async function parseFileToTransactions(
   fileUri: string,
   fileName: string,
   customRules: CategoryRule[] = [],
   learned?: LearnedCategories
 ): Promise<ParsedStatement> {
+  const file = await readStatementFile(fileUri, fileName, customRules, learned);
+  return file.kind === 'pdf' ? pdfStatementsToTransactions([file.statement], customRules, learned) : file.parsed;
+}
+
+/**
+ * Reads a picked or shared file. A PDF (by its first bytes) goes to the PDF statement readers and
+ * throws when its totals do not match; anything else is read as CSV or Excel.
+ */
+export async function readStatementFile(
+  fileUri: string,
+  fileName: string,
+  customRules: CategoryRule[] = [],
+  learned?: LearnedCategories
+): Promise<StatementFile> {
   const cleanName = (fileName || '').toLowerCase();
 
   const cacheDir = FileSystem.cacheDirectory;
-  const tempDestination = `${cacheDir}${Date.now()}_${fileName}`;
+  // The name becomes part of a temp path; picked files can be called anything.
+  const tempDestination = `${cacheDir}${Date.now()}_${(fileName || 'statement').replace(/[^\w.-]+/g, '_')}`;
 
   await FileSystem.copyAsync({
     from: fileUri,
@@ -115,16 +191,21 @@ export async function parseFileToTransactions(
     const unsupported = describeUnsupportedStatement(cleanName, head);
     if (unsupported) throw new UnsupportedFileError(unsupported);
 
+    if (isPdfFile(head)) return { kind: 'pdf', statement: await readPdfStatement(tempDestination) };
+
     const base64Data = await FileSystem.readAsStringAsync(tempDestination, {
       encoding: FileSystem.EncodingType.Base64,
     });
     const arrayBuffer = base64ToArrayBuffer(base64Data);
 
     if (isSpreadsheetFile(cleanName, head)) {
-      return parseExcelContent(arrayBuffer, customRules, learned);
+      return { kind: 'table', parsed: parseExcelContent(arrayBuffer, customRules, learned) };
     }
     // Read as bytes: not every bank exports UTF-8.
-    return parseCSVContent(decodeStatementText(new Uint8Array(arrayBuffer)), customRules, learned);
+    return {
+      kind: 'table',
+      parsed: parseCSVContent(decodeStatementText(new Uint8Array(arrayBuffer)), customRules, learned),
+    };
   } finally {
     await FileSystem.deleteAsync(tempDestination, { idempotent: true });
   }
@@ -177,32 +258,59 @@ export async function processBatchImport(
     );
   `);
 
-  const existingRows = await db.getAllAsync<{ date: string; amount: number; rawDescription: string }>(
-    `SELECT date, amount, rawDescription FROM transactions WHERE profileId = ?;`,
-    [profileId]
-  );
+  const existingRows = await db.getAllAsync<{
+    date: string;
+    amount: number;
+    rawDescription: string;
+    counterpartyIban: string | null;
+  }>(`SELECT date, amount, rawDescription, counterpartyIban FROM transactions WHERE profileId = ?;`, [profileId]);
 
-  const existingHashSet = new Set<string>(
-    existingRows.map((r) => generateTransactionHash(r.date, r.amount, r.rawDescription))
-  );
+  const storedIndexByHash = new Map<string, number>();
+  existingRows.forEach((r, index) => {
+    const hash = generateTransactionHash(r.date, r.amount, r.rawDescription);
+    if (!storedIndexByHash.has(hash)) storedIndexByHash.set(hash, index);
+  });
+  const existingHashSet = new Set<string>(storedIndexByHash.keys());
+
+  // Every text a stored copy of the row can have: today's, the legacy single cell, and what
+  // earlier versions made of the bank's file.
+  const hashesOf = (item: ImportTransactionPayload): string[] => {
+    const hashes = [generateTransactionHash(item.date, item.amount, item.rawDescription)];
+    // Rows imported before name and memo columns were merged are stored under the legacy text.
+    if (item.legacyRawDescription !== undefined && item.legacyRawDescription !== item.rawDescription) {
+      hashes.push(generateTransactionHash(item.date, item.amount, item.legacyRawDescription));
+    }
+    for (const key of item.previousKeys ?? []) {
+      hashes.push(generateTransactionHash(key.date, key.amount, key.rawDescription));
+    }
+    return hashes;
+  };
+
+  // PDF rows read differently from the same bank's CSV rows, so they are also compared by date,
+  // amount and counterparty IBAN or card reference. A stored row that an incoming row matches
+  // exactly is not available for that.
+  const crossFormatPool = items.some((item) => item.crossKeys) ? new CrossFormatPool(existingRows) : null;
+  if (crossFormatPool) {
+    for (const item of items) {
+      for (const hash of hashesOf(item)) {
+        const index = storedIndexByHash.get(hash);
+        if (index !== undefined) crossFormatPool.use(index);
+      }
+    }
+  }
 
   const cleanTransactionsToInsert: Omit<Transaction, 'id'>[] = [];
   let skippedCount = 0;
+  let possibleDuplicateCount = 0;
 
   for (const item of items) {
-    const hash = generateTransactionHash(item.date, item.amount, item.rawDescription);
-    // Rows imported before name and memo columns were merged are stored under the legacy text.
-    const legacyHash =
-      item.legacyRawDescription !== undefined && item.legacyRawDescription !== item.rawDescription
-        ? generateTransactionHash(item.date, item.amount, item.legacyRawDescription)
-        : hash;
+    const hashes = hashesOf(item);
+    const hash = hashes[0];
 
-    const storedBefore = (item.previousKeys ?? []).some((key) =>
-      existingHashSet.has(generateTransactionHash(key.date, key.amount, key.rawDescription))
-    );
-
-    if (existingHashSet.has(hash) || existingHashSet.has(legacyHash) || storedBefore) {
+    if (hashes.some((candidate) => existingHashSet.has(candidate))) {
       skippedCount++;
+    } else if (item.crossKeys && crossFormatPool?.take(item.crossKeys)) {
+      possibleDuplicateCount++;
     } else {
       existingHashSet.add(hash);
       const cleanDate = (item.date || '').split('T')[0].trim();
@@ -265,5 +373,8 @@ export async function processBatchImport(
     ambiguousDateCount,
     linkedDebtPayments,
     bank,
+    possibleDuplicateCount,
+    statements: null,
+    failedFiles: [],
   };
 }

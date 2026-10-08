@@ -1,3 +1,4 @@
+import { PdfTextHost } from '@/components/PdfTextHost';
 import { SharedImportHost } from '@/components/SharedImportHost';
 import { ImportResultProvider } from '@/contexts/ImportResultContext';
 import { LanguageProvider } from '@/contexts/LanguageContext';
@@ -98,6 +99,7 @@ function AppInitializer() {
       />
     </Stack>
     <SharedImportHost />
+    <PdfTextHost />
     </>
   );
 }

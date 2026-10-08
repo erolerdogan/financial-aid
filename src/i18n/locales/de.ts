@@ -601,8 +601,14 @@ export const de: Translations = {
   'import.noneMessage':
     'In dieser Datei wurden keine Umsätze gefunden. Verwende den CSV- oder Excel-Export deiner Bank mit einer Datums- und einer Betragsspalte.',
   'import.unsupportedTitle': 'Datei nicht unterstützt',
-  'import.unsupported.pdf':
-    'PDF-Auszüge können nicht importiert werden. Lade den Auszug bei deiner Bank als CSV oder Excel herunter und importiere diese Datei.',
+  'import.unsupported.pdfLayout':
+    'Diese PDF ist kein Auszug, den die App lesen kann. Der PDF-Import funktioniert für Auszüge von ABN AMRO; lade den Auszug bei anderen Banken als CSV oder Excel herunter.',
+  'import.unsupported.pdfScanned':
+    'Diese PDF ist ein Scan oder Foto und enthält keinen lesbaren Text. Lade den Auszug bei deiner Bank herunter und importiere diese Datei.',
+  'import.unsupported.pdfDamaged':
+    'Diese PDF lässt sich nicht öffnen. Die Datei ist vielleicht beschädigt oder unvollständig; lade sie erneut bei deiner Bank herunter.',
+  'import.unsupported.pdfPassword':
+    'Diese PDF ist passwortgeschützt. Speichere eine Kopie ohne Passwort und importiere diese.',
   'import.unsupported.image':
     'Fotos und Screenshots können nicht importiert werden. Lade den Auszug bei deiner Bank als CSV oder Excel herunter und importiere diese Datei.',
   'import.unsupported.bankFormat':
@@ -626,6 +632,31 @@ export const de: Translations = {
   'import.debtLinked_one': '{count} Kreditrate verknüpft',
   'import.debtLinked_other': '{count} Kreditraten verknüpft',
   'import.recognisedAs': 'Als {bank} erkannt',
+  'import.fileFailedTitle': 'Auszug nicht importiert',
+  'import.failure.totalDebit':
+    'Die Belastungen ergeben {parsed}, auf dem Auszug steht aber {expected}. Aus dieser Datei wurde nichts importiert.',
+  'import.failure.totalCredit':
+    'Die Gutschriften ergeben {parsed}, auf dem Auszug steht aber {expected}. Aus dieser Datei wurde nichts importiert.',
+  'import.failure.newBalance':
+    'Der neue Saldo ergibt {parsed}, auf dem Auszug steht aber {expected}. Aus dieser Datei wurde nichts importiert.',
+  'import.failure.unreadable':
+    'Ein Teil dieses Auszugs konnte nicht gelesen werden, deshalb wurde nichts daraus importiert.',
+  'import.failure.timeout': 'Das Lesen dieser PDF hat zu lange gedauert. Versuche es noch einmal.',
+  'import.failure.empty': 'In dieser Datei wurden keine Transaktionen gefunden.',
+  'import.progress': 'Auszug {current} von {total} wird gelesen',
+  'import.statementsRead_one': '{count} Auszug gelesen',
+  'import.statementsRead_other': '{count} Auszüge gelesen',
+  'import.totalsChecked': 'Mit den Summen des Auszugs abgeglichen',
+  'import.possibleDuplicates_one': '{count} mögliches Duplikat übersprungen',
+  'import.possibleDuplicates_other': '{count} mögliche Duplikate übersprungen',
+  'import.filesSkipped_one': '{count} Datei wurde nicht importiert',
+  'import.filesSkipped_other': '{count} Dateien wurden nicht importiert',
+  'import.problem.duplicate':
+    'Auszug {statement} wurde zweimal ausgewählt; die zweite Kopie wurde übersprungen.',
+  'import.problem.gap':
+    'Die Auszüge {after} und {next} schließen nicht aneinander an: Der Saldo weicht um {difference} ab. Wahrscheinlich fehlt ein Auszug dazwischen.',
+  'import.problem.numbering':
+    'Auf Auszug {after} folgt {next}. Die Salden stimmen, die Nummer dazwischen hatte also wahrscheinlich keine Transaktionen.',
   'import.spending': 'Ausgaben',
   'import.viewDashboard': 'Zur Übersicht',
 

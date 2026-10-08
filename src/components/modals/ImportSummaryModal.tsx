@@ -3,11 +3,13 @@ import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { ImportResultSummary } from '@/services/importService';
 import { BANK_LABELS } from '@/utils/bankFormats';
+import { importFailureMessage } from '@/utils/importFailure';
+import type { ChainProblem } from '@/utils/pdfStatements/chain';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import React, { useEffect } from 'react';
-import { Modal, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 
 interface ImportSummaryModalProps {
   visible: boolean;
@@ -46,7 +48,11 @@ export function ImportSummaryModal({ visible, summary, profileName, onClose }: I
       : null;
 
   const subtitle = !hasNewRows
-    ? t('import.allAlready', { count: summary.totalProcessed, profile: profileName })
+    ? summary.totalProcessed > 0
+      ? t('import.allAlready', { count: summary.totalProcessed, profile: profileName })
+      : summary.failedFiles.length > 0
+      ? t('import.filesSkipped', { count: summary.failedFiles.length })
+      : profileName
     : summary.isFirstImport
     ? t('import.importedInto', { count: summary.insertedCount, profile: profileName })
     : profileName;
@@ -56,6 +62,18 @@ export function ImportSummaryModal({ visible, summary, profileName, onClose }: I
     notes.push({
       icon: 'business-outline',
       text: t('import.recognisedAs', { bank: BANK_LABELS[summary.bank] }),
+    });
+  }
+  if (summary.statements && summary.statements.read > 0) {
+    const { read, dateFrom, dateTo } = summary.statements;
+    const period = dateFrom && dateTo ? ` · ${format.range(dateFrom, dateTo)}` : '';
+    notes.push({ icon: 'documents-outline', text: t('import.statementsRead', { count: read }) + period });
+    notes.push({ icon: 'shield-checkmark-outline', text: t('import.totalsChecked') });
+  }
+  if (summary.possibleDuplicateCount > 0) {
+    notes.push({
+      icon: 'copy-outline',
+      text: t('import.possibleDuplicates', { count: summary.possibleDuplicateCount }),
     });
   }
   if (hasNewRows) {
@@ -77,6 +95,25 @@ export function ImportSummaryModal({ visible, summary, profileName, onClose }: I
         text: t('import.debtLinked', { count: summary.linkedDebtPayments }),
       });
     }
+  }
+
+  // What needs a look: statements that are missing or doubled, and files that were left out.
+  const money = (value: number) => format.money(value, currencySymbol, 2);
+  const statementLabel = (ref: { year: number; number: number }) =>
+    `${ref.year}/${String(ref.number).padStart(3, '0')}`;
+  const problemText = (problem: ChainProblem): string => {
+    if (problem.kind === 'DUPLICATE') return t('import.problem.duplicate', { statement: statementLabel(problem) });
+    const params = { after: statementLabel(problem.after), next: statementLabel(problem.next) };
+    return problem.kind === 'GAP'
+      ? t('import.problem.gap', { ...params, difference: money(Math.abs(problem.difference)) })
+      : t('import.problem.numbering', params);
+  };
+  for (const problem of summary.statements?.problems ?? []) {
+    notes.push({ icon: 'alert-circle-outline', text: problemText(problem) });
+  }
+  for (const { fileName, failure } of summary.failedFiles) {
+    const message = importFailureMessage(failure, money);
+    notes.push({ icon: 'close-circle-outline', text: `${fileName}: ${t(message.key, message.params)}` });
   }
 
   const handleReview = () => {
@@ -129,14 +166,14 @@ export function ImportSummaryModal({ visible, summary, profileName, onClose }: I
             )}
 
             {notes.length > 0 && (
-              <View style={styles.notes}>
-                {notes.map((note) => (
-                  <View key={note.text} style={styles.noteRow}>
-                    <Ionicons name={note.icon} size={16} color={colors.textSecondary} />
+              <ScrollView style={styles.notesScroll} contentContainerStyle={styles.notes} bounces={false}>
+                {notes.map((note, index) => (
+                  <View key={index} style={styles.noteRow}>
+                    <Ionicons name={note.icon} size={16} color={colors.textSecondary} style={styles.noteIcon} />
                     <Text style={[styles.noteText, { color: colors.textSecondary }]}>{note.text}</Text>
                   </View>
                 ))}
-              </View>
+              </ScrollView>
             )}
 
             <View style={styles.footer}>
@@ -192,9 +229,12 @@ const styles = StyleSheet.create({
   statTile: { flex: 1, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14 },
   statLabel: { fontSize: 12, fontWeight: '600', marginBottom: 4 },
   statValue: { fontSize: 20, fontWeight: '700', letterSpacing: -0.3 },
+  // A year of statements can bring a long list; the sheet stays on screen.
+  notesScroll: { maxHeight: 220, flexGrow: 0 },
   notes: { gap: 8, marginBottom: 4, paddingHorizontal: 4 },
-  noteRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  noteText: { fontSize: 14, fontWeight: '500' },
+  noteRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  noteIcon: { marginTop: 2 },
+  noteText: { flex: 1, fontSize: 14, fontWeight: '500', lineHeight: 20 },
   footer: { flexDirection: 'row', gap: 12, marginTop: 16 },
   footerBtn: { flex: 1, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   footerBtnText: { fontSize: 16, fontWeight: '700' },

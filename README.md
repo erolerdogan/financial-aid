@@ -49,7 +49,8 @@ npm run site       # writes site-dist/
 ### Statement import
 
 - Imports CSV (`.csv`), tab or semicolon separated text (`.txt`, `.tsv`) and Excel (`.xlsx`, `.xls`) bank statements.
-- Other files are refused with a hint to use the bank's CSV or Excel export: PDF statements, photos and screenshots, bank formats such as CAMT XML, MT940 and OFX, and other documents. The file's contents are checked as well as its name, so a renamed PDF is still recognised.
+- Imports ABN AMRO PDF statements, read on the device (nothing is uploaded). Pick one or a whole year at once. Each statement is checked against its own printed totals and balances, and a statement that does not add up is not imported. The summary lists missing or doubled statements and files that could not be read, and rows already imported from a CSV are skipped as possible duplicates.
+- Other files are refused with a hint to use the bank's CSV or Excel export: PDFs that are scans or from another bank, photos and screenshots, bank formats such as CAMT XML, MT940 and OFX, and other documents. The file's contents are checked as well as its name, so a renamed file is still recognised.
 - Detects the date, amount, counterparty name and memo columns automatically, including layouts with a debit/credit indicator (ING "Af Bij") or separate debit and credit columns.
 - Parses amounts in different locale formats and flags dates that could be read two ways.
 - Import from the share sheet: export the statement in your bank app, choose Share and pick Financial Aid. The file is imported into the active profile, the same way as a picked file.
@@ -226,6 +227,7 @@ The app makes no network calls with user data. Statements are read on the device
 | Database | expo-sqlite (WAL mode) |
 | Charts | react-native-gifted-charts, react-native-svg |
 | File import | expo-document-picker, expo-sharing (share sheet), expo-file-system, papaparse, xlsx |
+| PDF statements | pdfjs-dist (bundled, runs offline in a hidden react-native-webview) |
 | Notifications | expo-notifications |
 | PDF report | expo-print, expo-sharing |
 | Languages | expo-localization, own dictionary in `src/i18n` |

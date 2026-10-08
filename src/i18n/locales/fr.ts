@@ -606,8 +606,14 @@ export const fr: Translations = {
   'import.noneMessage':
     'Aucune opération n’a été trouvée dans ce fichier. Utilisez l’export CSV ou Excel de votre banque, avec une colonne date et une colonne montant.',
   'import.unsupportedTitle': 'Fichier non pris en charge',
-  'import.unsupported.pdf':
-    'Les relevés PDF ne peuvent pas être importés. Téléchargez le relevé auprès de votre banque au format CSV ou Excel, puis importez ce fichier.',
+  'import.unsupported.pdfLayout':
+    'Ce PDF n’est pas un relevé que l’app peut lire. L’import PDF fonctionne pour les relevés ABN AMRO ; pour les autres banques, téléchargez le relevé au format CSV ou Excel.',
+  'import.unsupported.pdfScanned':
+    'Ce PDF est un scan ou une photo et ne contient pas de texte lisible. Téléchargez le relevé auprès de votre banque, puis importez ce fichier.',
+  'import.unsupported.pdfDamaged':
+    'Ce PDF ne peut pas être ouvert. Il est peut-être endommagé ou incomplet ; téléchargez-le à nouveau auprès de votre banque.',
+  'import.unsupported.pdfPassword':
+    'Ce PDF est protégé par un mot de passe. Enregistrez une copie sans mot de passe, puis importez-la.',
   'import.unsupported.image':
     'Les photos et captures d’écran ne peuvent pas être importées. Téléchargez le relevé auprès de votre banque au format CSV ou Excel, puis importez ce fichier.',
   'import.unsupported.bankFormat':
@@ -631,6 +637,30 @@ export const fr: Translations = {
   'import.debtLinked_one': '{count} remboursement associé',
   'import.debtLinked_other': '{count} remboursements associés',
   'import.recognisedAs': 'Reconnu comme {bank}',
+  'import.fileFailedTitle': 'Relevé non importé',
+  'import.failure.totalDebit':
+    'Les débits totalisent {parsed}, mais le relevé indique {expected}. Rien n’a été importé de ce fichier.',
+  'import.failure.totalCredit':
+    'Les crédits totalisent {parsed}, mais le relevé indique {expected}. Rien n’a été importé de ce fichier.',
+  'import.failure.newBalance':
+    'Le nouveau solde donne {parsed}, mais le relevé indique {expected}. Rien n’a été importé de ce fichier.',
+  'import.failure.unreadable': 'Une partie de ce relevé n’a pas pu être lue ; rien n’en a donc été importé.',
+  'import.failure.timeout': 'La lecture de ce PDF a pris trop de temps. Réessayez.',
+  'import.failure.empty': 'Aucune transaction trouvée dans ce fichier.',
+  'import.progress': 'Lecture du relevé {current} sur {total}',
+  'import.statementsRead_one': '{count} relevé lu',
+  'import.statementsRead_other': '{count} relevés lus',
+  'import.totalsChecked': 'Vérifié avec les totaux du relevé',
+  'import.possibleDuplicates_one': '{count} doublon possible ignoré',
+  'import.possibleDuplicates_other': '{count} doublons possibles ignorés',
+  'import.filesSkipped_one': '{count} fichier n’a pas été importé',
+  'import.filesSkipped_other': '{count} fichiers n’ont pas été importés',
+  'import.problem.duplicate':
+    'Le relevé {statement} a été sélectionné deux fois ; la seconde copie a été ignorée.',
+  'import.problem.gap':
+    'Les relevés {after} et {next} ne se suivent pas : le solde diffère de {difference}. Il manque probablement un relevé entre les deux.',
+  'import.problem.numbering':
+    'Le relevé {after} est suivi du {next}. Les soldes concordent ; le numéro intermédiaire n’avait donc probablement aucune transaction.',
   'import.spending': 'Dépenses',
   'import.viewDashboard': 'Voir le tableau de bord',
 

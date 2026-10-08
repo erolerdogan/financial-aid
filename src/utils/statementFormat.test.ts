@@ -2,6 +2,7 @@
 import {
   decodeStatementText,
   describeUnsupportedStatement,
+  isPdfFile,
   isSpreadsheetFile,
   UnsupportedFileError,
 } from './statementFormat';
@@ -37,11 +38,15 @@ const accepts = (label: string, fileName: string, head: Uint8Array, spreadsheet:
   check(`${label}: spreadsheet route`, isSpreadsheetFile(fileName, head) === spreadsheet);
 };
 
-rejects('pdf by extension', 'statement.pdf', PDF, 'PDF statements');
-rejects('pdf extension, unreadable head', 'statement.PDF', EMPTY, 'PDF statements');
-rejects('pdf renamed to csv', 'statement.csv', PDF, 'PDF statements');
-rejects('pdf renamed to xlsx', 'statement.xlsx', PDF, 'PDF statements');
-rejects('pdf without extension', 'statement', PDF, 'PDF statements');
+// PDFs go to the PDF statement readers, whatever they are called.
+for (const name of ['statement.pdf', 'STATEMENT.PDF', 'statement.csv', 'statement.xlsx', 'statement']) {
+  check(`pdf content named ${name}: not refused`, describeUnsupportedStatement(name, PDF) === null);
+  check(`pdf content named ${name}: PDF route`, isPdfFile(PDF) && !isSpreadsheetFile(name, PDF));
+}
+check('csv is not a pdf', !isPdfFile(CSV));
+check('empty file is not a pdf', !isPdfFile(EMPTY));
+rejects('pdf extension, no pdf content', 'statement.PDF', EMPTY, "can't be opened");
+rejects('pdf extension, csv content', 'statement.pdf', CSV, "can't be opened");
 
 rejects('png screenshot', 'IMG_0012.png', PNG, 'Photos and screenshots');
 rejects('jpeg named csv', 'export.csv', JPEG, 'Photos and screenshots');

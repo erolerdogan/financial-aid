@@ -601,8 +601,14 @@ export const nl: Translations = {
   'import.noneMessage':
     'Er zijn geen transacties gevonden in dit bestand. Gebruik de CSV- of Excel-export van je bank, met een datum- en een bedragkolom.',
   'import.unsupportedTitle': 'Bestand niet ondersteund',
-  'import.unsupported.pdf':
-    'Pdf-afschriften kunnen niet worden geïmporteerd. Download het afschrift bij je bank als CSV of Excel en importeer dat bestand.',
+  'import.unsupported.pdfLayout':
+    'Deze pdf is geen afschrift dat de app kan lezen. Pdf-import werkt voor afschriften van ABN AMRO; download het afschrift bij andere banken als CSV of Excel.',
+  'import.unsupported.pdfScanned':
+    'Deze pdf is een scan of foto en bevat geen leesbare tekst. Download het afschrift bij je bank en importeer dat bestand.',
+  'import.unsupported.pdfDamaged':
+    'Deze pdf kan niet worden geopend. Het bestand is misschien beschadigd of onvolledig; download het opnieuw bij je bank.',
+  'import.unsupported.pdfPassword':
+    'Deze pdf is beveiligd met een wachtwoord. Sla een kopie zonder wachtwoord op en importeer die.',
   'import.unsupported.image':
     "Foto's en screenshots kunnen niet worden geïmporteerd. Download het afschrift bij je bank als CSV of Excel en importeer dat bestand.",
   'import.unsupported.bankFormat':
@@ -626,6 +632,31 @@ export const nl: Translations = {
   'import.debtLinked_one': '{count} aflossing gekoppeld',
   'import.debtLinked_other': '{count} aflossingen gekoppeld',
   'import.recognisedAs': 'Herkend als {bank}',
+  'import.fileFailedTitle': 'Afschrift niet geïmporteerd',
+  'import.failure.totalDebit':
+    'De afschrijvingen tellen op tot {parsed}, maar op het afschrift staat {expected}. Uit dit bestand is niets geïmporteerd.',
+  'import.failure.totalCredit':
+    'De bijschrijvingen tellen op tot {parsed}, maar op het afschrift staat {expected}. Uit dit bestand is niets geïmporteerd.',
+  'import.failure.newBalance':
+    'Het nieuwe saldo komt uit op {parsed}, maar op het afschrift staat {expected}. Uit dit bestand is niets geïmporteerd.',
+  'import.failure.unreadable':
+    'Een deel van dit afschrift kon niet worden gelezen, dus er is niets uit geïmporteerd.',
+  'import.failure.timeout': 'Het lezen van deze pdf duurde te lang. Probeer het opnieuw.',
+  'import.failure.empty': 'Geen transacties gevonden in dit bestand.',
+  'import.progress': 'Afschrift {current} van {total} lezen',
+  'import.statementsRead_one': '{count} afschrift gelezen',
+  'import.statementsRead_other': '{count} afschriften gelezen',
+  'import.totalsChecked': 'Gecontroleerd met de totalen op het afschrift',
+  'import.possibleDuplicates_one': '{count} mogelijk duplicaat overgeslagen',
+  'import.possibleDuplicates_other': '{count} mogelijke duplicaten overgeslagen',
+  'import.filesSkipped_one': '{count} bestand is niet geïmporteerd',
+  'import.filesSkipped_other': '{count} bestanden zijn niet geïmporteerd',
+  'import.problem.duplicate':
+    'Afschrift {statement} is twee keer gekozen; het tweede exemplaar is overgeslagen.',
+  'import.problem.gap':
+    'Afschrift {after} en {next} sluiten niet op elkaar aan: het saldo verschilt {difference}. Waarschijnlijk ontbreekt er een afschrift tussen.',
+  'import.problem.numbering':
+    'Na afschrift {after} volgt {next}. De saldi kloppen, dus het nummer ertussen had waarschijnlijk geen transacties.',
   'import.spending': 'Uitgaven',
   'import.viewDashboard': 'Naar dashboard',
 

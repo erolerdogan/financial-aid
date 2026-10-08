@@ -78,6 +78,7 @@
               "text/tab-separated-values",
               "application/vnd.ms-excel",
               "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+              "application/pdf",
               "application/octet-stream"
             ]
           }

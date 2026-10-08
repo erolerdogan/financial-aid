@@ -11,8 +11,15 @@ export class UnsupportedFileError extends Error {
 /** Bytes of the file that are enough to recognise its format. */
 export const STATEMENT_HEAD_BYTES = 8;
 
-const PDF_MESSAGE =
-  "PDF statements can't be imported. Download the statement from your bank as CSV or Excel and import that file.";
+/** PDF statements are read (see src/utils/pdfStatements/); these say why one could not be. */
+export const PDF_LAYOUT_MESSAGE =
+  "This PDF isn't a statement the app can read. PDF import works for ABN AMRO statements; for other banks, download the statement as CSV or Excel.";
+export const PDF_SCANNED_MESSAGE =
+  "This PDF is a scan or a photo and has no text to read. Download the statement from your bank and import that file.";
+export const PDF_DAMAGED_MESSAGE =
+  "This PDF can't be opened. It may be damaged or incomplete; download it from your bank again.";
+export const PDF_PASSWORD_MESSAGE =
+  'This PDF is password protected. Save a copy without a password and import that.';
 const IMAGE_MESSAGE =
   "Photos and screenshots can't be imported. Download the statement from your bank as CSV or Excel and import that file.";
 const BANK_FORMAT_MESSAGE =
@@ -22,7 +29,10 @@ const GENERIC_MESSAGE =
 
 /** Translation key for each message above, for the alert shown to the user. */
 export const UNSUPPORTED_MESSAGE_KEYS: Record<string, TranslationKey> = {
-  [PDF_MESSAGE]: 'import.unsupported.pdf',
+  [PDF_LAYOUT_MESSAGE]: 'import.unsupported.pdfLayout',
+  [PDF_SCANNED_MESSAGE]: 'import.unsupported.pdfScanned',
+  [PDF_DAMAGED_MESSAGE]: 'import.unsupported.pdfDamaged',
+  [PDF_PASSWORD_MESSAGE]: 'import.unsupported.pdfPassword',
   [IMAGE_MESSAGE]: 'import.unsupported.image',
   [BANK_FORMAT_MESSAGE]: 'import.unsupported.bankFormat',
   [GENERIC_MESSAGE]: 'import.unsupported.generic',
@@ -42,7 +52,8 @@ const extensionOf = (fileName: string): string => {
 const startsWith = (head: Uint8Array, bytes: number[], offset = 0): boolean =>
   head.length >= offset + bytes.length && bytes.every((byte, i) => head[offset + i] === byte);
 
-const isPdf = (head: Uint8Array) => startsWith(head, [0x25, 0x50, 0x44, 0x46]); // %PDF
+/** A PDF by its first bytes (`%PDF`), whatever the file is called. */
+export const isPdfFile = (head: Uint8Array): boolean => startsWith(head, [0x25, 0x50, 0x44, 0x46]);
 
 const isImage = (head: Uint8Array) =>
   startsWith(head, [0xff, 0xd8, 0xff]) || // JPEG
@@ -56,18 +67,22 @@ const isContainer = (head: Uint8Array) =>
 
 /** Excel files, including ones picked without an extension. */
 export function isSpreadsheetFile(fileName: string, head: Uint8Array): boolean {
+  if (isPdfFile(head)) return false;
   const extension = extensionOf(fileName);
   return SPREADSHEET_EXTENSIONS.has(extension) || (extension === '' && isContainer(head));
 }
 
 /**
  * The message to show when the picked file cannot be a statement, or `null` when it should be parsed.
- * The first bytes are checked before the extension, so a renamed PDF is still caught.
+ * The first bytes are checked before the extension, so a renamed image is still caught.
+ * A PDF (`isPdfFile`) is not refused here: it goes to the PDF statement readers.
  */
 export function describeUnsupportedStatement(fileName: string, head: Uint8Array): string | null {
   const extension = extensionOf(fileName);
 
-  if (isPdf(head) || extension === 'pdf') return PDF_MESSAGE;
+  if (isPdfFile(head)) return null;
+  // Named .pdf, but the content is something else (or nothing).
+  if (extension === 'pdf') return PDF_DAMAGED_MESSAGE;
   if (isImage(head) || IMAGE_EXTENSIONS.has(extension)) return IMAGE_MESSAGE;
   if (isSpreadsheetFile(fileName, head)) return null;
   if (BANK_FORMAT_EXTENSIONS.has(extension)) return BANK_FORMAT_MESSAGE;

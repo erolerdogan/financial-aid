@@ -587,6 +587,8 @@ export type ParsedTransaction = Omit<Transaction, 'id'> & {
   /** The single cell older versions stored as rawDescription; only used to detect duplicates. */
   legacyRawDescription?: string;
   previousKeys?: PreviousKey[];
+  /** Rows read from a PDF statement: how to recognise the same booking in the bank's CSV export. */
+  crossKeys?: string[];
 };
 
 export interface ParsedStatement {
@@ -862,6 +864,35 @@ function parseMatrixData(
   }
 
   return { transactions, bank };
+}
+
+/** A booking that was already read from a statement (PDF): amount signed, date as `YYYY-MM-DD`. */
+export interface StatementRowInput {
+  date: string;
+  name: string;
+  description: string;
+  amount: number;
+  counterpartyIban: string;
+}
+
+const STATEMENT_ROW_HEADER = ['Date', 'Name', 'Description', 'Amount', 'Counterparty IBAN'];
+
+/**
+ * Rows read elsewhere, sent through the same reading as a CSV file with the columns Date, Name,
+ * Description, Amount, Counterparty IBAN: same merchant, category and dedup key as that file.
+ */
+export function parseStatementRows(
+  rows: StatementRowInput[],
+  customRules: CategoryRule[] = [],
+  learned?: LearnedCategories
+): ParsedStatement {
+  if (!rows || rows.length === 0) return { transactions: [], bank: null };
+
+  const matrix = [
+    STATEMENT_ROW_HEADER,
+    ...rows.map((row) => [row.date, row.name, row.description, row.amount.toFixed(2), row.counterpartyIban]),
+  ];
+  return parseMatrixData(matrix, customRules, learned);
 }
 
 export function parseExcelContent(

@@ -1,3 +1,4 @@
+import { ImportProgressOverlay } from '@/components/ImportProgressOverlay';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -120,6 +121,7 @@ export default function WelcomeScreen() {
           <Text style={[styles.shareHint, { color: colors.textSecondary }]}>{t('welcome.shareHint')}</Text>
         </View>
       </SafeAreaView>
+      <ImportProgressOverlay />
     </LinearGradient>
   );
 }

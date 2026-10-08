@@ -599,8 +599,14 @@ export const en = {
   'import.noneMessage':
     'No transactions were found in this file. Use the CSV or Excel export from your bank, with a date and an amount column.',
   'import.unsupportedTitle': 'File Not Supported',
-  'import.unsupported.pdf':
-    "PDF statements can't be imported. Download the statement from your bank as CSV or Excel and import that file.",
+  'import.unsupported.pdfLayout':
+    "This PDF isn't a statement the app can read. PDF import works for ABN AMRO statements; for other banks, download the statement as CSV or Excel.",
+  'import.unsupported.pdfScanned':
+    'This PDF is a scan or a photo and has no text to read. Download the statement from your bank and import that file.',
+  'import.unsupported.pdfDamaged':
+    "This PDF can't be opened. It may be damaged or incomplete; download it from your bank again.",
+  'import.unsupported.pdfPassword':
+    'This PDF is password protected. Save a copy without a password and import that.',
   'import.unsupported.image':
     "Photos and screenshots can't be imported. Download the statement from your bank as CSV or Excel and import that file.",
   'import.unsupported.bankFormat':
@@ -624,6 +630,29 @@ export const en = {
   'import.debtLinked_one': '{count} debt payment linked',
   'import.debtLinked_other': '{count} debt payments linked',
   'import.recognisedAs': 'Recognised as {bank}',
+  'import.fileFailedTitle': 'Statement Not Imported',
+  'import.failure.totalDebit':
+    'The debits add up to {parsed}, but the statement says {expected}. Nothing was imported from this file.',
+  'import.failure.totalCredit':
+    'The credits add up to {parsed}, but the statement says {expected}. Nothing was imported from this file.',
+  'import.failure.newBalance':
+    'The new balance works out at {parsed}, but the statement says {expected}. Nothing was imported from this file.',
+  'import.failure.unreadable': 'Part of this statement could not be read, so nothing was imported from it.',
+  'import.failure.timeout': 'Reading this PDF took too long. Try again.',
+  'import.failure.empty': 'No transactions found in this file.',
+  'import.progress': 'Reading statement {current} of {total}',
+  'import.statementsRead_one': '{count} statement read',
+  'import.statementsRead_other': '{count} statements read',
+  'import.totalsChecked': 'Checked against statement totals',
+  'import.possibleDuplicates_one': '{count} possible duplicate skipped',
+  'import.possibleDuplicates_other': '{count} possible duplicates skipped',
+  'import.filesSkipped_one': '{count} file was not imported',
+  'import.filesSkipped_other': '{count} files were not imported',
+  'import.problem.duplicate': 'Statement {statement} was selected twice; the second copy was skipped.',
+  'import.problem.gap':
+    "Statements {after} and {next} don't connect: the balance differs by {difference}. A statement in between is probably missing.",
+  'import.problem.numbering':
+    'Statement {after} is followed by {next}. The balances match, so the number in between probably had no transactions.',
   'import.spending': 'Spending',
   'import.viewDashboard': 'View Dashboard',
 

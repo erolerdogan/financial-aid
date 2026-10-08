@@ -10,6 +10,7 @@ import {
   searchGuides,
   stepParts,
 } from '@/content/bankGuides';
+import { ImportProgressOverlay } from '@/components/ImportProgressOverlay';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -236,6 +237,7 @@ export default function ExportGuideScreen() {
           </View>
         </ScrollView>
       )}
+      <ImportProgressOverlay />
     </SafeAreaView>
   );
 }

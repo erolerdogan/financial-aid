@@ -596,8 +596,14 @@ export const tr: Translations = {
   'import.noneMessage':
     'Bu dosyada işlem bulunamadı. Bankanın CSV veya Excel dışa aktarımını, tarih ve tutar sütunlarıyla kullan.',
   'import.unsupportedTitle': 'Dosya desteklenmiyor',
-  'import.unsupported.pdf':
-    'PDF ekstreler içe aktarılamaz. Ekstreyi bankandan CSV veya Excel olarak indir ve o dosyayı içe aktar.',
+  'import.unsupported.pdfLayout':
+    'Bu PDF, uygulamanın okuyabildiği bir ekstre değil. PDF içe aktarma ABN AMRO ekstrelerinde çalışır; diğer bankalarda ekstreyi CSV veya Excel olarak indir.',
+  'import.unsupported.pdfScanned':
+    'Bu PDF bir tarama veya fotoğraf ve okunacak metin içermiyor. Ekstreyi bankandan indir ve o dosyayı içe aktar.',
+  'import.unsupported.pdfDamaged':
+    'Bu PDF açılamıyor. Dosya bozuk veya eksik olabilir; bankandan yeniden indir.',
+  'import.unsupported.pdfPassword':
+    'Bu PDF parola korumalı. Parolasız bir kopyasını kaydet ve onu içe aktar.',
   'import.unsupported.image':
     'Fotoğraflar ve ekran görüntüleri içe aktarılamaz. Ekstreyi bankandan CSV veya Excel olarak indir ve o dosyayı içe aktar.',
   'import.unsupported.bankFormat':
@@ -621,6 +627,29 @@ export const tr: Translations = {
   'import.debtLinked_one': '{count} borç ödemesi bağlandı',
   'import.debtLinked_other': '{count} borç ödemesi bağlandı',
   'import.recognisedAs': '{bank} olarak tanındı',
+  'import.fileFailedTitle': 'Ekstre içe aktarılmadı',
+  'import.failure.totalDebit':
+    'Borç tutarlarının toplamı {parsed}, ancak ekstrede {expected} yazıyor. Bu dosyadan hiçbir şey içe aktarılmadı.',
+  'import.failure.totalCredit':
+    'Alacak tutarlarının toplamı {parsed}, ancak ekstrede {expected} yazıyor. Bu dosyadan hiçbir şey içe aktarılmadı.',
+  'import.failure.newBalance':
+    'Yeni bakiye {parsed} çıkıyor, ancak ekstrede {expected} yazıyor. Bu dosyadan hiçbir şey içe aktarılmadı.',
+  'import.failure.unreadable': 'Bu ekstrenin bir bölümü okunamadı, bu yüzden hiçbir şey içe aktarılmadı.',
+  'import.failure.timeout': "Bu PDF'in okunması çok uzun sürdü. Yeniden dene.",
+  'import.failure.empty': 'Bu dosyada işlem bulunamadı.',
+  'import.progress': 'Ekstre okunuyor: {current} / {total}',
+  'import.statementsRead_one': '{count} ekstre okundu',
+  'import.statementsRead_other': '{count} ekstre okundu',
+  'import.totalsChecked': 'Ekstre toplamlarıyla karşılaştırıldı',
+  'import.possibleDuplicates_one': '{count} olası yinelenen kayıt atlandı',
+  'import.possibleDuplicates_other': '{count} olası yinelenen kayıt atlandı',
+  'import.filesSkipped_one': '{count} dosya içe aktarılmadı',
+  'import.filesSkipped_other': '{count} dosya içe aktarılmadı',
+  'import.problem.duplicate': '{statement} numaralı ekstre iki kez seçildi; ikinci kopya atlandı.',
+  'import.problem.gap':
+    '{after} ve {next} numaralı ekstreler birbirini izlemiyor: bakiye farkı {difference}. Arada büyük olasılıkla bir ekstre eksik.',
+  'import.problem.numbering':
+    '{after} numaralı ekstreden sonra {next} geliyor. Bakiyeler tutuyor; aradaki numarada büyük olasılıkla işlem yoktu.',
   'import.spending': 'Harcama',
   'import.viewDashboard': 'Panoyu görüntüle',
 

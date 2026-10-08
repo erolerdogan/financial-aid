@@ -627,8 +627,13 @@ export const ru: Translations = {
   'import.noneMessage':
     'В этом файле не найдено операций. Используйте выгрузку из банка в формате CSV или Excel со столбцами даты и суммы.',
   'import.unsupportedTitle': 'Файл не поддерживается',
-  'import.unsupported.pdf':
-    'Выписки в PDF импортировать нельзя. Скачайте выписку в банке в формате CSV или Excel и импортируйте этот файл.',
+  'import.unsupported.pdfLayout':
+    'Этот PDF не является выпиской, которую приложение может прочитать. Импорт из PDF работает для выписок ABN AMRO; для других банков скачайте выписку в формате CSV или Excel.',
+  'import.unsupported.pdfScanned':
+    'Этот PDF — скан или фото, в нём нет текста для чтения. Скачайте выписку в банке и импортируйте этот файл.',
+  'import.unsupported.pdfDamaged':
+    'Этот PDF не удаётся открыть. Возможно, файл повреждён или неполон; скачайте его в банке ещё раз.',
+  'import.unsupported.pdfPassword': 'Этот PDF защищён паролем. Сохраните копию без пароля и импортируйте её.',
   'import.unsupported.image':
     'Фотографии и снимки экрана импортировать нельзя. Скачайте выписку в банке в формате CSV или Excel и импортируйте этот файл.',
   'import.unsupported.bankFormat':
@@ -664,6 +669,36 @@ export const ru: Translations = {
   'import.debtLinked_many': 'Привязано {count} платежей по долгам',
   'import.debtLinked_other': 'Привязано {count} платежа по долгам',
   'import.recognisedAs': 'Распознано как {bank}',
+  'import.fileFailedTitle': 'Выписка не импортирована',
+  'import.failure.totalDebit':
+    'Сумма списаний — {parsed}, а в выписке указано {expected}. Из этого файла ничего не импортировано.',
+  'import.failure.totalCredit':
+    'Сумма зачислений — {parsed}, а в выписке указано {expected}. Из этого файла ничего не импортировано.',
+  'import.failure.newBalance':
+    'Новый остаток получается {parsed}, а в выписке указано {expected}. Из этого файла ничего не импортировано.',
+  'import.failure.unreadable':
+    'Часть этой выписки не удалось прочитать, поэтому из неё ничего не импортировано.',
+  'import.failure.timeout': 'Чтение этого PDF заняло слишком много времени. Попробуйте ещё раз.',
+  'import.failure.empty': 'В этом файле не найдено операций.',
+  'import.progress': 'Чтение выписки {current} из {total}',
+  'import.statementsRead_one': 'Прочитана {count} выписка',
+  'import.statementsRead_few': 'Прочитано {count} выписки',
+  'import.statementsRead_many': 'Прочитано {count} выписок',
+  'import.statementsRead_other': 'Прочитано {count} выписки',
+  'import.totalsChecked': 'Сверено с итогами выписки',
+  'import.possibleDuplicates_one': 'Пропущен {count} возможный дубликат',
+  'import.possibleDuplicates_few': 'Пропущено {count} возможных дубликата',
+  'import.possibleDuplicates_many': 'Пропущено {count} возможных дубликатов',
+  'import.possibleDuplicates_other': 'Пропущено {count} возможного дубликата',
+  'import.filesSkipped_one': '{count} файл не импортирован',
+  'import.filesSkipped_few': '{count} файла не импортировано',
+  'import.filesSkipped_many': '{count} файлов не импортировано',
+  'import.filesSkipped_other': '{count} файла не импортировано',
+  'import.problem.duplicate': 'Выписка {statement} выбрана дважды; вторая копия пропущена.',
+  'import.problem.gap':
+    'Выписки {after} и {next} не стыкуются: остаток отличается на {difference}. Вероятно, между ними не хватает выписки.',
+  'import.problem.numbering':
+    'После выписки {after} идёт {next}. Остатки сходятся, значит, в пропущенном номере, вероятно, не было операций.',
   'import.spending': 'Расходы',
   'import.viewDashboard': 'Открыть обзор',
 

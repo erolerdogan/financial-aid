@@ -3,8 +3,18 @@ import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { getCustomRules, getLearnedCategories, getProfiles, Profile } from '@/db/database';
 import { runHealthAlerts } from '@/services/healthService';
-import { parseFileToTransactions, processBatchImport } from '@/services/importService';
+import {
+  type ImportResultSummary,
+  type ImportTransactionPayload,
+  pdfStatementsToTransactions,
+  processBatchImport,
+  readStatementFile,
+} from '@/services/importService';
+import type { BankId } from '@/utils/bankFormats';
+import { describeImportFailure, type ImportFailure, importFailureMessage } from '@/utils/importFailure';
 import { cancelCurrentMonthReminders } from '@/utils/notifications';
+import { checkChain } from '@/utils/pdfStatements/chain';
+import { PdfExtractError, type PdfStatement, PdfStatementError } from '@/utils/pdfStatements/types';
 import { UNSUPPORTED_MESSAGE_KEYS, UnsupportedFileError } from '@/utils/statementFormat';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Haptics from 'expo-haptics';
@@ -17,11 +27,29 @@ interface UseStatementImporterOptions {
   onSuccess?: () => void | Promise<void>;
 }
 
+interface PickedFile {
+  uri: string;
+  name: string;
+}
+
+/** First and last booking date of the statements. */
+function coveredPeriod(statements: PdfStatement[]): { dateFrom: string | null; dateTo: string | null } {
+  let dateFrom: string | null = null;
+  let dateTo: string | null = null;
+  for (const statement of statements) {
+    for (const row of statement.rows) {
+      if (!dateFrom || row.date < dateFrom) dateFrom = row.date;
+      if (!dateTo || row.date > dateTo) dateTo = row.date;
+    }
+  }
+  return { dateFrom, dateTo };
+}
+
 export function useStatementImporter(options?: UseStatementImporterOptions) {
   const db = useSQLiteContext();
-  const { activeProfile, refreshProfiles, switchProfile } = useProfile();
-  const { showImportResult } = useImportResult();
-  const { t } = useI18n();
+  const { activeProfile, refreshProfiles, switchProfile, currencySymbol } = useProfile();
+  const { showImportResult, setImportProgress } = useImportResult();
+  const { t, format } = useI18n();
   const [importing, setImporting] = useState(false);
   const isPickingRef = useRef(false);
   const router = useRouter();
@@ -50,8 +78,32 @@ export function useStatementImporter(options?: UseStatementImporterOptions) {
     return targetProfile;
   };
 
-  const runImport = async (targetProfile: Profile, fileUri: string, fileName: string) => {
+  const failureText = (failure: ImportFailure): string => {
+    const message = importFailureMessage(failure, (value) => format.money(value, currencySymbol, 2));
+    return t(message.key, message.params);
+  };
+
+  const handleImportError = (error: any, fileName = '') => {
+    if (error instanceof UnsupportedFileError) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      const key = UNSUPPORTED_MESSAGE_KEYS[error.message];
+      Alert.alert(t('import.unsupportedTitle'), key ? t(key) : error.message, wrongFileButtons());
+      return;
+    }
+    // A PDF statement that was recognised but not read completely: nothing of it is imported.
+    if (error instanceof PdfStatementError || error instanceof PdfExtractError) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      const reason = failureText(describeImportFailure(error));
+      Alert.alert(t('import.fileFailedTitle'), fileName ? `${fileName}\n\n${reason}` : reason);
+      return;
+    }
+    console.error('Import Error:', error);
+    Alert.alert(t('import.failedTitle'), error?.message || t('import.failedMessage'));
+  };
+
+  const runImport = async (targetProfile: Profile, files: PickedFile[]) => {
     const targetProfileId = targetProfile.id;
+    const single = files.length === 1;
 
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setImporting(true);
@@ -60,14 +112,49 @@ export function useStatementImporter(options?: UseStatementImporterOptions) {
       getCustomRules(db, targetProfileId),
       getLearnedCategories(db, targetProfileId),
     ]);
-    const { transactions: parsedTransactions, bank } = await parseFileToTransactions(
-      fileUri,
-      fileName,
-      customRules,
-      learned
-    );
 
-    if (!parsedTransactions || parsedTransactions.length === 0) {
+    const tableRows: ImportTransactionPayload[] = [];
+    const banks = new Set<BankId | null>();
+    const pdfStatements: PdfStatement[] = [];
+    const failedFiles: ImportResultSummary['failedFiles'] = [];
+
+    try {
+      for (const [index, file] of files.entries()) {
+        if (!single) setImportProgress({ current: index + 1, total: files.length });
+        try {
+          // TODO(pro): PDF statement import is a Pro item; gate it here once useEntitlement() / FEATURES exists.
+          const read = await readStatementFile(file.uri, file.name, customRules, learned);
+          if (read.kind === 'pdf') {
+            pdfStatements.push(read.statement);
+          } else if (read.parsed.transactions.length === 0) {
+            failedFiles.push({ fileName: file.name, failure: { kind: 'empty' } });
+          } else {
+            tableRows.push(...read.parsed.transactions);
+            banks.add(read.parsed.bank);
+          }
+        } catch (error) {
+          // One file: say why. Several: the others still go in, and the summary lists this one.
+          if (single) {
+            handleImportError(error, file.name);
+            return;
+          }
+          if (!(error instanceof UnsupportedFileError || error instanceof PdfStatementError)) {
+            console.warn('Import: file left out:', error);
+          }
+          failedFiles.push({ fileName: file.name, failure: describeImportFailure(error) });
+        }
+      }
+    } finally {
+      setImportProgress(null);
+    }
+
+    // Across the statements: duplicates out, balance gaps and numbering jumps reported.
+    const { kept, problems } = checkChain(pdfStatements);
+    const pdfParsed = pdfStatementsToTransactions(kept, customRules, learned);
+    if (kept.length > 0) banks.add(pdfParsed.bank);
+    const parsedTransactions = [...tableRows, ...pdfParsed.transactions];
+
+    if (parsedTransactions.length === 0 && (single || (failedFiles.length === 0 && problems.length === 0))) {
       Alert.alert(
         t('import.noneTitle'),
         t('import.noneMessage'),
@@ -77,7 +164,17 @@ export function useStatementImporter(options?: UseStatementImporterOptions) {
     }
 
     // Import strictly bound to targetProfileId
-    const summary = await processBatchImport(db, parsedTransactions, targetProfileId, bank);
+    const imported = await processBatchImport(
+      db,
+      parsedTransactions,
+      targetProfileId,
+      banks.size === 1 ? [...banks][0] : null
+    );
+    const summary: ImportResultSummary = {
+      ...imported,
+      statements: pdfStatements.length > 0 ? { read: kept.length, ...coveredPeriod(kept), problems } : null,
+      failedFiles,
+    };
 
     await cancelCurrentMonthReminders();
 
@@ -100,17 +197,6 @@ export function useStatementImporter(options?: UseStatementImporterOptions) {
     showImportResult(summary, targetProfile.name);
   };
 
-  const handleImportError = (error: any) => {
-    if (error instanceof UnsupportedFileError) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      const key = UNSUPPORTED_MESSAGE_KEYS[error.message];
-      Alert.alert(t('import.unsupportedTitle'), key ? t(key) : error.message, wrongFileButtons());
-      return;
-    }
-    console.error('Import Error:', error);
-    Alert.alert(t('import.failedTitle'), error?.message || t('import.failedMessage'));
-  };
-
   const importStatement = async () => {
     if (isPickingRef.current || importing) return;
     isPickingRef.current = true;
@@ -128,17 +214,22 @@ export function useStatementImporter(options?: UseStatementImporterOptions) {
           'application/csv',
           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
           'application/vnd.ms-excel',
+          'application/pdf',
           '*/*',
         ],
         copyToCacheDirectory: true,
+        // Bank statements in PDF come one per month; a year of them is picked in one go.
+        multiple: true,
       });
 
       if (result.canceled || !result.assets || result.assets.length === 0) {
         return;
       }
 
-      const asset = result.assets[0];
-      await runImport(targetProfile, asset.uri, asset.name || '');
+      await runImport(
+        targetProfile,
+        result.assets.map((asset) => ({ uri: asset.uri, name: asset.name || '' }))
+      );
     } catch (error: any) {
       handleImportError(error);
     } finally {
@@ -160,7 +251,7 @@ export function useStatementImporter(options?: UseStatementImporterOptions) {
 
       // The name becomes part of a temp path; content URIs can yield anything.
       const safeName = fileName.replace(/[^\w.-]+/g, '_');
-      await runImport(targetProfile, fileUri, safeName);
+      await runImport(targetProfile, [{ uri: fileUri, name: safeName }]);
     } catch (error: any) {
       handleImportError(error);
     } finally {
