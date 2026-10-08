@@ -1043,6 +1043,21 @@ export async function getTransactionsByMonthAndCategory(
 
   return withResolvedFixed(rows, await getFixedResolver(db, profileId));
 }
+
+/** The newest rows of a period, for the Recent activity card on Home. */
+export async function getRecentTransactions(
+  db: SQLiteDatabase,
+  monthName: string,
+  profileId: number,
+  limit: number = 5
+): Promise<Transaction[]> {
+  const period = periodClause(monthName);
+  return await db.getAllAsync<Transaction>(
+    `SELECT * FROM transactions WHERE profileId = ? AND ${period.sql} ORDER BY date DESC, id DESC LIMIT ?;`,
+    [profileId, ...period.params, limit]
+  );
+}
+
 export type TransactionTypeFilter = 'ALL' | 'INCOME' | 'EXPENSE' | 'FIXED' | 'FLEXIBLE';
 
 export async function getAllTransactionsByDate(
@@ -1586,6 +1601,46 @@ export async function getAnnualTrendWithBudget(
     budgetLimit: budgetLimit,
   }));
 }
+
+/** Monthly expense totals (index = month - 1, rounded) for each of the given years, in one query. */
+export async function getYearlyExpenseTotals(
+  db: SQLiteDatabase,
+  years: string[],
+  category: string = 'All',
+  profileId: number = 1
+): Promise<Record<string, number[]>> {
+  const totals: Record<string, number[]> = {};
+  if (years.length === 0) return totals;
+  years.forEach((year) => {
+    totals[year] = Array.from({ length: 12 }, () => 0);
+  });
+
+  let query = `
+    SELECT monthName, TOTAL(ABS(amount)) as totalAmount
+    FROM transactions
+    WHERE profileId = ? AND amount < 0 AND SUBSTR(monthName, 1, 4) IN (${years.map(() => '?').join(', ')})
+  `;
+  const params: (string | number)[] = [profileId, ...years];
+
+  if (category && category !== 'All') {
+    query += ` AND category = ?`;
+    params.push(category);
+  }
+
+  query += ` GROUP BY monthName;`;
+  const rows = await db.getAllAsync<{ monthName: string; totalAmount: number }>(query, params);
+
+  rows.forEach((r) => {
+    const monthIndex = Number(r.monthName.slice(5, 7)) - 1;
+    const yearTotals = totals[r.monthName.slice(0, 4)];
+    if (yearTotals && monthIndex >= 0 && monthIndex < 12) {
+      yearTotals[monthIndex] = Math.round(r.totalAmount);
+    }
+  });
+
+  return totals;
+}
+
 export async function getRangeTrendWithBudget(
   db: SQLiteDatabase,
   from: string,

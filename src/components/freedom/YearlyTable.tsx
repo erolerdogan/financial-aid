@@ -1,3 +1,4 @@
+import { SelectableText } from '@/components/SelectableText';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import type { Formatters } from '@/i18n/format';
@@ -50,21 +51,21 @@ const YearlyRow = React.memo(function YearlyRow({
         end: amount(row.end),
       })}
     >
-      <Text style={[cell, styles.yearCell]} numberOfLines={1}>
+      <SelectableText style={[cell, styles.yearCell]} numberOfLines={1}>
         {row.year}
-      </Text>
-      <Text style={cell} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+      </SelectableText>
+      <SelectableText style={cell} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
         {amount(row.start)}
-      </Text>
-      <Text style={cell} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+      </SelectableText>
+      <SelectableText style={cell} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
         {amount(row.contributions)}
-      </Text>
-      <Text style={cell} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+      </SelectableText>
+      <SelectableText style={cell} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
         {amount(row.profit)}
-      </Text>
-      <Text style={[cell, isLast && styles.finalCell]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+      </SelectableText>
+      <SelectableText style={[cell, isLast && styles.finalCell]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
         {amount(row.end)}
-      </Text>
+      </SelectableText>
     </View>
   );
 });
@@ -98,13 +99,13 @@ export const YearlyTable = React.memo(function YearlyTable({ rows, currencySymbo
       {expanded && (
         <View style={styles.body}>
           <View style={styles.headerRow} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-            <Text style={[headerCell, styles.yearCell]}>{t('freedom.table.year')}</Text>
-            <Text style={headerCell}>{t('freedom.table.start')}</Text>
-            <Text style={headerCell} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+            <SelectableText style={[headerCell, styles.yearCell]}>{t('freedom.table.year')}</SelectableText>
+            <SelectableText style={headerCell}>{t('freedom.table.start')}</SelectableText>
+            <SelectableText style={headerCell} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
               {t('freedom.table.contrib')}
-            </Text>
-            <Text style={headerCell}>{t('freedom.table.profit')}</Text>
-            <Text style={headerCell}>{t('freedom.table.end')}</Text>
+            </SelectableText>
+            <SelectableText style={headerCell}>{t('freedom.table.profit')}</SelectableText>
+            <SelectableText style={headerCell}>{t('freedom.table.end')}</SelectableText>
           </View>
           {rows.map((row, index) => (
             <YearlyRow

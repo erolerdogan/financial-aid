@@ -1,4 +1,5 @@
 import { CategoryFormModal } from '@/components/modals/CategoryFormModal';
+import { SelectableText } from '@/components/SelectableText';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -86,7 +87,7 @@ export default function CategoriesScreen() {
     if (items.length === 0) return null;
     return (
       <>
-        <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>{title}</Text>
+        <SelectableText style={[styles.sectionHeader, { color: colors.textSecondary }]}>{title}</SelectableText>
         <View style={[styles.cardGroup, { backgroundColor: colors.card }]}>
           {items.map((category, index) => (
             <React.Fragment key={category.id}>
@@ -124,7 +125,7 @@ export default function CategoriesScreen() {
       <View
         style={[styles.headerRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}
       >
-        <Text style={[styles.headerTitle, { color: colors.text }]}>{t('settings.categories')}</Text>
+        <SelectableText style={[styles.headerTitle, { color: colors.text }]}>{t('settings.categories')}</SelectableText>
         <View style={styles.headerRight}>
           <TouchableOpacity
             style={[styles.headerBtn, { backgroundColor: colors.accent }]}
@@ -149,9 +150,9 @@ export default function CategoriesScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.content}>
-          <Text style={[styles.introText, { color: colors.textSecondary }]}>
+          <SelectableText style={[styles.introText, { color: colors.textSecondary }]}>
             {t('categories.intro')}
-          </Text>
+          </SelectableText>
           {renderGroup(t('categories.yours'), customCategories)}
           {renderGroup(t('categories.builtIn'), builtInCategories)}
         </ScrollView>

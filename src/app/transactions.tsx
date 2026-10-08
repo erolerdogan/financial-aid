@@ -1,9 +1,10 @@
 import { CategoryFilterBar } from '@/components/CategoryFilterBar';
 import { MonthStepper } from '@/components/dashboard/MonthStepper';
-import { HeaderActions } from '@/components/HeaderActions';
 import { DateRangeModal } from '@/components/modals/DateRangeModal';
 import { TransactionDetailModal } from '@/components/modals/TransactionDetailModal';
 import { ScreenContainer } from '@/components/ScreenContainer';
+import { SelectableText } from '@/components/SelectableText';
+import { TransactionRow } from '@/components/TransactionRow';
 import { useI18n } from '@/contexts/LanguageContext';
 import { usePeriod } from '@/contexts/PeriodContext';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -22,7 +23,7 @@ import {
 import type { Message } from '@/i18n';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -39,6 +40,7 @@ import {
     TouchableWithoutFeedback,
     View
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const PAGE_SIZE = 100;
 
@@ -63,7 +65,11 @@ export default function TransactionsScreen() {
   const router = useRouter();
   const db = useSQLiteContext();
   const { colors } = useTheme();
-  const { t, format, categoryName } = useI18n();
+  const { t, format } = useI18n();
+  const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ focusSearch?: string }>();
+  // Read once: the header search icon opens this screen with the keyboard up.
+  const [focusSearchOnMount] = useState(() => params.focusSearch === '1');
 
   const formatDayTitle = useCallback(
     (isoDate: string): string => {
@@ -86,7 +92,7 @@ export default function TransactionsScreen() {
     },
     [t, format]
   );
-  const { activeProfile, dataVersion, currencySymbol } = useProfile();
+  const { activeProfile, dataVersion } = useProfile();
   const { period: filter, setPeriod: setFilter } = usePeriod();
   const activeProfileId = activeProfile?.id ?? 1;
 
@@ -150,6 +156,17 @@ export default function TransactionsScreen() {
   useEffect(() => {
     setSelectedCategory('All');
   }, [activeProfileId]);
+
+  useEffect(() => {
+    if (focusSearchOnMount) router.setParams({ focusSearch: undefined });
+  }, [focusSearchOnMount, router]);
+
+  const handleBack = () => {
+    Haptics.selectionAsync().catch(() => {});
+    // Opened by a link with nothing underneath: go to Home instead of nowhere.
+    if (router.canGoBack()) router.back();
+    else router.replace('/(tabs)');
+  };
 
   const fetchFirstPage = useCallback(
     async (keepLoadedCount: boolean = false) => {
@@ -367,36 +384,13 @@ export default function TransactionsScreen() {
     index: number;
     section: DaySection;
   }) => {
-    const isIncome = item.amount > 0;
-    const title = item.merchant && item.merchant !== 'Unknown' ? item.merchant : item.rawDescription;
-    const isFirst = index === 0;
-    const isLast = index === section.data.length - 1;
-
     return (
-      <TouchableOpacity
-        activeOpacity={0.7}
-        onPress={() => handleSelectTransaction(item)}
-        style={[
-          styles.row,
-          { backgroundColor: colors.card, borderBottomColor: colors.border },
-          isFirst && styles.rowFirst,
-          isLast && styles.rowLast,
-          isLast && { borderBottomWidth: 0 },
-        ]}
-      >
-        <View style={styles.rowTextWrap}>
-          <Text style={[styles.rowTitle, { color: colors.text }]} numberOfLines={1}>
-            {title}
-          </Text>
-          <Text style={[styles.rowSubtitle, { color: colors.textSecondary }]} numberOfLines={1}>
-            {categoryName(item.category)}
-          </Text>
-        </View>
-        <Text style={[styles.rowAmount, { color: isIncome ? '#34C759' : colors.text }]}>
-          {isIncome ? '+' : '-'}
-          {format.money(Math.abs(item.amount), currencySymbol, 2)}
-        </Text>
-      </TouchableOpacity>
+      <TransactionRow
+        transaction={item}
+        isFirst={index === 0}
+        isLast={index === section.data.length - 1}
+        onPress={handleSelectTransaction}
+      />
     );
   };
 
@@ -404,8 +398,19 @@ export default function TransactionsScreen() {
     <ScreenContainer>
       <View style={styles.headerWrap}>
         <View style={styles.headerRow}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>{t('tabs.transactions')}</Text>
-          <HeaderActions />
+          <TouchableOpacity
+            style={[styles.backBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+            onPress={handleBack}
+            activeOpacity={0.8}
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.back')}
+          >
+            <Ionicons name="chevron-back" size={20} color={colors.text} />
+          </TouchableOpacity>
+          <SelectableText style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>
+            {t('tabs.transactions')}
+          </SelectableText>
         </View>
 
         <MonthStepper
@@ -426,6 +431,7 @@ export default function TransactionsScreen() {
             placeholderTextColor={colors.textSecondary}
             value={searchInput}
             onChangeText={setSearchInput}
+            autoFocus={focusSearchOnMount}
             autoCorrect={false}
             autoCapitalize="none"
             returnKeyType="search"
@@ -461,9 +467,9 @@ export default function TransactionsScreen() {
           renderItem={renderItem}
           renderSectionHeader={({ section }) => (
             <View style={[styles.sectionHeader, { backgroundColor: colors.background }]}>
-              <Text style={[styles.sectionHeaderText, { color: colors.textSecondary }]}>
+              <SelectableText style={[styles.sectionHeaderText, { color: colors.textSecondary }]}>
                 {section.title}
-              </Text>
+              </SelectableText>
             </View>
           )}
           stickySectionHeadersEnabled
@@ -486,7 +492,7 @@ export default function TransactionsScreen() {
               </TouchableOpacity>
             ) : null
           }
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingBottom: 40 + insets.bottom }]}
           onEndReached={fetchNextPage}
           onEndReachedThreshold={0.5}
           keyboardShouldPersistTaps="handled"
@@ -497,13 +503,13 @@ export default function TransactionsScreen() {
           ListEmptyComponent={
             <View style={styles.centered}>
               <Ionicons name="receipt-outline" size={40} color={colors.textSecondary} />
-              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+              <SelectableText style={[styles.emptyText, { color: colors.textSecondary }]}>
                 {searchTerm.length > 0
                   ? t('transactions.noMatching')
                   : filter.kind !== 'ALL' || selectedCategory !== 'All'
                   ? t('transactions.noFilterMatch')
                   : t('transactions.none')}
-              </Text>
+              </SelectableText>
             </View>
           }
           ListFooterComponent={
@@ -529,7 +535,7 @@ export default function TransactionsScreen() {
             <View style={[styles.sheetContainer, { backgroundColor: colors.card }]}>
               <View style={styles.sheetHeader}>
                 <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
-                <Text style={[styles.sheetTitle, { color: colors.text }]}>{t('transactions.filterByDate')}</Text>
+                <SelectableText style={[styles.sheetTitle, { color: colors.text }]}>{t('transactions.filterByDate')}</SelectableText>
               </View>
 
               <ScrollView style={styles.sheetScroll}>
@@ -646,11 +652,19 @@ const styles = StyleSheet.create({
   headerWrap: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 4 },
   headerRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 12,
     marginBottom: 12,
   },
-  headerTitle: { fontSize: 24, fontWeight: '700', letterSpacing: -0.5 },
+  backBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  headerTitle: { flex: 1, fontSize: 24, fontWeight: '700', letterSpacing: -0.5 },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -673,7 +687,7 @@ const styles = StyleSheet.create({
   },
   reviewRowText: { flex: 1, fontSize: 14, fontWeight: '600' },
   reviewRowAction: { fontSize: 14, fontWeight: '600' },
-  listContent: { paddingHorizontal: 20, paddingBottom: 40 },
+  listContent: { paddingHorizontal: 20 },
   sectionHeader: { paddingTop: 16, paddingBottom: 8 },
   sectionHeaderText: {
     fontSize: 13,
@@ -681,19 +695,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.4,
   },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  rowFirst: { borderTopLeftRadius: 14, borderTopRightRadius: 14 },
-  rowLast: { borderBottomLeftRadius: 14, borderBottomRightRadius: 14 },
-  rowTextWrap: { flex: 1, marginRight: 12 },
-  rowTitle: { fontSize: 16, fontWeight: '600' },
-  rowSubtitle: { fontSize: 13, marginTop: 2 },
-  rowAmount: { fontSize: 16, fontWeight: '700' },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80, gap: 12 },
   emptyText: { fontSize: 15 },
   footerLoader: { paddingVertical: 20 },

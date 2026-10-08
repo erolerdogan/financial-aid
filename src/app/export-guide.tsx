@@ -1,3 +1,4 @@
+import { SelectableText } from '@/components/SelectableText';
 import {
   BankGuide,
   CHANNEL_KEYS,
@@ -45,7 +46,7 @@ export default function ExportGuideScreen() {
   // Opened from Welcome: the tabs are not in the stack yet.
   const [openedWithoutData] = useState(!hasData);
 
-  const { importStatement, importing } = useStatementImporter({
+  const { importStatement, importing, importDisabled } = useStatementImporter({
     onSuccess: async () => {
       await refreshProfiles();
       // The summary sheet is hosted by the tabs; leave this screen (and Settings under it).
@@ -78,7 +79,7 @@ export default function ExportGuideScreen() {
             <Text style={[styles.backText, { color: colors.accent }]}>{t('guide.allBanks')}</Text>
           </TouchableOpacity>
         ) : (
-          <Text style={[styles.headerTitle, { color: colors.text }]}>{t('guide.title')}</Text>
+          <SelectableText style={[styles.headerTitle, { color: colors.text }]}>{t('guide.title')}</SelectableText>
         )}
         <TouchableOpacity
           style={[styles.closeBtn, { backgroundColor: colors.background }]}
@@ -93,9 +94,9 @@ export default function ExportGuideScreen() {
       {selection ? (
         <>
           <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-            <Text style={[styles.bankTitle, { color: colors.text }]}>
+            <SelectableText style={[styles.bankTitle, { color: colors.text }]}>
               {guide ? guideName(guide) : t('guide.otherBankTitle')}
-            </Text>
+            </SelectableText>
             {guide && (
               <View style={styles.metaRow}>
                 <View style={[styles.metaPill, { backgroundColor: colors.tintBackground }]}>
@@ -104,13 +105,13 @@ export default function ExportGuideScreen() {
                     size={13}
                     color={colors.accent}
                   />
-                  <Text style={[styles.metaText, { color: colors.accent }]}>{t(CHANNEL_KEYS[guide.channel])}</Text>
+                  <SelectableText style={[styles.metaText, { color: colors.accent }]}>{t(CHANNEL_KEYS[guide.channel])}</SelectableText>
                 </View>
                 <View style={[styles.metaPill, { backgroundColor: colors.tintBackground }]}>
                   <Ionicons name="document-text-outline" size={13} color={colors.accent} />
-                  <Text style={[styles.metaText, { color: colors.accent }]}>
+                  <SelectableText style={[styles.metaText, { color: colors.accent }]}>
                     {t('guide.fileType', { format: guide.format })}
-                  </Text>
+                  </SelectableText>
                 </View>
               </View>
             )}
@@ -121,15 +122,15 @@ export default function ExportGuideScreen() {
                   {index > 0 && <View style={[styles.divider, { backgroundColor: colors.border }]} />}
                   <View style={styles.stepRow}>
                     <View style={[styles.stepNumber, { backgroundColor: colors.tintBackground }]}>
-                      <Text style={[styles.stepNumberText, { color: colors.accent }]}>{format.number(index + 1)}</Text>
+                      <SelectableText style={[styles.stepNumberText, { color: colors.accent }]}>{format.number(index + 1)}</SelectableText>
                     </View>
-                    <Text style={[styles.stepText, { color: colors.text }]}>
+                    <SelectableText style={[styles.stepText, { color: colors.text }]}>
                       {stepParts(step, guide, language, t).map((part, partIndex) => (
                         <Text key={partIndex} style={part.label ? styles.stepLabel : undefined}>
                           {part.text}
                         </Text>
                       ))}
-                    </Text>
+                    </SelectableText>
                   </View>
                 </View>
               ))}
@@ -138,27 +139,27 @@ export default function ExportGuideScreen() {
             {guide?.note && (
               <View style={styles.noteRow}>
                 <Ionicons name="information-circle-outline" size={16} color={colors.textSecondary} />
-                <Text style={[styles.noteText, { color: colors.textSecondary }]}>{t(guide.note)}</Text>
+                <SelectableText style={[styles.noteText, { color: colors.textSecondary }]}>{t(guide.note)}</SelectableText>
               </View>
             )}
             <View style={styles.noteRow}>
               <Ionicons name="share-outline" size={16} color={colors.textSecondary} />
-              <Text style={[styles.noteText, { color: colors.textSecondary }]}>{t('guide.shareTip')}</Text>
+              <SelectableText style={[styles.noteText, { color: colors.textSecondary }]}>{t('guide.shareTip')}</SelectableText>
             </View>
 
             {guide && (
-              <Text style={[styles.footnote, { color: colors.textSecondary }]}>
+              <SelectableText style={[styles.footnote, { color: colors.textSecondary }]}>
                 {menuLanguage !== language && `${t('guide.labelsNote', { language: languageName(menuLanguage) })} `}
                 {t('guide.checked', { bank: guideName(guide), date: format.monthYear(guide.verified) })}
-              </Text>
+              </SelectableText>
             )}
           </ScrollView>
 
           <View style={[styles.footer, { backgroundColor: colors.card, borderTopColor: colors.border }]}>
             <TouchableOpacity
-              style={[styles.importBtn, { backgroundColor: colors.accent }]}
+              style={[styles.importBtn, { backgroundColor: colors.accent }, importDisabled && styles.importBtnDisabled]}
               onPress={importStatement}
-              disabled={importing}
+              disabled={importing || importDisabled}
               activeOpacity={0.85}
             >
               {importing ? (
@@ -176,7 +177,7 @@ export default function ExportGuideScreen() {
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{t('guide.subtitle')}</Text>
+          <SelectableText style={[styles.subtitle, { color: colors.textSecondary }]}>{t('guide.subtitle')}</SelectableText>
 
           <View style={[styles.searchField, { backgroundColor: colors.field }]}>
             <Ionicons name="search" size={16} color={colors.textSecondary} />
@@ -216,9 +217,9 @@ export default function ExportGuideScreen() {
               ))}
             </View>
           ) : (
-            <Text style={[styles.noResults, { color: colors.textSecondary }]}>
+            <SelectableText style={[styles.noResults, { color: colors.textSecondary }]}>
               {t('guide.noResults', { query: query.trim() })}
-            </Text>
+            </SelectableText>
           )}
 
           <View style={[styles.cardGroup, styles.otherGroup, { backgroundColor: colors.card }]}>
@@ -329,6 +330,7 @@ const styles = StyleSheet.create({
     paddingBottom: 28,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
+  importBtnDisabled: { opacity: 0.4 },
   importBtn: {
     height: 50,
     borderRadius: 14,

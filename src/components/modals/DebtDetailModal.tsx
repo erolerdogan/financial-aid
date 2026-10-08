@@ -1,4 +1,5 @@
 import { DebtProgressBar } from '@/components/debts/DebtProgressBar';
+import { SelectableText } from '@/components/SelectableText';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -162,9 +163,9 @@ export function DebtDetailModal({ visible, debt, onClose, onEdit, onChanged }: D
             <TouchableOpacity onPress={onClose} hitSlop={8}>
               <Text style={[styles.headerAction, { color: colors.accent }]}>{t('common.done')}</Text>
             </TouchableOpacity>
-            <Text style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>
+            <SelectableText style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>
               {debt.name}
-            </Text>
+            </SelectableText>
             <TouchableOpacity onPress={onEdit} hitSlop={8}>
               <Text style={[styles.headerAction, styles.bold, { color: colors.accent }]}>{t('common.edit')}</Text>
             </TouchableOpacity>
@@ -183,33 +184,33 @@ export function DebtDetailModal({ visible, debt, onClose, onEdit, onChanged }: D
                 {debt.isPaidOff && (
                   <View style={styles.paidBadge}>
                     <Ionicons name="checkmark-circle" size={14} color="#34C759" />
-                    <Text style={styles.paidBadgeText}>{t('debt.paidOff')}</Text>
+                    <SelectableText style={styles.paidBadgeText}>{t('debt.paidOff')}</SelectableText>
                   </View>
                 )}
               </View>
 
-              <Text style={[styles.heroLabel, { color: colors.textSecondary }]}>{t('debt.detail.remaining')}</Text>
-              <Text style={[styles.heroValue, { color: colors.text }]}>{fmt(debt.balance, 2)}</Text>
+              <SelectableText style={[styles.heroLabel, { color: colors.textSecondary }]}>{t('debt.detail.remaining')}</SelectableText>
+              <SelectableText style={[styles.heroValue, { color: colors.text }]}>{fmt(debt.balance, 2)}</SelectableText>
 
               <View style={styles.barWrap}>
                 <DebtProgressBar percent={debt.percentPaid} color={debt.color} height={12} />
               </View>
               <View style={styles.heroFooter}>
-                <Text style={[styles.heroFooterText, { color: colors.textSecondary }]}>
+                <SelectableText style={[styles.heroFooterText, { color: colors.textSecondary }]}>
                   {t('debt.percentPaid', { percent: debt.percentPaid.toFixed(0) })}
-                </Text>
-                <Text style={[styles.heroFooterText, { color: colors.textSecondary }]}>
+                </SelectableText>
+                <SelectableText style={[styles.heroFooterText, { color: colors.textSecondary }]}>
                   {t('debt.ofAmount', { amount: fmt(debt.originalAmount) })}
-                </Text>
+                </SelectableText>
               </View>
             </View>
 
             {neverPaysOff && (
               <View style={styles.warnCard}>
                 <Ionicons name="warning-outline" size={16} color="#FF9500" />
-                <Text style={styles.warnText}>
+                <SelectableText style={styles.warnText}>
                   {t('debt.detail.neverPaysOff')}
-                </Text>
+                </SelectableText>
               </View>
             )}
 
@@ -219,22 +220,22 @@ export function DebtDetailModal({ visible, debt, onClose, onEdit, onChanged }: D
                   key={stat.label}
                   style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}
                 >
-                  <Text style={[styles.statLabel, { color: colors.textSecondary }]} numberOfLines={1}>
+                  <SelectableText style={[styles.statLabel, { color: colors.textSecondary }]} numberOfLines={1}>
                     {stat.label}
-                  </Text>
-                  <Text style={[styles.statValue, { color: colors.text }]} numberOfLines={1}>
+                  </SelectableText>
+                  <SelectableText style={[styles.statValue, { color: colors.text }]} numberOfLines={1}>
                     {stat.value}
-                  </Text>
+                  </SelectableText>
                 </View>
               ))}
             </View>
 
             {!debt.isPaidOff && (
               <>
-                <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t('debt.detail.addPayment')}</Text>
+                <SelectableText style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t('debt.detail.addPayment')}</SelectableText>
                 <View style={styles.addRow}>
                   <View style={[styles.inputWrap, styles.amountInput, { backgroundColor: fieldBg, borderColor: colors.border }]}>
-                    <Text style={[styles.affix, { color: colors.textSecondary }]}>{currencySymbol}</Text>
+                    <SelectableText style={[styles.affix, { color: colors.textSecondary }]}>{currencySymbol}</SelectableText>
                     <TextInput
                       style={[styles.input, { color: colors.text }]}
                       value={amountInput}
@@ -267,13 +268,13 @@ export function DebtDetailModal({ visible, debt, onClose, onEdit, onChanged }: D
               </>
             )}
 
-            <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
+            <SelectableText style={[styles.sectionLabel, { color: colors.textSecondary }]}>
               {t('debt.detail.history', { count: payments.length })}
-            </Text>
+            </SelectableText>
             {payments.length === 0 ? (
-              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+              <SelectableText style={[styles.emptyText, { color: colors.textSecondary }]}>
                 {t('debt.detail.noPayments')}
-              </Text>
+              </SelectableText>
             ) : (
               <View style={[styles.listCard, { backgroundColor: colors.card }]}>
                 {payments.map((payment, index) => (
@@ -285,40 +286,40 @@ export function DebtDetailModal({ visible, debt, onClose, onEdit, onChanged }: D
                     ]}
                   >
                     <View style={styles.paymentLeft}>
-                      <Text style={[styles.paymentDate, { color: colors.text }]} numberOfLines={1}>
+                      <SelectableText style={[styles.paymentDate, { color: colors.text }]} numberOfLines={1}>
                         {payment.source === 'MANUAL'
                           ? t('debt.detail.manualPayment')
                           : (payment.merchant && payment.merchant !== 'Unknown'
                               ? payment.merchant
                               : payment.rawDescription) || t('debt.detail.statementPayment')}
-                      </Text>
-                      <Text style={[styles.paymentSplit, { color: colors.textSecondary }]} numberOfLines={1}>
+                      </SelectableText>
+                      <SelectableText style={[styles.paymentSplit, { color: colors.textSecondary }]} numberOfLines={1}>
                         {payment.date}
                         {payment.source === 'AUTO' && payment.keyword ? ` • ${t('debt.detail.via', { keyword: payment.keyword })}` : ''}
-                      </Text>
-                      <Text style={[styles.paymentSplit, { color: colors.textSecondary }]}>
+                      </SelectableText>
+                      <SelectableText style={[styles.paymentSplit, { color: colors.textSecondary }]}>
                         {t('debt.detail.principal', { amount: fmt(payment.principal, 2) })}
                         {payment.interest > 0 ? ` • ${t('debt.detail.interest', { amount: fmt(payment.interest, 2) })}` : ''}
-                      </Text>
+                      </SelectableText>
                     </View>
                     <View style={styles.paymentRight}>
-                      <Text style={[styles.paymentAmount, { color: colors.text }]}>
+                      <SelectableText style={[styles.paymentAmount, { color: colors.text }]}>
                         {fmt(payment.amount, 2)}
-                      </Text>
+                      </SelectableText>
                       <View
                         style={[
                           styles.sourceBadge,
                           { backgroundColor: payment.source === 'AUTO' ? 'rgba(52,199,89,0.14)' : 'rgba(142,142,147,0.16)' },
                         ]}
                       >
-                        <Text
+                        <SelectableText
                           style={[
                             styles.sourceText,
                             { color: payment.source === 'AUTO' ? '#34C759' : colors.textSecondary },
                           ]}
                         >
                           {payment.source === 'AUTO' ? t('debt.detail.auto') : t('debt.detail.manual')}
-                        </Text>
+                        </SelectableText>
                       </View>
                     </View>
                     <TouchableOpacity onPress={() => handleRemovePayment(payment)} hitSlop={10} style={styles.removeBtn}>

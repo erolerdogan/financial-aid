@@ -1,3 +1,4 @@
+import { SelectableText } from '@/components/SelectableText';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -118,8 +119,7 @@ export function BackupRestoreModal({ visible, onClose, restoreOnly, onRestored }
 
   const handleShow = () => {
     resetStep();
-    if (restoreOnly) handleRestore();
-    else refreshStatus();
+    if (!restoreOnly) refreshStatus();
   };
 
   const handleClose = () => {
@@ -429,9 +429,9 @@ export function BackupRestoreModal({ visible, onClose, restoreOnly, onRestored }
     <>
       <View style={styles.header}>
         <View style={[styles.handle, { backgroundColor: colors.border }]} />
-        <Text style={[styles.title, { color: colors.text }]}>
+        <SelectableText style={[styles.title, { color: colors.text }]}>
           {restoreOnly ? t('backup.restoreFrom') : t('settings.backup')}
-        </Text>
+        </SelectableText>
       </View>
 
       {!restoreOnly && (
@@ -481,11 +481,11 @@ export function BackupRestoreModal({ visible, onClose, restoreOnly, onRestored }
             handleExport
           )}
 
-          <Text style={[styles.footer, { color: colors.textSecondary }]}>
+          <SelectableText style={[styles.footer, { color: colors.textSecondary }]}>
             {isDemoMode
               ? t('backup.demoNote')
               : t('backup.footer')}
-          </Text>
+          </SelectableText>
         </>
       )}
     </>
@@ -495,13 +495,13 @@ export function BackupRestoreModal({ visible, onClose, restoreOnly, onRestored }
     <>
       <View style={styles.header}>
         <View style={[styles.handle, { backgroundColor: colors.border }]} />
-        <Text style={[styles.title, { color: colors.text }]}>{t('backup.backUp')}</Text>
+        <SelectableText style={[styles.title, { color: colors.text }]}>{t('backup.backUp')}</SelectableText>
       </View>
 
       <View style={styles.row}>
         <View style={styles.rowText}>
-          <Text style={[styles.rowTitle, { color: colors.text }]}>{t('backup.protect')}</Text>
-          <Text style={[styles.rowSub, { color: colors.textSecondary }]}>{t('backup.protectSub')}</Text>
+          <SelectableText style={[styles.rowTitle, { color: colors.text }]}>{t('backup.protect')}</SelectableText>
+          <SelectableText style={[styles.rowSub, { color: colors.textSecondary }]}>{t('backup.protectSub')}</SelectableText>
         </View>
         <Switch
           value={protect}
@@ -518,14 +518,14 @@ export function BackupRestoreModal({ visible, onClose, restoreOnly, onRestored }
           {renderField(password, setPassword, t('backup.password'), { isNew: true, autoFocus: true })}
           {renderField(repeat, setRepeat, t('backup.passwordRepeat'), { isNew: true, onSubmit: handleSubmitBackup })}
           {passwordError && (
-            <Text style={[styles.note, { color: ERROR_COLOR }]}>
+            <SelectableText style={[styles.note, { color: ERROR_COLOR }]}>
               {t(passwordError, { min: MIN_PASSWORD_LENGTH })}
-            </Text>
+            </SelectableText>
           )}
-          <Text style={[styles.note, { color: colors.textSecondary }]}>{t('backup.passwordWarning')}</Text>
+          <SelectableText style={[styles.note, { color: colors.textSecondary }]}>{t('backup.passwordWarning')}</SelectableText>
         </>
       ) : (
-        <Text style={[styles.note, { color: colors.textSecondary }]}>{t('backup.noticeMessage')}</Text>
+        <SelectableText style={[styles.note, { color: colors.textSecondary }]}>{t('backup.noticeMessage')}</SelectableText>
       )}
 
       {renderActions('backup', t('backup.backUp'), handleSubmitBackup, true)}
@@ -536,19 +536,19 @@ export function BackupRestoreModal({ visible, onClose, restoreOnly, onRestored }
     <>
       <View style={styles.header}>
         <View style={[styles.handle, { backgroundColor: colors.border }]} />
-        <Text style={[styles.title, { color: colors.text }]}>{t('backup.unlockTitle')}</Text>
+        <SelectableText style={[styles.title, { color: colors.text }]}>{t('backup.unlockTitle')}</SelectableText>
       </View>
 
-      <Text style={[styles.note, { color: colors.textSecondary }]}>{t('backup.unlockSub')}</Text>
+      <SelectableText style={[styles.note, { color: colors.textSecondary }]}>{t('backup.unlockSub')}</SelectableText>
       {renderField(password, setPassword, t('backup.password'), {
         isNew: false,
         autoFocus: true,
         onSubmit: handleUnlock,
       })}
       {unlockFailed && (
-        <Text style={[styles.note, { color: ERROR_COLOR }]}>
+        <SelectableText style={[styles.note, { color: ERROR_COLOR }]}>
           {`${t('backup.error.wrongPassword')} ${t('backup.unchanged')}`}
-        </Text>
+        </SelectableText>
       )}
 
       {renderActions('restore', t('backup.unlock'), handleUnlock, password.length > 0)}

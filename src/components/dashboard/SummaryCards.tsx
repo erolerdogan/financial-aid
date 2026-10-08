@@ -1,3 +1,4 @@
+import { SelectableText } from '@/components/SelectableText';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -52,15 +53,15 @@ export function SummaryCards({
       </View>
 
       <View style={[styles.netCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Text style={[styles.netCardLabel, { color: colors.textSecondary }]}>{t('home.netCashFlow')}</Text>
-        <Text
+        <SelectableText style={[styles.netCardLabel, { color: colors.textSecondary }]}>{t('home.netCashFlow')}</SelectableText>
+        <SelectableText
           style={[
             styles.netAmountHorizontal,
             { color: summary.netSavings >= 0 ? '#34C759' : '#FF3B30' },
           ]}
         >
           {format.money(summary.netSavings, currencySymbol, 2)}
-        </Text>
+        </SelectableText>
       </View>
     </View>
   );

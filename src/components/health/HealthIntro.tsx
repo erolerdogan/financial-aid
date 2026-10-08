@@ -1,4 +1,5 @@
 import { ScoreRing } from '@/components/health/ScoreRing';
+import { SelectableText } from '@/components/SelectableText';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import type { TranslationKey } from '@/i18n';
@@ -61,10 +62,10 @@ export function HealthIntro({ actionLabel, onDone }: HealthIntroProps) {
 
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <Text style={[styles.heading, { color: colors.text }]} accessibilityRole="header">
+      <SelectableText style={[styles.heading, { color: colors.text }]} accessibilityRole="header">
         {t('health.intro.heading')}
-      </Text>
-      <Text style={[styles.lead, { color: colors.textSecondary }]}>{t('health.intro.lead')}</Text>
+      </SelectableText>
+      <SelectableText style={[styles.lead, { color: colors.textSecondary }]}>{t('health.intro.lead')}</SelectableText>
 
       <LinearGradient
         colors={colors.gradient}
@@ -74,7 +75,7 @@ export function HealthIntro({ actionLabel, onDone }: HealthIntroProps) {
         accessible
         accessibilityLabel={`${t('health.intro.exampleLabel')}. ${exampleText} ${t('health.scoreOf', { score: example.score })}. ${improvementText}`}
       >
-        <Text style={[styles.exampleLabel, { color: colors.onGradient }]}>{t('health.intro.exampleLabel')}</Text>
+        <SelectableText style={[styles.exampleLabel, { color: colors.onGradient }]}>{t('health.intro.exampleLabel')}</SelectableText>
         <View style={styles.exampleRow}>
           <ScoreRing
             score={example.score}
@@ -83,27 +84,27 @@ export function HealthIntro({ actionLabel, onDone }: HealthIntroProps) {
             color={colors.onGradient}
             trackColor={`${colors.onGradient}40`}
           >
-            <Text style={[styles.exampleScore, { color: colors.onGradient }]}>{example.score}</Text>
+            <SelectableText style={[styles.exampleScore, { color: colors.onGradient }]}>{example.score}</SelectableText>
           </ScoreRing>
           <View style={styles.exampleBody}>
-            <Text style={[styles.exampleText, { color: colors.onGradient }]}>{exampleText}</Text>
+            <SelectableText style={[styles.exampleText, { color: colors.onGradient }]}>{exampleText}</SelectableText>
             {improvementText ? (
-              <Text style={[styles.exampleSub, { color: colors.onGradient }]}>{improvementText}</Text>
+              <SelectableText style={[styles.exampleSub, { color: colors.onGradient }]}>{improvementText}</SelectableText>
             ) : null}
           </View>
         </View>
       </LinearGradient>
 
       <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Text style={[styles.cardTitle, { color: colors.textSecondary }]}>{t('freedom.intro.howItWorks')}</Text>
+        <SelectableText style={[styles.cardTitle, { color: colors.textSecondary }]}>{t('freedom.intro.howItWorks')}</SelectableText>
         {STEPS.map((step, index) => (
           <View key={step.title} style={[styles.step, index > 0 && styles.stepGap]}>
             <View style={[styles.stepIcon, { backgroundColor: colors.tintBackground }]}>
               <Ionicons name={step.icon} size={18} color={colors.accent} />
             </View>
             <View style={styles.stepBody}>
-              <Text style={[styles.stepTitle, { color: colors.text }]}>{t(step.title)}</Text>
-              <Text style={[styles.stepText, { color: colors.textSecondary }]}>{t(step.text)}</Text>
+              <SelectableText style={[styles.stepTitle, { color: colors.text }]}>{t(step.title)}</SelectableText>
+              <SelectableText style={[styles.stepText, { color: colors.textSecondary }]}>{t(step.text)}</SelectableText>
             </View>
           </View>
         ))}
@@ -111,7 +112,7 @@ export function HealthIntro({ actionLabel, onDone }: HealthIntroProps) {
 
       <View style={styles.privacyRow}>
         <Ionicons name="lock-closed-outline" size={14} color={colors.textSecondary} />
-        <Text style={[styles.privacyText, { color: colors.textSecondary }]}>{t('health.intro.privacy')}</Text>
+        <SelectableText style={[styles.privacyText, { color: colors.textSecondary }]}>{t('health.intro.privacy')}</SelectableText>
       </View>
 
       <TouchableOpacity
@@ -123,7 +124,7 @@ export function HealthIntro({ actionLabel, onDone }: HealthIntroProps) {
         <Text style={styles.actionText}>{actionLabel}</Text>
       </TouchableOpacity>
 
-      <Text style={[styles.disclaimer, { color: colors.textSecondary }]}>{t('health.disclaimer')}</Text>
+      <SelectableText style={[styles.disclaimer, { color: colors.textSecondary }]}>{t('health.disclaimer')}</SelectableText>
     </ScrollView>
   );
 }
@@ -149,7 +150,7 @@ export function HealthIntroModal({ visible, onClose }: HealthIntroModalProps) {
         edges={Platform.OS === 'ios' ? ['bottom'] : ['top', 'bottom']}
       >
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>{t('health.intro.modalTitle')}</Text>
+          <SelectableText style={[styles.headerTitle, { color: colors.text }]}>{t('health.intro.modalTitle')}</SelectableText>
           <TouchableOpacity onPress={onClose} hitSlop={8} style={styles.headerAction} accessibilityRole="button">
             <Text style={[styles.headerActionText, { color: colors.accent }]}>{t('common.done')}</Text>
           </TouchableOpacity>

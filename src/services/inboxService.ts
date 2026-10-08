@@ -65,7 +65,7 @@ const currentMonthKey = (): string => {
 export async function getInboxItems(
   db: SQLiteDatabase,
   profileId: number,
-  options: { includeBackup: boolean }
+  options: { isDemo: boolean }
 ): Promise<InboxItem[]> {
   const [healthAlerts, dismissed, suggestions, uncategorised, debts, months, lastBackup] = await Promise.all([
     loadNewAlerts(db, profileId),
@@ -81,7 +81,7 @@ export async function getInboxItems(
        FROM transactions WHERE profileId = ? GROUP BY monthName ORDER BY monthName DESC LIMIT 4;`,
       [profileId]
     ),
-    options.includeBackup ? getLastBackupDate(db) : Promise.resolve(null),
+    options.isDemo ? Promise.resolve(null) : getLastBackupDate(db),
   ]);
 
   // Dismissed with a value at or past the threshold: nothing new since, keep it hidden.
@@ -135,7 +135,8 @@ export async function getInboxItems(
 
   const thisMonth = currentMonthKey();
   let partialMonths = 0;
-  for (const row of months) {
+  // Nothing can be imported or backed up in the demo workspace.
+  for (const row of options.isDemo ? [] : months) {
     if (partialMonths >= MAX_PARTIAL_MONTHS) break;
     if (!row.maxDate || row.month >= thisMonth) continue;
     if (parseInt(row.maxDate.slice(8, 10), 10) >= FULL_MONTH_MIN_DAY) continue;
@@ -152,7 +153,7 @@ export async function getInboxItems(
     });
   }
 
-  if (options.includeBackup && months.length > 0) {
+  if (!options.isDemo && months.length > 0) {
     const now = Date.now();
     const daysSince = lastBackup ? Math.floor((now - lastBackup.getTime()) / DAY_MS) : null;
     const due = daysSince === null || daysSince >= BACKUP_INTERVAL_DAYS;

@@ -1,4 +1,5 @@
 import { ScreenContainer } from '@/components/ScreenContainer';
+import { SelectableText } from '@/components/SelectableText';
 import { getCategoryColor } from '@/constants/colors';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -81,7 +82,7 @@ export default function GoalsScreen() {
   return (
     <ScreenContainer showDemoBanner={false}>
       <View style={[styles.headerRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>{t('settings.budgets')}</Text>
+        <SelectableText style={[styles.headerTitle, { color: colors.text }]}>{t('settings.budgets')}</SelectableText>
         <TouchableOpacity
           style={[styles.closeBtn, { backgroundColor: colors.surface }]}
           onPress={() => router.back()}
@@ -91,16 +92,16 @@ export default function GoalsScreen() {
       </View>
 
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        <Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>
+        <SelectableText style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>
           {t('budgets.subtitle')}
-        </Text>
+        </SelectableText>
 
         {loading ? (
           <ActivityIndicator size="small" color={colors.accent} style={{ marginTop: 40 }} />
         ) : goals.length === 0 ? (
-          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+          <SelectableText style={[styles.emptyText, { color: colors.textSecondary }]}>
             {t('budgets.empty')}
-          </Text>
+          </SelectableText>
         ) : (
           goals.map((item) => {
             const catColor = getCategoryColor(item.category);
@@ -168,9 +169,9 @@ export default function GoalsScreen() {
               <View style={[styles.sheetContainer, { backgroundColor: colors.card }]}>
                 <View style={styles.sheetHeader}>
                   <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
-                  <Text style={[styles.sheetTitle, { color: colors.text }]}>
+                  <SelectableText style={[styles.sheetTitle, { color: colors.text }]}>
                     {t('budgets.budgetFor', { category: editingCategory ? categoryName(editingCategory) : '' })}
-                  </Text>
+                  </SelectableText>
                 </View>
                 <TextInput
                   style={[

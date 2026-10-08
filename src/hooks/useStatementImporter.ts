@@ -47,7 +47,7 @@ function coveredPeriod(statements: PdfStatement[]): { dateFrom: string | null; d
 
 export function useStatementImporter(options?: UseStatementImporterOptions) {
   const db = useSQLiteContext();
-  const { activeProfile, refreshProfiles, switchProfile, currencySymbol } = useProfile();
+  const { activeProfile, refreshProfiles, switchProfile, currencySymbol, isDemoMode } = useProfile();
   const { showImportResult, setImportProgress } = useImportResult();
   const { t, format } = useI18n();
   const [importing, setImporting] = useState(false);
@@ -198,6 +198,8 @@ export function useStatementImporter(options?: UseStatementImporterOptions) {
   };
 
   const importStatement = async () => {
+    // The demo workspace is wiped on exit; an import there would be lost.
+    if (isDemoMode) return;
     if (isPickingRef.current || importing) return;
     isPickingRef.current = true;
 
@@ -240,6 +242,10 @@ export function useStatementImporter(options?: UseStatementImporterOptions) {
 
   // A file handed over by another app (share sheet); same path as a picked file.
   const importSharedFile = async (fileUri: string, fileName: string) => {
+    if (isDemoMode) {
+      Alert.alert(t('demo.importBlockedTitle'), t('demo.importBlockedMessage'));
+      return;
+    }
     if (isPickingRef.current || importing) return;
     isPickingRef.current = true;
 
@@ -264,5 +270,6 @@ export function useStatementImporter(options?: UseStatementImporterOptions) {
     importStatement,
     importSharedFile,
     importing,
+    importDisabled: isDemoMode,
   };
 }

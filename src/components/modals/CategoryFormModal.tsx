@@ -1,3 +1,4 @@
+import { SelectableText } from '@/components/SelectableText';
 import { CATEGORY_COLOR_PALETTE } from '@/constants/colors';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -261,14 +262,14 @@ export function CategoryFormModal({
         <TouchableOpacity onPress={() => setDeleting(false)} hitSlop={8}>
           <Text style={[styles.headerAction, { color: colors.accent }]}>{t('common.back')}</Text>
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>{t('categoryForm.delete')}</Text>
+        <SelectableText style={[styles.headerTitle, { color: colors.text }]}>{t('categoryForm.delete')}</SelectableText>
         <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={[styles.helperText, { color: colors.textSecondary }]}>
+        <SelectableText style={[styles.helperText, { color: colors.textSecondary }]}>
           {t('categoryForm.moveHelp', { count: category?.transactionCount ?? 0, name: category?.name ?? '' })}
-        </Text>
+        </SelectableText>
 
         <View style={[styles.card, { backgroundColor: colors.card }]}>
           {reassignOptions.map((option, index) => {
@@ -315,9 +316,9 @@ export function CategoryFormModal({
         <TouchableOpacity onPress={onClose} hitSlop={8}>
           <Text style={[styles.headerAction, { color: colors.accent }]}>{t('common.cancel')}</Text>
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>
+        <SelectableText style={[styles.headerTitle, { color: colors.text }]}>
           {isCreate ? t('categoryForm.new') : t('categoryForm.edit')}
-        </Text>
+        </SelectableText>
         <TouchableOpacity onPress={handleSave} disabled={saving} hitSlop={8}>
           {saving ? (
             <ActivityIndicator size="small" color={colors.accent} />
@@ -334,7 +335,7 @@ export function CategoryFormModal({
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
       >
-        <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t('categoryForm.name')}</Text>
+        <SelectableText style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t('categoryForm.name')}</SelectableText>
         <View style={[styles.inputWrap, { backgroundColor: fieldBg, borderColor: colors.border }]}>
           <TextInput
             style={[styles.input, { color: isBuiltIn ? colors.textSecondary : colors.text }]}
@@ -350,12 +351,12 @@ export function CategoryFormModal({
           {isBuiltIn && <Ionicons name="lock-closed" size={14} color={colors.textSecondary} />}
         </View>
         {isBuiltIn && (
-          <Text style={[styles.footnote, { color: colors.textSecondary }]}>
+          <SelectableText style={[styles.footnote, { color: colors.textSecondary }]}>
             {t('categoryForm.builtInNote')}
-          </Text>
+          </SelectableText>
         )}
 
-        <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t('categoryForm.color')}</Text>
+        <SelectableText style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t('categoryForm.color')}</SelectableText>
         <View style={styles.swatchGrid}>
           {CATEGORY_COLOR_PALETTE.map((swatch) => {
             const isSelected = swatch === color;
@@ -380,12 +381,12 @@ export function CategoryFormModal({
           })}
         </View>
 
-        <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
+        <SelectableText style={[styles.sectionLabel, { color: colors.textSecondary }]}>
           {t('categoryForm.keywords')}
-        </Text>
-        <Text style={[styles.footnote, styles.footnoteTop, { color: colors.textSecondary }]}>
+        </SelectableText>
+        <SelectableText style={[styles.footnote, styles.footnoteTop, { color: colors.textSecondary }]}>
           {t('categoryForm.keywordsHelp')}
-        </Text>
+        </SelectableText>
 
         <View style={styles.keywordInputRow}>
           <View
@@ -428,7 +429,7 @@ export function CategoryFormModal({
                 key={keyword}
                 style={[styles.chip, { backgroundColor: fieldBg, borderColor: colors.border }]}
               >
-                <Text style={[styles.chipText, { color: colors.text }]}>{keyword}</Text>
+                <SelectableText style={[styles.chipText, { color: colors.text }]}>{keyword}</SelectableText>
                 <TouchableOpacity onPress={() => handleRemoveKeyword(keyword)} hitSlop={8}>
                   <Ionicons name="close-circle" size={16} color={colors.textSecondary} />
                 </TouchableOpacity>

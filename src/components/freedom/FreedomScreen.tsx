@@ -15,6 +15,7 @@ import { ImpactSection, type ValueMode } from '@/components/freedom/ImpactSectio
 import { ResultCards } from '@/components/freedom/ResultCards';
 import { ScenarioSelector } from '@/components/freedom/ScenarioSelector';
 import { YearlyTable } from '@/components/freedom/YearlyTable';
+import { SelectableText } from '@/components/SelectableText';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -264,10 +265,10 @@ export function FreedomScreen() {
     if (failedLoadKey === loadKey) {
       return (
         <View style={styles.centered}>
-          <Text style={[styles.errorTitle, { color: colors.text }]}>{t('freedom.loadErrorTitle')}</Text>
-          <Text style={[styles.errorText, { color: colors.textSecondary }]}>
+          <SelectableText style={[styles.errorTitle, { color: colors.text }]}>{t('freedom.loadErrorTitle')}</SelectableText>
+          <SelectableText style={[styles.errorText, { color: colors.textSecondary }]}>
             {t('freedom.loadErrorBody')}
-          </Text>
+          </SelectableText>
           <TouchableOpacity
             activeOpacity={0.8}
             style={[styles.retryBtn, { backgroundColor: colors.accent }]}
@@ -379,9 +380,9 @@ export function FreedomScreen() {
             <YearlyTable rows={rows} currencySymbol={currencySymbol} real={real} />
           </>
         )}
-        <Text style={[styles.disclaimer, { color: colors.textSecondary }]}>
+        <SelectableText style={[styles.disclaimer, { color: colors.textSecondary }]}>
           Projection, not guaranteed. Not financial advice.
-        </Text>
+        </SelectableText>
       </ScrollView>
       <FreedomKeyboardAccessory />
       <FreedomIntroModal

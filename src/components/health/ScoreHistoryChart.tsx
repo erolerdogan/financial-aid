@@ -1,9 +1,10 @@
+import { SelectableText } from '@/components/SelectableText';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import type { HealthHistoryPoint } from '@/utils/budgetHealth';
 import { getNiceScale } from '@/utils/chartScale';
 import React, { useMemo } from 'react';
-import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { LineChart } from 'react-native-gifted-charts';
 
 interface ScoreHistoryChartProps {
@@ -40,7 +41,7 @@ export function ScoreHistoryChart({ points }: ScoreHistoryChartProps) {
   );
 
   if (count < 2) {
-    return <Text style={[styles.empty, { color: colors.textSecondary }]}>{t('health.history.empty')}</Text>;
+    return <SelectableText style={[styles.empty, { color: colors.textSecondary }]}>{t('health.history.empty')}</SelectableText>;
   }
 
   const niceScale = getNiceScale(Math.max(...points.map((point) => point.score)));

@@ -58,7 +58,7 @@ export function InboxProvider({ children }: { children: React.ReactNode }) {
 
       // Counted only for calls that load, so a skipped call cannot discard one still in flight.
       const request = ++requestRef.current;
-      const next = await getInboxItems(db, profileId, { includeBackup: !isDemoMode });
+      const next = await getInboxItems(db, profileId, { isDemo: isDemoMode });
       if (request !== requestRef.current) return;
       stampRef.current = stamp;
       setItems(next);

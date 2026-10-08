@@ -36,13 +36,13 @@ On first launch the welcome screen offers two paths: import a statement, or open
 
 ### Website
 
-The bank export guides are also published as a small static website (one page per bank per language, for search traffic). The pages are generated from the same data and translations as the in-app guides:
+The app has a static website in the same nine languages: a home page, a page per feature (statement import, Budget Health, debts, Future Growth, backup), the bank export guides (one page per bank per language, for search traffic), FAQ, support, privacy policy, terms of use, disclaimer and changelog. The guide pages are generated from the same data and translations as the in-app guides, and the FAQ is the text the app shows under Settings → About (`src/content/faq/`); the rest of the text is in `src/content/site/`.
 
 ```bash
 npm run site       # writes site-dist/
 ```
 
-`.github/workflows/site.yml` deploys it to GitHub Pages on pushes to `main` (enable Pages with "GitHub Actions" as the source). Set `SITE_URL` and `APP_URL` when building for another address or once there are store links. To add a bank, add its export layout to `src/utils/bankFormats.ts`, then a guide to `src/content/bankGuides.ts` with the steps from the bank's own help page.
+`.github/workflows/site.yml` deploys it to GitHub Pages on pushes to `main` (enable Pages with "GitHub Actions" as the source). `SITE_URL`, `APP_STORE_URL`, `PLAY_STORE_URL` and `SUPPORT_EMAIL` are optional repository variables for a custom domain, store buttons and a contact address. Screenshots go in `site/screenshots/`. Details: `docs/website.md`. To add a bank, add its export layout to `src/utils/bankFormats.ts`, then a guide to `src/content/bankGuides.ts` with the steps from the bank's own help page.
 
 ## Features
 
@@ -69,7 +69,7 @@ npm run site       # writes site-dist/
 - The merchant name counts for more than the memo: generic words such as "market", "shop" or "transfer" only decide the category when they are part of the name.
 - Money coming in is never filed under a spending category by the built-in keywords; it is "Income", or "Financial Transfers" for savings and investment accounts.
 - Your own rules match whole words (or the start of a word for keywords of 5 or more characters); when several match, the longest wins.
-- Review screen: the Transactions tab shows how many transactions are uncategorised at the top of the list. The review list groups them per merchant, largest first; picking a category once applies it to all of that merchant's transactions and to future imports.
+- Review screen: the Transactions screen shows how many transactions are uncategorised at the top of the list. The review list groups them per merchant, largest first; picking a category once applies it to all of that merchant's transactions and to future imports.
 - The review list suggests a category where it can (your earlier choices, a similar merchant, a word in the bank text, or a monthly direct debit) and shows why; one tap accepts it.
 - Reads the counterparty IBAN and payment type (direct debit, card, online, transfer) from the bank's columns or from the description text. A merchant is recognised by its IBAN when it has one of its own (not for card payments, iDEAL or payment processors).
 - The built-in keywords are tuned for Dutch banks and merchants, with some English and Turkish terms. The most specific (longest) keyword wins, and short names such as NS or AH only match as whole words.
@@ -83,6 +83,7 @@ npm run site       # writes site-dist/
 - Spending allocation chart by category, with budget progress per category when a single month is selected. The chart is a donut by default; the chart icon in the card header steps through bars, one stacked bar and a treemap, where tapping a bar or tile expands that category. The choice is remembered.
 - Tapping income or expenses opens a bottom sheet with those transactions (fixed vs. flexible split, search, fixed/flexible and category filters).
 - Tapping a category in the allocation card expands its transactions inline; tapping one opens its detail.
+- Recent activity card: the last 5 transactions of the selected period; tap one for its detail, or "See all" to open Transactions on the same period.
 - Debts summary card.
 - Month stepper, plus custom date ranges with presets (last 7 days, last 30 days, year to date).
 - Statement coverage indicator for the selected month:
@@ -90,7 +91,7 @@ npm run site       # writes site-dist/
   - **In Progress**: the current month, partway through.
   - **Partial Statement**: a past month with incomplete date coverage.
   - **Full Statement**: the whole month is covered.
-- Profile switcher, "For You" bell and settings in the header of every tab.
+- Profile switcher, "For You" bell and settings in the header of every tab; transaction search in the header of Home and Trends.
 
 ### For You (bell)
 
@@ -101,6 +102,7 @@ npm run site       # writes site-dist/
 
 ### Transactions
 
+- Opened from the search icon in the Home or Trends header (the search field is ready to type in), from "See all" on Home, or from "Review" after an import. It is a screen with a back button, not a tab.
 - Live search by merchant, description or category; results update while typing.
 - Filter by date range and by category chips.
 - The month or range you pick is shared with Home.
@@ -117,7 +119,7 @@ npm run site       # writes site-dist/
 ### Trends
 
 - Line chart of spending over a year, a range of months, or day by day.
-- In the year view a dashed grey line shows the same months of the previous year when there is data for it; selecting a month shows how much more or less was spent than in the same month a year earlier.
+- Compare years in the year view: the previous year is drawn next to the selected one, and the year chips above the chart turn it off or add more years (up to four), each as a line in its own colour. Selecting a month shows how much more or less was spent than in the same month of each compared year.
 - View all expenses or a single category.
 - Shows the category's budget goal as a reference line and highlights points over the limit.
 - Set or change a category's monthly goal directly from the chart.
@@ -171,7 +173,7 @@ npm run site       # writes site-dist/
 
 - A health score from 0 to 100 that answers "is our money in good shape, and what is the one thing to fix?". It combines five pillars: savings rate (30%), housing (20%), fixed costs (15%), debt payments without the mortgage (20%) and a safety buffer (15%). Each pillar is compared with a common rule of thumb; a buffer you have not entered is left out and the other pillars share its weight.
 - Net monthly income is the average of the last three complete months of income in your statements, or the figure you type yourself.
-- Where it lives: the Plan tab opens on its Health segment (Health | Debts | Future Growth). Home is unchanged. Until there is a month with income the segment shows "Import at least one month to see your health score", or asks for your income.
+- Where it lives: Health is the second segment of the Plan tab (Debts | Health | Future Growth), which opens on Debts. Home is unchanged. Until there is a month with income the segment shows "Import at least one month to see your health score", or asks for your income.
 - The Health segment shows the score ring, how the score moved since the previous month, the single change that would add the most points, the five pillars, and every category against a typical range (as a share of net income) with your own average of the previous three months marked. Green is within the range, yellow up to 20% above, red beyond that; for savings it is the other way round. It follows the month picked on Home.
 - Introduction: the first visit shows a short page explaining the score with a worked example; "How it works" at the top reopens it.
 - Options (the ⋯ button at the top of the segment): household profile, a switch per alert type, and a reset for the category ranges you accepted.
@@ -183,7 +185,7 @@ npm run site       # writes site-dist/
 
 ### Swipe between tabs
 
-- Swipe left or right anywhere on a screen to move to the next or previous tab: Home, Transactions, Trends, Plan. On the Plan tab the swipe steps through Health, Debts and Future Growth first.
+- Swipe left or right anywhere on a screen to move to the next or previous tab: Home, Trends, Plan. On the Plan tab the swipe steps through Debts, Health and Future Growth first.
 - Areas with their own horizontal gesture keep it: the Trends chart, the category filter rows and the debt cards.
 
 ### Profiles
@@ -198,20 +200,24 @@ npm run site       # writes site-dist/
 - Language: English, Dutch, German, Turkish, Spanish, French, Italian, Portuguese and Russian. The app follows the device language until you pick one in Settings → Language; the choice is remembered. Built-in category names, numbers, dates and reminder notifications follow the language. Translations have not been reviewed by native speakers yet.
 - Six colour themes (Aurora, Midnight Gold, Sunset, Forest Mint, Orchid, Classic; Classic is the default) with gradient accents, each in light and dark; the choice is remembered. Dark mode follows the system until you toggle it.
 - Import reminders: local notifications on the 15th and 28th of each month. Importing a statement cancels the pending reminders.
+- Passcode lock: an optional six-digit passcode (Settings → Security), asked every time the app is opened or brought back to the front; the app's content is hidden in the app switcher on iOS. After five wrong tries the app makes you wait, from one minute up to an hour. Only a salted hash is stored, on the device and outside backups. A forgotten passcode cannot be recovered: reinstall the app and restore a backup.
 - Reset all data and profiles.
+- Copy text: long-press a text that is not a button or a tappable row (a merchant name, an amount, the bank description, an export guide step, the legal texts, a result figure, the app version) to copy it.
+- About: Frequently asked questions answers how the app works in six groups (getting started, importing statements, categories and budgets, the Plan tab, privacy and backups, profiles and settings); tap a question to open its answer. Personal Data & Privacy explains in a few lines what is stored on the device, that nothing is collected, where saved files go and how to delete everything. The same screen holds the legal documents: Privacy Policy, Terms of Use and Disclaimer open inside the app, in the app's language and without a connection, and Open-Source Licenses lists the packages the app is built with and their license texts. The app version is shown below the row. The welcome screen links to the terms and the privacy policy.
 
 ### Demo workspace
 
 - A separate demo profile with three months of sample transactions and two sample debts.
+- Import, backup and restore, reset, profile switching and import reminders are switched off (grayed out) in the demo; leave it with "Exit Demo" to use your own data.
 
 ### Backup and restore
 
 - Settings → Backup & Restore saves one file with all profiles (transactions, categories, rules, goals, debts). You choose where it goes (Files, iCloud Drive, AirDrop); the app does not upload it.
 - A backup can be protected with a password (at least 8 characters): the file (`.fabackup`) is then encrypted with AES-256-GCM, the key derived from the password with scrypt. A forgotten password cannot be recovered. Without a password the backup is a plain, unencrypted `.db` file.
+- "Restore backup" is also on the welcome screen, so a new or reinstalled device needs no statement import first.
 - Restore replaces all data on the device with the backup; nothing is merged. Before anything changes, the app shows what is in the backup, what is on the device, and whether the device has newer transactions that would be removed.
 - The data replaced by a restore is kept as a safety copy; "Undo Last Restore" brings it back.
 - Backups from older app versions are upgraded on restore. Files that are damaged, not a backup, or from a newer app version are refused and nothing is changed.
-- "Restore backup" is also on the welcome screen, so a new or reinstalled device needs no statement import first.
 - Export Transactions (same sheet) saves all transactions of the active profile as a CSV or Excel file (date, merchant, category, amount, bank text). It is a readable file, not a backup, and is never encrypted.
 
 ## Privacy
@@ -239,7 +245,8 @@ The app makes no network calls with user data. Statements are read on the device
 ```
 src/
   app/            Routes (Expo Router)
-    (tabs)/       Home, Transactions, Trends, Plan (Health | Debts | Future Growth)
+    (tabs)/       Home, Trends, Plan (Debts | Health | Future Growth)
+    transactions.tsx  Transactions (pushed screen)
     welcome.tsx   First-launch screen
     settings.tsx  Settings (modal)
     goals.tsx     Budgets (modal)
@@ -252,8 +259,9 @@ src/
   hooks/          Shared hooks
   i18n/           Translations (`locales/*.ts`), number and date formatting
   utils/          Parsing, notifications and debt helpers
-docs/             How each feature works inside (import, classifier, debts, freedom, health, backup, navigation, i18n)
-scripts/          Website build, test runner
+docs/             How each feature works inside (import, classifier, debts, freedom, health, backup, navigation, i18n, website)
+scripts/          Website build (`build-site.ts`, `site/`), test runner
+site/             Images for the website (social preview, screenshots)
 ```
 
 ## Documentation

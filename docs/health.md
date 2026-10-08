@@ -99,7 +99,7 @@ In `src/components/health/`:
 
 ## Placement
 
-- Health is the first segment of the Plan tab (Health | Debts | Future Growth) and the one the tab opens on. `HealthScreen` renders inside that screen's `ScreenContainer`, like `FreedomScreen`: do not wrap it again. See [debts.md](debts.md) for the segment mechanics; links use `params: { segment: 'health' }`.
+- Health is the second segment of the Plan tab (Debts | Health | Future Growth); the tab opens on Debts. `HealthScreen` renders inside that screen's `ScreenContainer`, like `FreedomScreen`: do not wrap it again. See [debts.md](debts.md) for the segment mechanics; links use `params: { segment: 'health' }`.
 - It follows the month picked in `PeriodContext` (Home and Transactions); with a range or nothing picked it shows the latest month with data.
 - In the segment:
   - tap a category → `TransactionListModal` → `TransactionDetailModal`;

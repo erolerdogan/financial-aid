@@ -5,6 +5,7 @@ import {
   type FreedomErrors,
   type FreedomFieldKey,
 } from '@/components/freedom/FreedomInputs';
+import { SelectableText } from '@/components/SelectableText';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import type { TranslationKey } from '@/i18n';
@@ -91,21 +92,21 @@ export function GoalSection({
   const renderResult = (label: string, value: string | null, detail: string) => (
     <View accessible accessibilityLabel={`${t('freedom.a11yEstimated', { label, value: value ?? t('freedom.goal.outOfReachShort') })}. ${detail}`}>
       <View style={styles.row}>
-        <Text style={[styles.rowLabel, { color: colors.textSecondary }]} numberOfLines={1}>
+        <SelectableText style={[styles.rowLabel, { color: colors.textSecondary }]} numberOfLines={1}>
           {label}
-        </Text>
+        </SelectableText>
         {value ? (
-          <Text
+          <SelectableText
             style={[styles.rowValue, { color: colors.text }]}
             numberOfLines={1}
             adjustsFontSizeToFit
             minimumFontScale={0.7}
           >
             {value}
-          </Text>
+          </SelectableText>
         ) : null}
       </View>
-      <Text style={[styles.detail, { color: colors.textSecondary }]}>{detail}</Text>
+      <SelectableText style={[styles.detail, { color: colors.textSecondary }]}>{detail}</SelectableText>
     </View>
   );
 
@@ -182,7 +183,7 @@ export function GoalSection({
 
   return (
     <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-      <Text style={[styles.title, { color: colors.textSecondary }]}>{t('freedom.goal.title')}</Text>
+      <SelectableText style={[styles.title, { color: colors.textSecondary }]}>{t('freedom.goal.title')}</SelectableText>
 
       <View style={[styles.segmentedContainer, { backgroundColor: colors.track }]} accessibilityRole="radiogroup">
         {TYPES.map((item) => {
@@ -223,13 +224,13 @@ export function GoalSection({
       </View>
 
       {goalType === 'INCOME' ? (
-        <Text style={[styles.note, { color: colors.textSecondary }, stale && styles.stale]}>
+        <SelectableText style={[styles.note, { color: colors.textSecondary }, stale && styles.stale]}>
           {hasGoal ? `${t('freedom.goal.needsBalance', { amount: fmt(goal.target) })} ` : ''}
           {t('freedom.goal.assumption', {
             percent: percent(SAFE_WITHDRAWAL_RATE),
             rate: format.number(SAFE_WITHDRAWAL_RATE),
           })}
-        </Text>
+        </SelectableText>
       ) : null}
 
       {hasGoal ? (
@@ -249,14 +250,14 @@ export function GoalSection({
             <View style={styles.row}>
               <View style={[styles.pill, { backgroundColor: `${statusColor}22` }]}>
                 <View style={[styles.dot, { backgroundColor: statusColor }]} />
-                <Text style={[styles.pillText, { color: statusColor }]}>{statusLabel}</Text>
+                <SelectableText style={[styles.pillText, { color: statusColor }]}>{statusLabel}</SelectableText>
               </View>
-              <Text style={[styles.rowValue, { color: colors.text }]}>{progressPct}%</Text>
+              <SelectableText style={[styles.rowValue, { color: colors.text }]}>{progressPct}%</SelectableText>
             </View>
             <View style={[styles.track, { backgroundColor: colors.track }]}>
               <View style={[styles.fill, { backgroundColor: statusColor, width: `${progress * 100}%` }]} />
             </View>
-            <Text style={[styles.detail, { color: colors.textSecondary }]}>
+            <SelectableText style={[styles.detail, { color: colors.textSecondary }]}>
               {onTrack
                 ? t('freedom.goal.above', {
                     projected: fmt(goal.projected),
@@ -270,16 +271,16 @@ export function GoalSection({
                     diff: fmt(goal.target - goal.projected),
                   })}
               {real ? ` ${t('freedom.inTodaysMoney')}` : ''}
-            </Text>
+            </SelectableText>
           </View>
 
           {renderYears()}
           {renderMonthly()}
         </View>
       ) : (
-        <Text style={[styles.empty, { color: colors.textSecondary }]}>
+        <SelectableText style={[styles.empty, { color: colors.textSecondary }]}>
           {t('freedom.goal.empty')}
-        </Text>
+        </SelectableText>
       )}
     </View>
   );

@@ -1,3 +1,4 @@
+import { SelectableText } from '@/components/SelectableText';
 import type { Household } from '@/constants/benchmarks';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -117,12 +118,12 @@ export function HealthOptions({ household, onEditHousehold, onRangesReset }: Hea
       </TouchableOpacity>
 
       <View style={[styles.divider, { backgroundColor: colors.border }]} />
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('health.alerts')}</Text>
-      <Text style={[styles.hint, { color: colors.textSecondary }]}>{t('health.options.alertsHint')}</Text>
+      <SelectableText style={[styles.sectionTitle, { color: colors.text }]}>{t('health.alerts')}</SelectableText>
+      <SelectableText style={[styles.hint, { color: colors.textSecondary }]}>{t('health.options.alertsHint')}</SelectableText>
 
       {ALERT_TYPES.map((type) => (
         <View key={type} style={styles.row}>
-          <Text style={[styles.rowTitle, styles.rowText, { color: colors.text }]}>{t(`health.alertType.${type}`)}</Text>
+          <SelectableText style={[styles.rowTitle, styles.rowText, { color: colors.text }]}>{t(`health.alertType.${type}`)}</SelectableText>
           <Switch
             value={enabled?.includes(type) ?? false}
             disabled={!enabled}
@@ -165,7 +166,7 @@ export function HealthOptionsSheet({ visible, onClose, ...options }: HealthOptio
         <TouchableWithoutFeedback>
           <View style={[styles.sheet, { backgroundColor: colors.card }]}>
             <View style={[styles.handle, { backgroundColor: colors.border }]} />
-            <Text style={[styles.sheetTitle, { color: colors.text }]}>{t('freedom.moreOptions')}</Text>
+            <SelectableText style={[styles.sheetTitle, { color: colors.text }]}>{t('freedom.moreOptions')}</SelectableText>
             <ScrollView showsVerticalScrollIndicator={false}>
               {/* Mounted per opening, so the switches are read fresh. */}
               {visible ? <HealthOptions {...options} /> : null}

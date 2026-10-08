@@ -1,5 +1,6 @@
 import { ImportProgressOverlay } from '@/components/ImportProgressOverlay';
 import { BackupRestoreModal } from '@/components/modals/BackupRestoreModal';
+import { SelectableText } from '@/components/SelectableText';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -64,17 +65,17 @@ export default function WelcomeScreen() {
           
           <View style={styles.badgeRow}>
             <Ionicons name="shield-checkmark" size={13} color="#34C759" />
-            <Text style={styles.badgeText}>{t('welcome.badge')}</Text>
+            <SelectableText style={styles.badgeText}>{t('welcome.badge')}</SelectableText>
           </View>
         </View>
 
         <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text }]}>
+          <SelectableText style={[styles.title, { color: colors.text }]}>
             {t('welcome.title')}
-          </Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+          </SelectableText>
+          <SelectableText style={[styles.subtitle, { color: colors.textSecondary }]}>
             {t('welcome.subtitle')}
-          </Text>
+          </SelectableText>
         </View>
 
         <View style={styles.actionContainer}>
@@ -150,6 +151,29 @@ export default function WelcomeScreen() {
                 {t('welcome.restoreLink')}
               </Text>
             </TouchableOpacity>
+          </View>
+
+          <View style={styles.legal}>
+            <SelectableText style={[styles.legalText, { color: colors.textSecondary }]}>{t('welcome.legal')}</SelectableText>
+            <View style={styles.legalLinks}>
+              <TouchableOpacity
+                style={styles.legalLink}
+                onPress={() => router.push({ pathname: '/legal', params: { page: 'terms' } })}
+                activeOpacity={0.7}
+                accessibilityRole="link"
+              >
+                <Text style={[styles.legalLinkText, { color: colors.accent }]}>{t('settings.terms')}</Text>
+              </TouchableOpacity>
+              <View style={[styles.linkDivider, { backgroundColor: colors.border }]} />
+              <TouchableOpacity
+                style={styles.legalLink}
+                onPress={() => router.push({ pathname: '/legal', params: { page: 'privacy' } })}
+                activeOpacity={0.7}
+                accessibilityRole="link"
+              >
+                <Text style={[styles.legalLinkText, { color: colors.accent }]}>{t('settings.privacyPolicy')}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </SafeAreaView>
@@ -251,4 +275,9 @@ const styles = StyleSheet.create({
   },
   linkText: { flexShrink: 1, fontSize: 14, fontWeight: '600', textAlign: 'center' },
   linkDivider: { width: StyleSheet.hairlineWidth, height: 18 },
+  legal: { alignItems: 'center' },
+  legalText: { fontSize: 12, lineHeight: 16, textAlign: 'center', paddingHorizontal: 8 },
+  legalLinks: { flexDirection: 'row', alignItems: 'center' },
+  legalLink: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 12 },
+  legalLinkText: { fontSize: 12, fontWeight: '600', textAlign: 'center' },
 });

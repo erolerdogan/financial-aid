@@ -1,9 +1,10 @@
+import { SelectableText } from '@/components/SelectableText';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { type FreedomSummary } from '@/utils/freedom';
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 interface ResultCardsProps {
   summary: FreedomSummary;
@@ -44,14 +45,14 @@ export function ResultCards({ summary, years, currencySymbol, real = false, stal
         accessible
         accessibilityLabel={t('freedom.result.a11y', { balance: fmt(summary.finalBalance), after, breakdown })}
       >
-        <Text style={[styles.label, styles.heroLabel, { color: colors.onGradient }]}>{t('freedom.result.title')}</Text>
-        <Text style={[styles.heroValue, { color: colors.onGradient }]} numberOfLines={1} adjustsFontSizeToFit>
+        <SelectableText style={[styles.label, styles.heroLabel, { color: colors.onGradient }]}>{t('freedom.result.title')}</SelectableText>
+        <SelectableText style={[styles.heroValue, { color: colors.onGradient }]} numberOfLines={1} adjustsFontSizeToFit>
           {fmt(summary.finalBalance)}
-        </Text>
-        <Text style={[styles.heroSub, { color: colors.onGradient }]}>
+        </SelectableText>
+        <SelectableText style={[styles.heroSub, { color: colors.onGradient }]}>
           {after}
-        </Text>
-        <Text style={[styles.breakdown, { color: colors.onGradient }]}>{breakdown}</Text>
+        </SelectableText>
+        <SelectableText style={[styles.breakdown, { color: colors.onGradient }]}>{breakdown}</SelectableText>
       </LinearGradient>
     </View>
   );

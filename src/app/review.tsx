@@ -1,3 +1,4 @@
+import { SelectableText } from '@/components/SelectableText';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -95,7 +96,7 @@ export default function ReviewScreen() {
       <View
         style={[styles.headerRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}
       >
-        <Text style={[styles.headerTitle, { color: colors.text }]}>{t('transactions.review')}</Text>
+        <SelectableText style={[styles.headerTitle, { color: colors.text }]}>{t('transactions.review')}</SelectableText>
         <TouchableOpacity
           style={[styles.headerBtn, { backgroundColor: colors.background }]}
           onPress={() => router.back()}
@@ -112,16 +113,16 @@ export default function ReviewScreen() {
       ) : groups.length === 0 ? (
         <View style={styles.centered}>
           <Ionicons name="checkmark-circle" size={44} color={colors.accent} />
-          <Text style={[styles.emptyTitle, { color: colors.text }]}>{t('review.doneTitle')}</Text>
-          <Text style={[styles.emptySub, { color: colors.textSecondary }]}>
+          <SelectableText style={[styles.emptyTitle, { color: colors.text }]}>{t('review.doneTitle')}</SelectableText>
+          <SelectableText style={[styles.emptySub, { color: colors.textSecondary }]}>
             {t('review.doneSub')}
-          </Text>
+          </SelectableText>
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.content}>
-          <Text style={[styles.introText, { color: colors.textSecondary }]}>
+          <SelectableText style={[styles.introText, { color: colors.textSecondary }]}>
             {t('review.intro')}
-          </Text>
+          </SelectableText>
           <View style={[styles.cardGroup, { backgroundColor: colors.card }]}>
             {groups.map((group, index) => (
               <React.Fragment key={group.key}>
@@ -183,10 +184,10 @@ export default function ReviewScreen() {
             <View style={styles.sheetBackdrop} />
           </TouchableWithoutFeedback>
           <View style={[styles.sheet, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.sheetTitle, { color: colors.text }]} numberOfLines={1}>
+            <SelectableText style={[styles.sheetTitle, { color: colors.text }]} numberOfLines={1}>
               {selected?.title}
-            </Text>
-            <Text style={[styles.sheetSub, { color: colors.textSecondary }]}>{t('review.choose')}</Text>
+            </SelectableText>
+            <SelectableText style={[styles.sheetSub, { color: colors.textSecondary }]}>{t('review.choose')}</SelectableText>
             <ScrollView style={styles.sheetList}>
               {pickerCategories.map((category, index) => (
                 <React.Fragment key={category.id}>

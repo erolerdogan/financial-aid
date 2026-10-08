@@ -8,6 +8,10 @@ on:
       - 'src/i18n/**'
       - 'src/utils/bankFormats.ts'
       - 'scripts/build-site.ts'
+      - 'scripts/site/**'
+      - 'site/**'
+      - 'assets/images/icon.png'
+      - 'assets/images/favicon.png'
       - '.github/workflows/site.yml'
   workflow_dispatch:
 
@@ -22,7 +26,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build guides
+    name: Build site
     runs-on: ubuntu-latest
 
     steps:
@@ -41,8 +45,20 @@ jobs:
       - name: Check guides
         run: npx --yes tsx src/content/bankGuides.test.ts
 
+      - name: Check site copy
+        run: |
+          npx --yes tsx src/content/site/site.test.ts
+          npx --yes tsx src/content/legal/legal.test.ts
+
+      # Repository variables (Settings → Secrets and variables → Actions → Variables); each one is optional.
       - name: Build site
         run: npx --yes tsx scripts/build-site.ts
+        env:
+          SITE_URL: ${{ vars.SITE_URL }}
+          APP_URL: ${{ vars.APP_URL }}
+          APP_STORE_URL: ${{ vars.APP_STORE_URL }}
+          PLAY_STORE_URL: ${{ vars.PLAY_STORE_URL }}
+          SUPPORT_EMAIL: ${{ vars.SUPPORT_EMAIL }}
 
       - name: Upload site
         uses: actions/upload-pages-artifact@v3

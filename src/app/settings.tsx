@@ -1,7 +1,11 @@
 import { BackupRestoreModal } from '@/components/modals/BackupRestoreModal';
+import { PasscodeModal, type PasscodeModalMode } from '@/components/modals/PasscodeModal';
 import { ProfileSwitcherModal } from '@/components/ProfileSwitcherModal';
+import { SelectableText } from '@/components/SelectableText';
+import { faqTranslate } from '@/content/faq';
 import { ImportSummaryHost } from '@/contexts/ImportResultContext';
 import { useI18n } from '@/contexts/LanguageContext';
+import { usePasscode } from '@/contexts/PasscodeContext';
 import { CURRENCY_SYMBOLS, useProfile } from '@/contexts/ProfileContext';
 import { THEMES, useTheme } from '@/contexts/ThemeContext';
 import { clearAllData } from '@/db/database';
@@ -12,6 +16,7 @@ import {
   requestAndScheduleImportReminders
 } from '@/utils/notifications';
 import { Ionicons } from '@expo/vector-icons';
+import Constants from 'expo-constants';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -34,8 +39,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 const AVAILABLE_CURRENCIES = ['EUR', 'USD', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF'] as const;
 
 export default function SettingsScreen() {
-  const { activeProfile, updateCurrency, refreshProfiles } = useProfile();
+  const { activeProfile, updateCurrency, refreshProfiles, isDemoMode } = useProfile();
   const { isDark, toggleTheme, colors, themeName, setThemeName } = useTheme();
+  const { enabled: passcodeEnabled } = usePasscode();
   const { t, language, storedLanguage, setLanguage } = useI18n();
   const router = useRouter();
   const db = useSQLiteContext();
@@ -44,10 +50,13 @@ export default function SettingsScreen() {
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [currencyModalVisible, setCurrencyModalVisible] = useState(false);
   const [backupModalVisible, setBackupModalVisible] = useState(false);
+  const [passcodeModalVisible, setPasscodeModalVisible] = useState(false);
+  const [passcodeModalMode, setPasscodeModalMode] = useState<PasscodeModalMode>('set');
   const [languageModalVisible, setLanguageModalVisible] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
   const { importStatement, importing } = useStatementImporter();
+  const appVersion = Constants.expoConfig?.version;
 
   const activeCurrencyCode = activeProfile?.currency || 'EUR';
   const activeCurrencySymbol = CURRENCY_SYMBOLS[activeCurrencyCode] || '€';
@@ -57,6 +66,11 @@ export default function SettingsScreen() {
     { code: null, label: t('settings.languageSystem') },
     ...LANGUAGES,
   ];
+
+  const openPasscodeModal = (mode: PasscodeModalMode) => {
+    setPasscodeModalMode(mode);
+    setPasscodeModalVisible(true);
+  };
 
   const handleSelectLanguage = (code: LanguageCode | null) => {
     Haptics.selectionAsync();
@@ -132,7 +146,7 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top']}>
       <View style={[styles.headerRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>{t('settings.title')}</Text>
+        <SelectableText style={[styles.headerTitle, { color: colors.text }]}>{t('settings.title')}</SelectableText>
         <TouchableOpacity
           style={[styles.closeBtn, { backgroundColor: colors.background }]}
           onPress={() => router.back()}
@@ -143,12 +157,13 @@ export default function SettingsScreen() {
 
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         {/* PROFILES SECTION */}
-        <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>{t('settings.profiles')}</Text>
+        <SelectableText style={[styles.sectionHeader, { color: colors.textSecondary }]}>{t('settings.profiles')}</SelectableText>
         <View style={[styles.cardGroup, { backgroundColor: colors.card }]}>
           <TouchableOpacity
-            style={styles.rowItem}
+            style={[styles.rowItem, isDemoMode && styles.rowDisabled]}
             activeOpacity={0.7}
             onPress={() => setProfileModalVisible(true)}
+            disabled={isDemoMode}
           >
             <View style={styles.rowLeft}>
               <View
@@ -178,13 +193,13 @@ export default function SettingsScreen() {
         </View>
 
         {/* DATA & STORAGE SECTION */}
-        <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>{t('settings.data')}</Text>
+        <SelectableText style={[styles.sectionHeader, { color: colors.textSecondary }]}>{t('settings.data')}</SelectableText>
         <View style={[styles.cardGroup, { backgroundColor: colors.card }]}>
           <TouchableOpacity
-            style={styles.rowItem}
+            style={[styles.rowItem, isDemoMode && styles.rowDisabled]}
             activeOpacity={0.7}
             onPress={importStatement}
-            disabled={importing || loading}
+            disabled={importing || loading || isDemoMode}
           >
             <View style={styles.rowLeft}>
               <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
@@ -219,10 +234,10 @@ export default function SettingsScreen() {
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
           <TouchableOpacity
-            style={styles.rowItem}
+            style={[styles.rowItem, isDemoMode && styles.rowDisabled]}
             activeOpacity={0.7}
             onPress={() => setBackupModalVisible(true)}
-            disabled={importing || loading}
+            disabled={importing || loading || isDemoMode}
           >
             <View style={styles.rowLeft}>
               <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
@@ -236,10 +251,10 @@ export default function SettingsScreen() {
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
           <TouchableOpacity
-            style={styles.rowItem}
+            style={[styles.rowItem, isDemoMode && styles.rowDisabled]}
             activeOpacity={0.7}
             onPress={handleResetDatabase}
-            disabled={importing || loading}
+            disabled={importing || loading || isDemoMode}
           >
             <View style={styles.rowLeft}>
               <View style={[styles.iconCircle, { backgroundColor: '#FFE5E5' }]}>
@@ -252,9 +267,12 @@ export default function SettingsScreen() {
             <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
           </TouchableOpacity>
         </View>
+        {isDemoMode && (
+          <SelectableText style={[styles.sectionNote, { color: colors.textSecondary }]}>{t('settings.demoNote')}</SelectableText>
+        )}
 
         {/* PREFERENCES SECTION */}
-        <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>{t('settings.preferences')}</Text>
+        <SelectableText style={[styles.sectionHeader, { color: colors.textSecondary }]}>{t('settings.preferences')}</SelectableText>
         <View style={[styles.cardGroup, { backgroundColor: colors.card }]}>
           {/* CURRENCY SELECTION ROW */}
           <TouchableOpacity
@@ -340,24 +358,69 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* NOTIFICATIONS SECTION */}
-        <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>{t('settings.notifications')}</Text>
+        {/* SECURITY SECTION */}
+        <SelectableText style={[styles.sectionHeader, { color: colors.textSecondary }]}>{t('settings.security')}</SelectableText>
         <View style={[styles.cardGroup, { backgroundColor: colors.card }]}>
           <View style={styles.rowItem}>
+            <View style={[styles.rowLeft, styles.rowLeftWide]}>
+              <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
+                <Ionicons name="keypad-outline" size={18} color={colors.accent} />
+              </View>
+              <View style={styles.rowTitleWide}>
+                <SelectableText style={[styles.rowTitle, { color: colors.text }]}>{t('settings.passcode')}</SelectableText>
+                <SelectableText style={[styles.rowSub, { color: colors.textSecondary }]}>
+                  {t('settings.passcodeSub')}
+                </SelectableText>
+              </View>
+            </View>
+            {/* Stays on its old value until the sheet has set or removed the passcode. */}
+            <Switch
+              value={passcodeEnabled}
+              onValueChange={(value) => openPasscodeModal(value ? 'set' : 'remove')}
+              trackColor={{ false: '#78788029', true: colors.accent }}
+              thumbColor="#FFFFFF"
+              ios_backgroundColor="#78788029"
+            />
+          </View>
+          {passcodeEnabled && (
+            <>
+              <View style={[styles.divider, { backgroundColor: colors.border }]} />
+              <TouchableOpacity
+                style={styles.rowItem}
+                activeOpacity={0.7}
+                onPress={() => openPasscodeModal('change')}
+              >
+                <View style={styles.rowLeft}>
+                  <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
+                    <Ionicons name="key-outline" size={18} color={colors.accent} />
+                  </View>
+                  <Text style={[styles.rowTitle, { color: colors.text }]}>{t('settings.changePasscode')}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+
+        {/* NOTIFICATIONS SECTION */}
+        <SelectableText style={[styles.sectionHeader, { color: colors.textSecondary }]}>{t('settings.notifications')}</SelectableText>
+        <View style={[styles.cardGroup, { backgroundColor: colors.card }]}>
+          <View style={[styles.rowItem, isDemoMode && styles.rowDisabled]}>
             <View style={styles.rowLeft}>
               <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
                 <Ionicons name="notifications-outline" size={18} color={colors.accent} />
               </View>
               <View>
-                <Text style={[styles.rowTitle, { color: colors.text }]}>{t('settings.importReminders')}</Text>
-                <Text style={[styles.rowSub, { color: colors.textSecondary }]}>
+                <SelectableText style={[styles.rowTitle, { color: colors.text }]}>{t('settings.importReminders')}</SelectableText>
+                <SelectableText style={[styles.rowSub, { color: colors.textSecondary }]}>
                   {t('settings.importRemindersSub')}
-                </Text>
+                </SelectableText>
               </View>
             </View>
             <Switch
               value={notificationsEnabled}
               onValueChange={handleToggleNotifications}
+              disabled={isDemoMode}
               trackColor={{ false: '#78788029', true: colors.accent }}
               thumbColor="#FFFFFF"
               ios_backgroundColor="#78788029"
@@ -366,7 +429,7 @@ export default function SettingsScreen() {
         </View>
 
         {/* APPEARANCE SECTION */}
-        <Text style={[styles.sectionHeader, { color: colors.textSecondary }]}>{t('settings.appearance')}</Text>
+        <SelectableText style={[styles.sectionHeader, { color: colors.textSecondary }]}>{t('settings.appearance')}</SelectableText>
         <View style={[styles.cardGroup, { backgroundColor: colors.card }]}>
           <ScrollView
             horizontal
@@ -418,7 +481,7 @@ export default function SettingsScreen() {
               <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
                 <Ionicons name={isDark ? 'moon' : 'sunny'} size={18} color={colors.accent} />
               </View>
-              <Text style={[styles.rowTitle, { color: colors.text }]}>{t('settings.darkMode')}</Text>
+              <SelectableText style={[styles.rowTitle, { color: colors.text }]}>{t('settings.darkMode')}</SelectableText>
             </View>
             <Switch
               value={isDark}
@@ -429,6 +492,47 @@ export default function SettingsScreen() {
             />
           </View>
         </View>
+
+        {/* ABOUT SECTION */}
+        <SelectableText style={[styles.sectionHeader, { color: colors.textSecondary }]}>{t('settings.about')}</SelectableText>
+        <View style={[styles.cardGroup, { backgroundColor: colors.card }]}>
+          <TouchableOpacity
+            style={styles.rowItem}
+            activeOpacity={0.7}
+            onPress={() => router.push('/faq')}
+          >
+            <View style={[styles.rowLeft, styles.rowLeftWide]}>
+              <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
+                <Ionicons name="help-circle-outline" size={18} color={colors.accent} />
+              </View>
+              <Text style={[styles.rowTitle, styles.rowTitleWide, { color: colors.text }]}>
+                {faqTranslate(language, 'faq.title')}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+          </TouchableOpacity>
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+          <TouchableOpacity
+            style={styles.rowItem}
+            activeOpacity={0.7}
+            onPress={() => router.push('/data-privacy')}
+          >
+            <View style={[styles.rowLeft, styles.rowLeftWide]}>
+              <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
+                <Ionicons name="hand-left-outline" size={18} color={colors.accent} />
+              </View>
+              <Text style={[styles.rowTitle, styles.rowTitleWide, { color: colors.text }]}>
+                {t('settings.dataPrivacy')}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
+        {appVersion && (
+          <SelectableText style={[styles.versionNote, { color: colors.textSecondary }]}>
+            {t('settings.version', { version: appVersion })}
+          </SelectableText>
+        )}
       </ScrollView>
 
       {/* Profile Switcher Modal */}
@@ -437,6 +541,12 @@ export default function SettingsScreen() {
       <ProfileSwitcherModal
         visible={profileModalVisible}
         onClose={() => setProfileModalVisible(false)}
+      />
+
+      <PasscodeModal
+        visible={passcodeModalVisible}
+        mode={passcodeModalMode}
+        onClose={() => setPasscodeModalVisible(false)}
       />
 
       <BackupRestoreModal
@@ -455,7 +565,7 @@ export default function SettingsScreen() {
             <View style={[styles.sheetContainer, { backgroundColor: colors.card }]}>
               <View style={styles.sheetHeader}>
                 <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
-                <Text style={[styles.sheetTitle, { color: colors.text }]}>{t('settings.selectCurrency')}</Text>
+                <SelectableText style={[styles.sheetTitle, { color: colors.text }]}>{t('settings.selectCurrency')}</SelectableText>
               </View>
               <ScrollView style={{ maxHeight: 320 }}>
                 {AVAILABLE_CURRENCIES.map((code) => {
@@ -500,7 +610,7 @@ export default function SettingsScreen() {
             <View style={[styles.sheetContainer, { backgroundColor: colors.card }]}>
               <View style={styles.sheetHeader}>
                 <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
-                <Text style={[styles.sheetTitle, { color: colors.text }]}>{t('settings.selectLanguage')}</Text>
+                <SelectableText style={[styles.sheetTitle, { color: colors.text }]}>{t('settings.selectLanguage')}</SelectableText>
               </View>
               <ScrollView style={{ maxHeight: 420 }}>
                 {languageOptions.map((option) => {
@@ -582,7 +692,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 14,
   },
+  rowDisabled: { opacity: 0.4 },
+  sectionNote: { fontSize: 12, lineHeight: 16, marginTop: 8, marginHorizontal: 4 },
+  versionNote: { fontSize: 12, lineHeight: 16, marginTop: 16, textAlign: 'center' },
   rowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  // For a title long enough to wrap in some languages.
+  rowLeftWide: { flex: 1, marginRight: 12 },
+  rowTitleWide: { flexShrink: 1 },
   rowRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   iconCircle: {
     width: 34,

@@ -1,3 +1,4 @@
+import { SelectableText } from '@/components/SelectableText';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -106,7 +107,7 @@ export function MonthStepper({
               coverageStatus.status === 'COMPLETE' && { backgroundColor: '#34C759' },
             ]}
           />
-          <Text
+          <SelectableText
             style={[
               styles.coverageText,
               coverageStatus.status === 'IN_PROGRESS' && {
@@ -121,7 +122,7 @@ export function MonthStepper({
             ]}
           >
             {coverageStatus.label}
-          </Text>
+          </SelectableText>
         </View>
       )}
     </View>

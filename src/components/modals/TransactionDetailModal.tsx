@@ -1,3 +1,4 @@
+import { SelectableText } from '@/components/SelectableText';
 import { getCategoryColor } from '@/constants/colors';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -210,13 +211,13 @@ export function TransactionDetailModal({
 
           {/* Amount & Merchant Banner */}
           <View style={styles.merchantHeader}>
-            <Text style={[styles.merchantName, { color: colors.text }]} numberOfLines={2}>
+            <SelectableText style={[styles.merchantName, { color: colors.text }]} numberOfLines={2}>
               {transaction.merchant !== 'Unknown' ? transaction.merchant : transaction.rawDescription}
-            </Text>
+            </SelectableText>
 
-            <Text style={[styles.amountText, { color: isIncome ? '#34C759' : colors.text }]}>
+            <SelectableText style={[styles.amountText, { color: isIncome ? '#34C759' : colors.text }]}>
               {formattedAmount}
-            </Text>
+            </SelectableText>
 
             <View style={styles.metaRow}>
               <TouchableOpacity
@@ -241,13 +242,13 @@ export function TransactionDetailModal({
                   style={styles.categoryChevron}
                 />
               </TouchableOpacity>
-              <Text style={[styles.dateText, { color: colors.textSecondary }]}>{transaction.date}</Text>
+              <SelectableText style={[styles.dateText, { color: colors.textSecondary }]}>{transaction.date}</SelectableText>
             </View>
           </View>
 
           {pickerOpen && (
             <View style={[styles.sectionContainer, { backgroundColor: colors.surface }]}>
-              <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>{t('detail.category')}</Text>
+              <SelectableText style={[styles.sectionTitle, { color: colors.textSecondary }]}>{t('detail.category')}</SelectableText>
               <ScrollView style={styles.categoryScroll} contentContainerStyle={styles.categoryGrid}>
                 {pickerOptions.map((name) => {
                   const selected = name === transaction.category;
@@ -277,7 +278,7 @@ export function TransactionDetailModal({
 
           {/* Classification Selection */}
           <View style={[styles.sectionContainer, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>{t('detail.classification')}</Text>
+            <SelectableText style={[styles.sectionTitle, { color: colors.textSecondary }]}>{t('detail.classification')}</SelectableText>
 
             <View style={styles.overrideOptionsRow}>
               <TouchableOpacity
@@ -306,9 +307,9 @@ export function TransactionDetailModal({
             </View>
 
             {isAuto ? (
-              <Text style={[styles.autoHint, { color: colors.textSecondary }]}>
+              <SelectableText style={[styles.autoHint, { color: colors.textSecondary }]}>
                 {autoReasonText ? `${t('detail.autoDetected')} · ${autoReasonText}` : t('detail.autoDetected')}
-              </Text>
+              </SelectableText>
             ) : (
               <TouchableOpacity onPress={() => onSelectFixedState('AUTO')} hitSlop={8}>
                 <Text style={[styles.autoHint, { color: colors.textSecondary }]}>
@@ -320,8 +321,8 @@ export function TransactionDetailModal({
 
           {/* Raw Description Info */}
           <View style={styles.rawDescContainer}>
-            <Text style={[styles.rawDescLabel, { color: colors.textSecondary }]}>{t('detail.rawDescription')}</Text>
-            <Text style={[styles.rawDescValue, { color: colors.text }]}>{transaction.rawDescription}</Text>
+            <SelectableText style={[styles.rawDescLabel, { color: colors.textSecondary }]}>{t('detail.rawDescription')}</SelectableText>
+            <SelectableText style={[styles.rawDescValue, { color: colors.text }]}>{transaction.rawDescription}</SelectableText>
           </View>
         </Animated.View>
       </View>

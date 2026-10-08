@@ -1,3 +1,4 @@
+import { SelectableText } from '@/components/SelectableText';
 import { DEFAULT_HOUSEHOLD, type Household, type HousingType } from '@/constants/benchmarks';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -98,7 +99,7 @@ function HouseholdForm({ household, detectedIncome, onSave, onClose }: Omit<Hous
 
   const stepper = (label: string, value: number, min: number, onChange: (next: number) => void) => (
     <View style={styles.stepperRow}>
-      <Text style={[styles.label, { color: colors.text }]}>{label}</Text>
+      <SelectableText style={[styles.label, { color: colors.text }]}>{label}</SelectableText>
       <View style={styles.stepper}>
         <TouchableOpacity
           style={[styles.stepBtn, { backgroundColor: colors.surface }, value <= min && styles.disabled]}
@@ -112,9 +113,9 @@ function HouseholdForm({ household, detectedIncome, onSave, onClose }: Omit<Hous
         >
           <Ionicons name="remove" size={18} color={colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.stepValue, { color: colors.text }]} accessibilityLabel={`${label}: ${value}`}>
+        <SelectableText style={[styles.stepValue, { color: colors.text }]} accessibilityLabel={`${label}: ${value}`}>
           {value}
-        </Text>
+        </SelectableText>
         <TouchableOpacity
           style={[styles.stepBtn, { backgroundColor: colors.surface }, value >= MAX_PEOPLE && styles.disabled]}
           disabled={value >= MAX_PEOPLE}
@@ -140,14 +141,14 @@ function HouseholdForm({ household, detectedIncome, onSave, onClose }: Omit<Hous
           <View style={[styles.sheet, { backgroundColor: colors.card }]}>
             <View style={[styles.handle, { backgroundColor: colors.border }]} />
             <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-              <Text style={[styles.title, { color: colors.text }]}>{t('health.household.title')}</Text>
-              <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{t('health.household.subtitle')}</Text>
+              <SelectableText style={[styles.title, { color: colors.text }]}>{t('health.household.title')}</SelectableText>
+              <SelectableText style={[styles.subtitle, { color: colors.textSecondary }]}>{t('health.household.subtitle')}</SelectableText>
 
               {stepper(t('health.household.adults'), adults, 1, setAdults)}
               {stepper(t('health.household.children'), children, 0, setChildren)}
 
               <View style={styles.stepperRow}>
-                <Text style={[styles.label, { color: colors.text }]}>{t('health.household.housing')}</Text>
+                <SelectableText style={[styles.label, { color: colors.text }]}>{t('health.household.housing')}</SelectableText>
                 <View style={[styles.segment, { backgroundColor: colors.track }]}>
                   {HOUSING_OPTIONS.map((option) => {
                     const selected = option.key === housingType;
@@ -174,7 +175,7 @@ function HouseholdForm({ household, detectedIncome, onSave, onClose }: Omit<Hous
                 </View>
               </View>
 
-              <Text style={[styles.fieldLabel, { color: colors.text }]}>{t('health.household.income')}</Text>
+              <SelectableText style={[styles.fieldLabel, { color: colors.text }]}>{t('health.household.income')}</SelectableText>
               <TextInput
                 style={[inputStyle, incomeInvalid && styles.inputError]}
                 value={incomeText}
@@ -184,7 +185,7 @@ function HouseholdForm({ household, detectedIncome, onSave, onClose }: Omit<Hous
                 placeholderTextColor={colors.textSecondary}
                 accessibilityLabel={t('health.household.income')}
               />
-              <Text style={[styles.hint, { color: incomeInvalid ? '#FF3B30' : colors.textSecondary }]}>
+              <SelectableText style={[styles.hint, { color: incomeInvalid ? '#FF3B30' : colors.textSecondary }]}>
                 {incomeInvalid
                   ? t('health.household.invalid')
                   : detectedIncome !== null
@@ -192,9 +193,9 @@ function HouseholdForm({ household, detectedIncome, onSave, onClose }: Omit<Hous
                         amount: format.money(Math.round(detectedIncome), currencySymbol),
                       })
                     : t('health.household.incomeNone')}
-              </Text>
+              </SelectableText>
 
-              <Text style={[styles.fieldLabel, { color: colors.text }]}>{t('health.household.savings')}</Text>
+              <SelectableText style={[styles.fieldLabel, { color: colors.text }]}>{t('health.household.savings')}</SelectableText>
               <TextInput
                 style={[inputStyle, savingsInvalid && styles.inputError]}
                 value={savingsText}
@@ -204,9 +205,9 @@ function HouseholdForm({ household, detectedIncome, onSave, onClose }: Omit<Hous
                 placeholderTextColor={colors.textSecondary}
                 accessibilityLabel={t('health.household.savings')}
               />
-              <Text style={[styles.hint, { color: savingsInvalid ? '#FF3B30' : colors.textSecondary }]}>
+              <SelectableText style={[styles.hint, { color: savingsInvalid ? '#FF3B30' : colors.textSecondary }]}>
                 {savingsInvalid ? t('health.household.invalid') : t('health.household.savingsHint')}
-              </Text>
+              </SelectableText>
 
               <View style={styles.actions}>
                 <TouchableOpacity style={[styles.cancelBtn, { backgroundColor: colors.track }]} onPress={onClose}>

@@ -1,3 +1,4 @@
+import { SelectableText } from '@/components/SelectableText';
 import { useInbox } from '@/contexts/InboxContext';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -94,12 +95,12 @@ export function AlertsStrip() {
             <View style={styles.messageRow}>
               <Ionicons name={severityIcon(alert.severity)} size={20} color={tint} />
               <View style={styles.messageBody}>
-                <Text style={[styles.type, { color: colors.textSecondary }]}>
+                <SelectableText style={[styles.type, { color: colors.textSecondary }]}>
                   {t(`health.alertType.${alert.type}`)}
-                </Text>
-                <Text style={[styles.message, { color: colors.text }]}>
+                </SelectableText>
+                <SelectableText style={[styles.message, { color: colors.text }]}>
                   {alertText(alert.message, t, format, currencySymbol)}
-                </Text>
+                </SelectableText>
               </View>
             </View>
             <View style={styles.actions}>

@@ -6,6 +6,7 @@ import {
   statusColor,
   trimNumber,
 } from '@/components/health/healthUi';
+import { SelectableText } from '@/components/SelectableText';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import type { PillarScore } from '@/utils/budgetHealth';
@@ -40,12 +41,12 @@ export function PillarRow({ pillar, onAddBuffer }: PillarRowProps) {
       accessibilityLabel={`${label}: ${valueText}. ${target}`}
     >
       <View style={styles.header}>
-        <Text style={[styles.label, { color: colors.text }]} numberOfLines={1}>
+        <SelectableText style={[styles.label, { color: colors.text }]} numberOfLines={1}>
           {label}
-        </Text>
-        <Text style={[styles.score, { color: known ? color : colors.textSecondary }]}>
+        </SelectableText>
+        <SelectableText style={[styles.score, { color: known ? color : colors.textSecondary }]}>
           {pillar.score !== null ? Math.round(pillar.score) : '–'}
-        </Text>
+        </SelectableText>
       </View>
 
       <View style={[styles.track, { backgroundColor: colors.track }]}>
@@ -55,8 +56,8 @@ export function PillarRow({ pillar, onAddBuffer }: PillarRowProps) {
       </View>
 
       <View style={styles.footer}>
-        <Text style={[styles.value, { color: colors.textSecondary }]}>{valueText}</Text>
-        <Text style={[styles.value, { color: colors.textSecondary }]}>{target}</Text>
+        <SelectableText style={[styles.value, { color: colors.textSecondary }]}>{valueText}</SelectableText>
+        <SelectableText style={[styles.value, { color: colors.textSecondary }]}>{target}</SelectableText>
       </View>
 
       {!known && pillar.id === 'buffer' && onAddBuffer ? (

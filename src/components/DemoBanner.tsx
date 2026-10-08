@@ -1,3 +1,4 @@
+import { SelectableText } from '@/components/SelectableText';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -40,9 +41,9 @@ export function DemoBanner() {
     >
       <View style={styles.leftContent}>
         <Ionicons name="sparkles" size={15} color="#F59E0B" />
-        <Text style={[styles.bannerText, { color: isDark ? '#FBBF24' : '#B45309' }]}>
+        <SelectableText style={[styles.bannerText, { color: isDark ? '#FBBF24' : '#B45309' }]}>
           {t('demo.active')}
-        </Text>
+        </SelectableText>
       </View>
 
       <TouchableOpacity 

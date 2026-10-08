@@ -1,3 +1,4 @@
+import { SelectableText } from '@/components/SelectableText';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import type { TranslationKey } from '@/i18n';
@@ -44,23 +45,23 @@ export function ImpactSection({
 
   const renderRow = (label: string, value: string, strong = false) => (
     <View style={styles.row} accessible accessibilityLabel={t('freedom.a11yEstimated', { label, value })}>
-      <Text style={[styles.rowLabel, { color: strong ? colors.text : colors.textSecondary }]} numberOfLines={1}>
+      <SelectableText style={[styles.rowLabel, { color: strong ? colors.text : colors.textSecondary }]} numberOfLines={1}>
         {label}
-      </Text>
-      <Text
+      </SelectableText>
+      <SelectableText
         style={[styles.rowValue, { color: colors.text }, strong && styles.rowValueStrong]}
         numberOfLines={1}
         adjustsFontSizeToFit
         minimumFontScale={0.7}
       >
         {value}
-      </Text>
+      </SelectableText>
     </View>
   );
 
   return (
     <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-      <Text style={[styles.title, { color: colors.textSecondary }]}>{t('freedom.impact.title')}</Text>
+      <SelectableText style={[styles.title, { color: colors.textSecondary }]}>{t('freedom.impact.title')}</SelectableText>
 
       <View style={[styles.segmentedContainer, { backgroundColor: colors.track }]} accessibilityRole="radiogroup">
         {MODES.map((item) => {
@@ -89,16 +90,16 @@ export function ImpactSection({
           );
         })}
       </View>
-      <Text style={[styles.note, { color: colors.textSecondary }]}>
+      <SelectableText style={[styles.note, { color: colors.textSecondary }]}>
         {mode === 'REAL'
           ? t('freedom.impact.noteReal', { percent: percent(inflationPct) })
           : t('freedom.impact.noteNominal')}
-      </Text>
+      </SelectableText>
 
       <View style={[styles.fees, { borderTopColor: colors.border }, stale && styles.stale]}>
-        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+        <SelectableText style={[styles.subtitle, { color: colors.textSecondary }]}>
           {t(mode === 'REAL' ? 'freedom.impact.feesReal' : 'freedom.impact.fees')}
-        </Text>
+        </SelectableText>
         {renderRow(t('freedom.impact.withZeroFee'), fmt(fee.withoutFee))}
         {renderRow(t('freedom.impact.withFee', { percent: percent(feePct) }), fmt(fee.withFee))}
         {renderRow(t('freedom.impact.cost'), cost > 0 ? `-${fmt(cost)}` : fmt(0), true)}

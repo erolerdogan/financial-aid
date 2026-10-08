@@ -1,3 +1,4 @@
+import { SelectableText } from '@/components/SelectableText';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { getNiceScale } from '@/utils/chartScale';
@@ -122,15 +123,15 @@ export const GrowthChart = React.memo(function GrowthChart({
       accessibilityLabel={last && last.end <= 0 ? emptyLabel : accessibilityLabel}
     >
       <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.textSecondary }]}>{real ? t('freedom.chart.titleReal') : t('freedom.chart.title')}</Text>
+        <SelectableText style={[styles.title, { color: colors.textSecondary }]}>{real ? t('freedom.chart.titleReal') : t('freedom.chart.title')}</SelectableText>
         <View style={styles.legend}>
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: contributionsColor }]} />
-            <Text style={[styles.legendText, { color: colors.textSecondary }]}>{t('freedom.chart.contributions')}</Text>
+            <SelectableText style={[styles.legendText, { color: colors.textSecondary }]}>{t('freedom.chart.contributions')}</SelectableText>
           </View>
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: profitColor }]} />
-            <Text style={[styles.legendText, { color: colors.textSecondary }]}>{t('freedom.chart.profit')}</Text>
+            <SelectableText style={[styles.legendText, { color: colors.textSecondary }]}>{t('freedom.chart.profit')}</SelectableText>
           </View>
         </View>
       </View>
@@ -139,9 +140,9 @@ export const GrowthChart = React.memo(function GrowthChart({
         {!ready || !last ? (
           <ActivityIndicator size="small" color={colors.accent} />
         ) : last.end <= 0 ? (
-          <Text style={[styles.empty, { color: colors.textSecondary }]}>
+          <SelectableText style={[styles.empty, { color: colors.textSecondary }]}>
             {t('freedom.chart.empty')}
-          </Text>
+          </SelectableText>
         ) : (
           <View style={styles.chartWrapper}>
             <BarChart

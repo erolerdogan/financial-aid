@@ -1,4 +1,5 @@
 import { SCENARIO_LABELS } from '@/components/freedom/ScenarioSelector';
+import { SelectableText } from '@/components/SelectableText';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import type { TranslationKey } from '@/i18n';
@@ -76,12 +77,12 @@ export function FreedomIntro({ currencySymbol, actionLabel, onDone }: FreedomInt
 
   return (
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <Text style={[styles.heading, { color: colors.text }]} accessibilityRole="header">
+      <SelectableText style={[styles.heading, { color: colors.text }]} accessibilityRole="header">
         {t('freedom.intro.heading')}
-      </Text>
-      <Text style={[styles.lead, { color: colors.textSecondary }]}>
+      </SelectableText>
+      <SelectableText style={[styles.lead, { color: colors.textSecondary }]}>
         {t('freedom.intro.lead')}
-      </Text>
+      </SelectableText>
 
       <LinearGradient
         colors={colors.gradient}
@@ -98,48 +99,48 @@ export function FreedomIntro({ currencySymbol, actionLabel, onDone }: FreedomInt
           balance: fmt(example.finalBalance),
         })}
       >
-        <Text style={[styles.exampleLabel, { color: colors.onGradient }]}>{t('freedom.intro.exampleLabel')}</Text>
-        <Text style={[styles.exampleText, { color: colors.onGradient }]}>
+        <SelectableText style={[styles.exampleLabel, { color: colors.onGradient }]}>{t('freedom.intro.exampleLabel')}</SelectableText>
+        <SelectableText style={[styles.exampleText, { color: colors.onGradient }]}>
           {t('freedom.intro.exampleText', {
             amount: fmt(EXAMPLE.monthly),
             years: EXAMPLE.years,
             percent: percent(EXAMPLE.returnPct),
           })}
-        </Text>
+        </SelectableText>
         <View style={styles.exampleRow}>
           <View style={styles.exampleCell}>
-            <Text style={[styles.exampleValue, { color: colors.onGradient }]} numberOfLines={1} adjustsFontSizeToFit>
+            <SelectableText style={[styles.exampleValue, { color: colors.onGradient }]} numberOfLines={1} adjustsFontSizeToFit>
               {fmt(example.totalInvested)}
-            </Text>
-            <Text style={[styles.exampleSub, { color: colors.onGradient }]}>{t('freedom.intro.youPayIn')}</Text>
+            </SelectableText>
+            <SelectableText style={[styles.exampleSub, { color: colors.onGradient }]}>{t('freedom.intro.youPayIn')}</SelectableText>
           </View>
-          <Text style={[styles.exampleSign, { color: colors.onGradient }]}>+</Text>
+          <SelectableText style={[styles.exampleSign, { color: colors.onGradient }]}>+</SelectableText>
           <View style={styles.exampleCell}>
-            <Text style={[styles.exampleValue, { color: colors.onGradient }]} numberOfLines={1} adjustsFontSizeToFit>
+            <SelectableText style={[styles.exampleValue, { color: colors.onGradient }]} numberOfLines={1} adjustsFontSizeToFit>
               {fmt(example.profit)}
-            </Text>
-            <Text style={[styles.exampleSub, { color: colors.onGradient }]}>{t('freedom.intro.growth')}</Text>
+            </SelectableText>
+            <SelectableText style={[styles.exampleSub, { color: colors.onGradient }]}>{t('freedom.intro.growth')}</SelectableText>
           </View>
-          <Text style={[styles.exampleSign, { color: colors.onGradient }]}>=</Text>
+          <SelectableText style={[styles.exampleSign, { color: colors.onGradient }]}>=</SelectableText>
           <View style={styles.exampleCell}>
-            <Text style={[styles.exampleValue, { color: colors.onGradient }]} numberOfLines={1} adjustsFontSizeToFit>
+            <SelectableText style={[styles.exampleValue, { color: colors.onGradient }]} numberOfLines={1} adjustsFontSizeToFit>
               {fmt(example.finalBalance)}
-            </Text>
-            <Text style={[styles.exampleSub, { color: colors.onGradient }]}>{t('freedom.intro.finalBalance')}</Text>
+            </SelectableText>
+            <SelectableText style={[styles.exampleSub, { color: colors.onGradient }]}>{t('freedom.intro.finalBalance')}</SelectableText>
           </View>
         </View>
       </LinearGradient>
 
       <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Text style={[styles.cardTitle, { color: colors.textSecondary }]}>{t('freedom.intro.howItWorks')}</Text>
+        <SelectableText style={[styles.cardTitle, { color: colors.textSecondary }]}>{t('freedom.intro.howItWorks')}</SelectableText>
         {STEPS.map((step, index) => (
           <View key={step.title} style={[styles.step, index > 0 && styles.stepGap]}>
             <View style={[styles.stepIcon, { backgroundColor: colors.tintBackground }]}>
               <Ionicons name={step.icon} size={18} color={colors.accent} />
             </View>
             <View style={styles.stepBody}>
-              <Text style={[styles.stepTitle, { color: colors.text }]}>{t(step.title)}</Text>
-              <Text style={[styles.stepText, { color: colors.textSecondary }]}>{t(step.text, { scenarios })}</Text>
+              <SelectableText style={[styles.stepTitle, { color: colors.text }]}>{t(step.title)}</SelectableText>
+              <SelectableText style={[styles.stepText, { color: colors.textSecondary }]}>{t(step.text, { scenarios })}</SelectableText>
             </View>
           </View>
         ))}
@@ -147,9 +148,9 @@ export function FreedomIntro({ currencySymbol, actionLabel, onDone }: FreedomInt
 
       <View style={styles.privacyRow}>
         <Ionicons name="lock-closed-outline" size={14} color={colors.textSecondary} />
-        <Text style={[styles.privacyText, { color: colors.textSecondary }]}>
+        <SelectableText style={[styles.privacyText, { color: colors.textSecondary }]}>
           {t('freedom.intro.privacy')}
-        </Text>
+        </SelectableText>
       </View>
 
       <TouchableOpacity
@@ -161,9 +162,9 @@ export function FreedomIntro({ currencySymbol, actionLabel, onDone }: FreedomInt
         <Text style={styles.actionText}>{actionLabel}</Text>
       </TouchableOpacity>
 
-      <Text style={[styles.disclaimer, { color: colors.textSecondary }]}>
+      <SelectableText style={[styles.disclaimer, { color: colors.textSecondary }]}>
         {t('freedom.disclaimer')}
-      </Text>
+      </SelectableText>
     </ScrollView>
   );
 }
@@ -190,7 +191,7 @@ export function FreedomIntroModal({ visible, onClose, currencySymbol }: FreedomI
         edges={Platform.OS === 'ios' ? ['bottom'] : ['top', 'bottom']}
       >
         <View style={[styles.header, { borderBottomColor: colors.border }]}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>{t('freedom.intro.modalTitle')}</Text>
+          <SelectableText style={[styles.headerTitle, { color: colors.text }]}>{t('freedom.intro.modalTitle')}</SelectableText>
           <TouchableOpacity onPress={onClose} hitSlop={8} style={styles.headerAction} accessibilityRole="button">
             <Text style={[styles.headerActionText, { color: colors.accent }]}>{t('common.done')}</Text>
           </TouchableOpacity>

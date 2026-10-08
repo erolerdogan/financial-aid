@@ -18,7 +18,7 @@ export type TabSwipeDirection = 'next' | 'prev';
 /** Returns true when the screen handled the swipe itself (the Plan tab steps through its segments). */
 export type TabSwipeInterceptor = (direction: TabSwipeDirection) => boolean;
 
-const TAB_ORDER = ['/', '/transactions', '/trends', '/debts'] as const;
+const TAB_ORDER = ['/', '/trends', '/debts'] as const;
 
 const CLAIM_DX = 24;
 const SWITCH_DX = 60;
@@ -52,8 +52,8 @@ export function TabSwipeProvider({ children }: { children: React.ReactNode }) {
 
       Keyboard.dismiss();
       Haptics.selectionAsync().catch(() => {});
-      // Coming from Trends the Plan tab opens on Debts, so the order stays Trends → Debts → Future Growth.
-      if (target === '/debts') router.navigate({ pathname: '/debts', params: { segment: 'health' } });
+      // Coming from Trends the Plan tab opens on Debts, so the order stays Trends → Debts → Health → Future Growth.
+      if (target === '/debts') router.navigate({ pathname: '/debts', params: { segment: 'debts' } });
       else router.navigate(target);
     },
     [pathname, router]

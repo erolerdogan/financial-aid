@@ -1,7 +1,9 @@
+import { PasscodeLockHost } from '@/components/passcode/PasscodeLockHost';
 import { PdfTextHost } from '@/components/PdfTextHost';
 import { SharedImportHost } from '@/components/SharedImportHost';
 import { ImportResultProvider } from '@/contexts/ImportResultContext';
 import { LanguageProvider } from '@/contexts/LanguageContext';
+import { PasscodeProvider } from '@/contexts/PasscodeContext';
 import { PeriodProvider } from '@/contexts/PeriodContext';
 import { ProfileProvider, useProfile } from '@/contexts/ProfileContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
@@ -21,16 +23,17 @@ SplashScreen.preventAutoHideAsync().catch(() => {
 function AppInitializer() {
   const db = useSQLiteContext();
   const router = useRouter();
-  const { loadingProfiles, hasData } = useProfile();
+  const { loadingProfiles, hasData, isDemoMode } = useProfile();
   const [isReady, setIsReady] = useState(false);
   const routedRef = useRef(false);
 
   useEffect(() => {
-    if (!db) return;
+    // Not in the demo workspace: nothing can be imported there.
+    if (!db || loadingProfiles || isDemoMode) return;
     requestAndScheduleImportReminders().catch((err) =>
       console.warn('Background notifications schedule warning:', err)
     );
-  }, [db]);
+  }, [db, loadingProfiles, isDemoMode]);
 
   useEffect(() => {
     if (loadingProfiles || routedRef.current) return;
@@ -55,6 +58,7 @@ function AppInitializer() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="welcome" options={{ headerShown: false, gestureEnabled: false }} />
+      <Stack.Screen name="transactions" options={{ headerShown: false }} />
       <Stack.Screen
         name="settings"
         options={{
@@ -97,9 +101,38 @@ function AppInitializer() {
           presentation: 'modal',
         }}
       />
+      <Stack.Screen
+        name="data-privacy"
+        options={{
+          headerShown: false,
+          presentation: 'modal',
+        }}
+      />
+      <Stack.Screen
+        name="legal"
+        options={{
+          headerShown: false,
+          presentation: 'modal',
+        }}
+      />
+      <Stack.Screen
+        name="faq"
+        options={{
+          headerShown: false,
+          presentation: 'modal',
+        }}
+      />
+      <Stack.Screen
+        name="licenses"
+        options={{
+          headerShown: false,
+          presentation: 'modal',
+        }}
+      />
     </Stack>
     <SharedImportHost />
     <PdfTextHost />
+    <PasscodeLockHost />
     </>
   );
 }
@@ -111,13 +144,15 @@ export default function RootLayout() {
         <SQLiteProvider databaseName="financial_aid.db" onInit={initDatabase} useSuspense>
           <LanguageProvider>
             <ThemeProvider>
-              <ProfileProvider>
-                <PeriodProvider>
-                  <ImportResultProvider>
-                    <AppInitializer />
-                  </ImportResultProvider>
-                </PeriodProvider>
-              </ProfileProvider>
+              <PasscodeProvider>
+                <ProfileProvider>
+                  <PeriodProvider>
+                    <ImportResultProvider>
+                      <AppInitializer />
+                    </ImportResultProvider>
+                  </PeriodProvider>
+                </ProfileProvider>
+              </PasscodeProvider>
             </ThemeProvider>
           </LanguageProvider>
         </SQLiteProvider>

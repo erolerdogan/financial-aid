@@ -1,3 +1,4 @@
+import { SelectableText } from '@/components/SelectableText';
 import { getCategoryColor } from '@/constants/colors';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -78,7 +79,7 @@ export function AllocationChart({
     <View style={[styles.chartCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
       {/* Header */}
       <View style={styles.chartHeaderRow}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('home.allocation')}</Text>
+        <SelectableText style={[styles.sectionTitle, { color: colors.text }]}>{t('home.allocation')}</SelectableText>
         <View style={styles.headerActions}>
           <TouchableOpacity
             style={[styles.chartTypeBtn, { backgroundColor: colors.tintBackground }]}
@@ -98,10 +99,10 @@ export function AllocationChart({
 
       {allocationChart !== 'donut' && (
         <View style={styles.totalHeader}>
-          <Text style={[styles.totalAmount, { color: colors.text }]}>
+          <SelectableText style={[styles.totalAmount, { color: colors.text }]}>
             {format.money(totalSpending, currencySymbol)}
-          </Text>
-          <Text style={[styles.totalLabel, { color: colors.textSecondary }]}>{t('home.totalExpenses')}</Text>
+          </SelectableText>
+          <SelectableText style={[styles.totalLabel, { color: colors.textSecondary }]}>{t('home.totalExpenses')}</SelectableText>
         </View>
       )}
       {allocationChart === 'bars' && <ColumnsChart {...chartProps} />}
@@ -138,10 +139,10 @@ export function AllocationChart({
             </G>
           </Svg>
           <View style={styles.centerTextContainer}>
-            <Text style={[styles.totalAmount, { color: colors.text }]}>
+            <SelectableText style={[styles.totalAmount, { color: colors.text }]}>
               {format.money(totalSpending, currencySymbol)}
-            </Text>
-            <Text style={[styles.totalLabel, { color: colors.textSecondary }]}>{t('home.totalExpenses')}</Text>
+            </SelectableText>
+            <SelectableText style={[styles.totalLabel, { color: colors.textSecondary }]}>{t('home.totalExpenses')}</SelectableText>
           </View>
         </View>
       </View>
@@ -222,9 +223,9 @@ export function AllocationChart({
                   {loadingTransactions ? (
                     <ActivityIndicator size="small" color={colors.accent} style={styles.inlineLoader} />
                   ) : expandedTransactions.length === 0 ? (
-                    <Text style={[styles.noTrxText, { color: colors.textSecondary }]}>
+                    <SelectableText style={[styles.noTrxText, { color: colors.textSecondary }]}>
                       {t('home.noCategoryTransactions')}
-                    </Text>
+                    </SelectableText>
                   ) : (
                     expandedTransactions.map((trx, idx) => (
                       <TouchableOpacity

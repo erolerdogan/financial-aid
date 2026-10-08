@@ -1,3 +1,4 @@
+import { SelectableText } from '@/components/SelectableText';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { type FreedomPlan } from '@/db/database';
@@ -183,11 +184,11 @@ export function FreedomField({ field, value, error, onChange, currencySymbol }: 
 
   return (
     <View>
-      <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>
+      <SelectableText style={[styles.label, { color: colors.textSecondary }]}>{label}</SelectableText>
       <View
         style={[styles.inputWrap, { backgroundColor: colors.field, borderColor: error ? ERROR_COLOR : colors.border }]}
       >
-        {prefix ? <Text style={[styles.affix, { color: colors.textSecondary }]}>{prefix}</Text> : null}
+        {prefix ? <SelectableText style={[styles.affix, { color: colors.textSecondary }]}>{prefix}</SelectableText> : null}
         <TextInput
           style={[styles.input, { color: colors.text }]}
           value={value}
@@ -203,15 +204,15 @@ export function FreedomField({ field, value, error, onChange, currencySymbol }: 
           accessibilityLabel={unit ? t('freedom.field.a11y', { label, unit }) : label}
           accessibilityHint={hint}
         />
-        {suffix ? <Text style={[styles.affix, { color: colors.textSecondary }]}>{suffix}</Text> : null}
+        {suffix ? <SelectableText style={[styles.affix, { color: colors.textSecondary }]}>{suffix}</SelectableText> : null}
       </View>
-      <Text
+      <SelectableText
         style={[styles.helper, { color: error ? ERROR_COLOR : colors.textSecondary }]}
         numberOfLines={2}
         accessibilityLiveRegion={error ? 'polite' : 'none'}
       >
         {hint}
-      </Text>
+      </SelectableText>
     </View>
   );
 }

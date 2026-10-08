@@ -1,5 +1,6 @@
 import { CategoryFilterBar } from '@/components/CategoryFilterBar';
 import { FixedFlexibleCard } from '@/components/dashboard/FixedFlexibleCard';
+import { SelectableText } from '@/components/SelectableText';
 import { getCategoryColor } from '@/constants/colors';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -277,13 +278,13 @@ export function TransactionListModal({
             {/* Header */}
             <View style={styles.headerRow}>
               <View>
-                <Text style={[styles.sheetTitle, { color: colors.text }]}>{modalTitle}</Text>
-                <Text style={[styles.sheetSubtitle, { color: colors.textSecondary }]}>{monthLabel}</Text>
+                <SelectableText style={[styles.sheetTitle, { color: colors.text }]}>{modalTitle}</SelectableText>
+                <SelectableText style={[styles.sheetSubtitle, { color: colors.textSecondary }]}>{monthLabel}</SelectableText>
               </View>
               <View style={[styles.totalBadge, { backgroundColor: colors.surface }]}>
-                <Text style={[styles.totalBadgeText, { color: colors.text }]}>
+                <SelectableText style={[styles.totalBadgeText, { color: colors.text }]}>
                   {format.money(totalAmount, currencySymbol, 2)}
-                </Text>
+                </SelectableText>
               </View>
             </View>
 
@@ -403,7 +404,7 @@ export function TransactionListModal({
                 }
                 ListEmptyComponent={
                   <View style={styles.emptyContainer}>
-                    <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+                    <SelectableText style={[styles.emptyText, { color: colors.textSecondary }]}>
                       {searchQuery.trim().length > 0
                         ? t('list.noMatches', { query: searchQuery })
                         : t(
@@ -413,7 +414,7 @@ export function TransactionListModal({
                               ? 'list.emptyFlexible'
                               : 'list.emptyAll'
                           )}
-                    </Text>
+                    </SelectableText>
                   </View>
                 }
               />

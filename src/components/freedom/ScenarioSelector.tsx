@@ -1,3 +1,4 @@
+import { SelectableText } from '@/components/SelectableText';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import type { TranslationKey } from '@/i18n';
@@ -31,7 +32,7 @@ export function ScenarioSelector({ scenarios, active, onSelect, currencySymbol, 
 
   return (
     <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-      <Text style={[styles.title, { color: colors.textSecondary }]}>{t('freedom.outlook')}</Text>
+      <SelectableText style={[styles.title, { color: colors.textSecondary }]}>{t('freedom.outlook')}</SelectableText>
 
       <View style={[styles.segmentedContainer, { backgroundColor: colors.track }]} accessibilityRole="radiogroup">
         {scenarios.map((scenario) => {
@@ -80,17 +81,17 @@ export function ScenarioSelector({ scenarios, active, onSelect, currencySymbol, 
                 balance: fmt(scenario.finalBalance),
               })}
             >
-              <Text
+              <SelectableText
                 style={[styles.compareValue, { color: selected ? colors.accent : colors.text }]}
                 numberOfLines={1}
                 adjustsFontSizeToFit
                 minimumFontScale={0.6}
               >
                 {fmt(scenario.finalBalance)}
-              </Text>
-              <Text style={[styles.compareSub, { color: colors.textSecondary }]} numberOfLines={1}>
+              </SelectableText>
+              <SelectableText style={[styles.compareSub, { color: colors.textSecondary }]} numberOfLines={1}>
                 {t('freedom.scenario.est', { percent: percent(scenario.returnPct) })}
-              </Text>
+              </SelectableText>
             </View>
           );
         })}

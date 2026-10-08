@@ -4,7 +4,8 @@ import { DateRangeModal } from '@/components/modals/DateRangeModal';
 import { TransactionDetailModal } from '@/components/modals/TransactionDetailModal';
 import { TransactionListModal } from '@/components/modals/TransactionListModal';
 import { ScreenContainer } from '@/components/ScreenContainer';
-import { getCategoryColor } from '@/constants/colors';
+import { SelectableText } from '@/components/SelectableText';
+import { COMPARE_SERIES_COLORS, getCategoryColor } from '@/constants/colors';
 import { usePeriod } from '@/contexts/PeriodContext';
 import { useBlockTabSwipe } from '@/contexts/TabSwipeContext';
 import { useI18n } from '@/contexts/LanguageContext';
@@ -23,6 +24,7 @@ import {
   getTransactionFixedExplanation,
   getTransactionsByMonthAndCategory,
   getYearCoverageStatus,
+  getYearlyExpenseTotals,
   makeRangeKey,
   setCategoryGoal,
   setMerchantFixedOverride,
@@ -31,6 +33,13 @@ import {
 import type { Message } from '@/i18n';
 import type { Formatters } from '@/i18n/format';
 import { parseNumber } from '@/utils/debt';
+import {
+  MAX_COMPARE_YEARS,
+  compareMonth,
+  pickSeriesColors,
+  resolveCompareYears,
+  toggleCompareYear,
+} from '@/utils/yearComparison';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useFocusEffect } from 'expo-router';
@@ -107,7 +116,7 @@ interface YearCoverageStatus {
 }
 
 const NO_YEARS: string[] = [];
-const NO_VALUES: number[] = [];
+const NO_TOTALS: Record<string, number[]> = {};
 
 // Keeps the previous reference when a refetch returns identical data, so a focus refresh does not re-render the chart.
 function keepIfEqual<T>(next: T) {
@@ -216,8 +225,10 @@ export default function TrendsScreen() {
   }, []);
 
   const [rawTrendData, setRawTrendData] = useState<any[]>([]);
-  // Monthly totals of the year before the selected one (index = month - 1); empty when that year has no spending.
-  const [previousYearValues, setPreviousYearValues] = useState<number[]>(NO_VALUES);
+  // Monthly totals of every other year (index = month - 1), for the lines compared with the selected year.
+  const [yearTotals, setYearTotals] = useState<Record<string, number[]>>(NO_TOTALS);
+  // Years the user picked to compare; null until they pick, which shows the previous year.
+  const [pickedCompareYears, setPickedCompareYears] = useState<string[] | null>(null);
   const [loadedSignature, setLoadedSignature] = useState('');
   const loadAnalyticsData = useCallback(async () => {
     if (!db) return;
@@ -252,7 +263,7 @@ export default function TrendsScreen() {
         return;
       }
 
-      const [trendWithBudget, currentGoal, coverageRes, bounds, previousTrend] = await Promise.all([
+      const [trendWithBudget, currentGoal, coverageRes, bounds, otherYearTotals] = await Promise.all([
         fetchTrend(selectedCategory),
         getCategoryGoal(db, selectedCategory, activeProfileId),
         rangeFilter
@@ -260,16 +271,20 @@ export default function TrendsScreen() {
           : getYearCoverageStatus(db, selectedYear, activeProfileId),
         getTransactionDateBounds(db, activeProfileId),
         rangeFilter
-          ? Promise.resolve([])
-          : getAnnualTrendWithBudget(db, String(Number(selectedYear) - 1), selectedCategory, activeProfileId),
+          ? Promise.resolve(NO_TOTALS)
+          : getYearlyExpenseTotals(
+              db,
+              (dbYears ?? []).filter((yr) => yr !== selectedYear),
+              selectedCategory,
+              activeProfileId
+            ),
       ]);
 
       setDateBounds(keepIfEqual(bounds));
       setCategoryBudget(currentGoal);
       setRawTrendData(keepIfEqual<any[]>(trendWithBudget || []));
 
-      const previousValues = previousTrend.map((m) => Math.round(m.totalAmount));
-      setPreviousYearValues(keepIfEqual(previousValues.some((v) => v > 0) ? previousValues : NO_VALUES));
+      setYearTotals(keepIfEqual(otherYearTotals));
 
       const values = (trendWithBudget || []).map((m) => m.totalAmount);
 
@@ -372,10 +387,30 @@ export default function TrendsScreen() {
     });
   }, [rawTrendData, selectedMonthKey, activeColor, colors.card, colors.textSecondary, isDailyMode, isDense]);
 
-  // Previous-year line; only in the year view.
-  const previousLine = rangeFilter ? NO_VALUES : previousYearValues;
-  const showPrevious = previousLine.length > 0;
-  const previousChartData = React.useMemo(() => previousLine.map((value) => ({ value })), [previousLine]);
+  // Lines of the compared years; only in the year view.
+  const isRange = rangeFilter !== null;
+  const yearsWithData = React.useMemo(
+    () => Object.keys(yearTotals).filter((yr) => yearTotals[yr].some((v) => v > 0)),
+    [yearTotals]
+  );
+  const compareSeries = React.useMemo(() => {
+    if (isRange) return [];
+    const years = resolveCompareYears(selectedYear, yearsWithData, pickedCompareYears);
+    const seriesColors = pickSeriesColors(years.length, COMPARE_SERIES_COLORS, activeColor);
+    return years.map((year, i) => ({
+      year,
+      color: seriesColors[i],
+      values: yearTotals[year],
+      data: yearTotals[year].map((value) => ({ value })),
+    }));
+  }, [isRange, selectedYear, yearsWithData, pickedCompareYears, activeColor, yearTotals]);
+  const compareYears = compareSeries.map((s) => s.year);
+  const compareAtLimit = compareYears.length >= MAX_COMPARE_YEARS;
+
+  const handleToggleCompareYear = (year: string) => {
+    Haptics.selectionAsync();
+    setPickedCompareYears(toggleCompareYear(compareYears, year));
+  };
   useFocusEffect(
     useCallback(() => {
       if (activeProfile?.id) {
@@ -585,23 +620,31 @@ export default function TrendsScreen() {
     categoryBudget > 0 &&
     rawTrendData.every((p) => Math.abs(p.budgetLimit - categoryBudget) < 0.01);
 
-  const dataPeak = Math.max(...rawTrendData.map((p) => p.totalAmount), ...previousLine, 0);
+  const dataPeak = Math.max(
+    ...rawTrendData.map((p) => p.totalAmount),
+    ...compareSeries.flatMap((s) => s.values),
+    0
+  );
 
-  const previousYear = String(Number(selectedYear) - 1);
-
-  // "vs last year" card for the month selected on the chart.
+  // Comparison card for the month selected on the chart: one row per compared year.
   const comparisonPoint =
-    showPrevious && selectedMonthKey?.length === 7
+    compareSeries.length > 0 && selectedMonthKey?.length === 7
       ? rawTrendData.find((p) => p.monthName === selectedMonthKey)
       : undefined;
   const comparisonMonthKey: string | null =
     comparisonPoint && comparisonPoint.monthName.startsWith(`${selectedYear}-`) ? comparisonPoint.monthName : null;
-  const comparisonPreviousKey = comparisonMonthKey ? `${previousYear}-${comparisonMonthKey.slice(5, 7)}` : null;
   const comparisonCurrent = comparisonPoint ? Math.round(comparisonPoint.totalAmount) : 0;
-  const comparisonPrevious = comparisonMonthKey ? previousLine[Number(comparisonMonthKey.slice(5, 7)) - 1] ?? 0 : 0;
-  const comparisonDiff = comparisonCurrent - comparisonPrevious;
-  const comparisonColor =
-    comparisonDiff > 0 ? '#FF3B30' : comparisonDiff < 0 ? '#34C759' : colors.textSecondary;
+  const comparisonRows = comparisonMonthKey
+    ? compareSeries
+        .map((s) => ({
+          year: s.year,
+          color: s.color,
+          ...compareMonth(comparisonCurrent, s.values, Number(comparisonMonthKey.slice(5, 7)) - 1),
+        }))
+        .filter((row) => row.previous > 0)
+    : [];
+  const comparisonColor = (diff: number): string =>
+    diff > 0 ? '#FF3B30' : diff < 0 ? '#34C759' : colors.textSecondary;
   const goalInScale = showBudgetLine && categoryBudget <= dataPeak * 1.5;
   const niceScale = getNiceScale(Math.max(dataPeak, goalInScale ? categoryBudget : 0));
   const yAxisLabelWidthPx = 44;
@@ -644,7 +687,7 @@ export default function TrendsScreen() {
       >
         {/* Header Bar with Active Profile Pill & Settings */}
         <View style={styles.headerRow}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>{t('tabs.trends')}</Text>
+          <SelectableText style={[styles.headerTitle, { color: colors.text }]}>{t('tabs.trends')}</SelectableText>
 
           <HeaderActions />
         </View>
@@ -736,7 +779,7 @@ export default function TrendsScreen() {
         <View style={styles.metricsContainer}>
           <View style={[styles.heroCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.heroHeader}>
-              <Text style={[styles.heroLabel, { color: colors.textSecondary }]}>
+              <SelectableText style={[styles.heroLabel, { color: colors.textSecondary }]}>
                 {selectedCategory === 'All'
                   ? rangeFilter
                     ? t('trends.totalSpending')
@@ -744,44 +787,44 @@ export default function TrendsScreen() {
                   : rangeFilter
                   ? t('trends.totalCategory', { category: categoryName(selectedCategory) })
                   : t('trends.totalCategoryYear', { year: selectedYear, category: categoryName(selectedCategory) })}
-              </Text>
+              </SelectableText>
               <View style={[styles.heroBadge, { backgroundColor: `${activeColor}18` }]}>
-                <Text style={[styles.heroBadgeText, { color: activeColor }]}>
+                <SelectableText style={[styles.heroBadgeText, { color: activeColor }]}>
                   {rangeFilter ? t('trends.badgeRange') : t('trends.badgeAnnual')}
-                </Text>
+                </SelectableText>
               </View>
             </View>
-            <Text style={[styles.heroValue, { color: activeColor }]}>
+            <SelectableText style={[styles.heroValue, { color: activeColor }]}>
               {format.money(summary.total, currencySymbol, { maximumFractionDigits: 0 })}
-            </Text>
+            </SelectableText>
           </View>
 
           <View style={styles.subRow}>
             <View style={[styles.subCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.subLabel, { color: colors.textSecondary }]} numberOfLines={1}>
+              <SelectableText style={[styles.subLabel, { color: colors.textSecondary }]} numberOfLines={1}>
                 {isDailyMode ? t('trends.dailyAvg') : t('trends.monthlyAvg')}
-              </Text>
-              <Text style={[styles.subValue, { color: colors.text }]}>
+              </SelectableText>
+              <SelectableText style={[styles.subValue, { color: colors.text }]}>
                 {format.money(summary.average, currencySymbol, { maximumFractionDigits: 0 })}
-              </Text>
+              </SelectableText>
             </View>
 
             <View style={[styles.subCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.subLabel, { color: colors.textSecondary }]} numberOfLines={1}>
+              <SelectableText style={[styles.subLabel, { color: colors.textSecondary }]} numberOfLines={1}>
                 {isDailyMode ? t('trends.peakDay') : t('trends.peakMonth')}
-              </Text>
-              <Text style={[styles.subValue, { color: colors.text }]}>
+              </SelectableText>
+              <SelectableText style={[styles.subValue, { color: colors.text }]}>
                 {formatShortPoint(summary.highestMonth, format)}
-              </Text>
+              </SelectableText>
             </View>
 
             <View style={[styles.subCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Text style={[styles.subLabel, { color: colors.textSecondary }]} numberOfLines={1}>
+              <SelectableText style={[styles.subLabel, { color: colors.textSecondary }]} numberOfLines={1}>
                 {isDailyMode ? t('trends.lowestDay') : t('trends.lowestMonth')}
-              </Text>
-              <Text style={[styles.subValue, { color: colors.text }]}>
+              </SelectableText>
+              <SelectableText style={[styles.subValue, { color: colors.text }]}>
                 {formatShortPoint(summary.lowestMonth, format)}
-              </Text>
+              </SelectableText>
             </View>
           </View>
         </View>
@@ -789,9 +832,9 @@ export default function TrendsScreen() {
         {/* Expenses Chart Card */}
         <View style={[styles.chartCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.chartHeaderRow}>
-            <Text style={[styles.chartTitle, { color: colors.text }]}>
+            <SelectableText style={[styles.chartTitle, { color: colors.text }]}>
               {rangeFilter ? t('list.expense') : t('trends.expensesYear', { year: selectedYear })}
-            </Text>
+            </SelectableText>
             <TouchableOpacity
               activeOpacity={0.6}
               onPress={() => {
@@ -811,19 +854,68 @@ export default function TrendsScreen() {
             </TouchableOpacity>
           </View>
 
-          {showPrevious && (
-            <View style={styles.legendRow}>
-              <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: activeColor }]} />
-                <Text style={[styles.legendText, { color: colors.textSecondary }]}>{selectedYear}</Text>
-              </View>
-              <View style={styles.legendItem}>
-                <View style={styles.legendDash}>
-                  <View style={[styles.legendDashPart, { backgroundColor: colors.textSecondary }]} />
-                  <View style={[styles.legendDashPart, { backgroundColor: colors.textSecondary }]} />
-                </View>
-                <Text style={[styles.legendText, { color: colors.textSecondary }]}>{previousYear}</Text>
-              </View>
+          {!isRange && availableYears.length > 1 && (
+            <View style={styles.yearChipBlock}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                onTouchStart={blockTabSwipe}
+                contentContainerStyle={styles.yearChipRow}
+              >
+                {availableYears.map((yr) => {
+                  if (yr === selectedYear) {
+                    return (
+                      <View
+                        key={yr}
+                        style={[
+                          styles.yearChip,
+                          { backgroundColor: `${activeColor}18`, borderColor: activeColor },
+                        ]}
+                      >
+                        <View style={[styles.legendDot, { backgroundColor: activeColor }]} />
+                        <Text style={[styles.yearChipText, { color: colors.text }]}>{yr}</Text>
+                      </View>
+                    );
+                  }
+                  const series = compareSeries.find((s) => s.year === yr);
+                  const isOn = series !== undefined;
+                  const isDisabled = !isOn && (compareAtLimit || !yearsWithData.includes(yr));
+                  return (
+                    <TouchableOpacity
+                      key={yr}
+                      activeOpacity={0.7}
+                      disabled={isDisabled}
+                      accessibilityRole="checkbox"
+                      accessibilityLabel={t('trends.compareYear', { year: yr })}
+                      accessibilityState={{ checked: isOn, disabled: isDisabled }}
+                      style={[
+                        styles.yearChip,
+                        { backgroundColor: colors.background, borderColor: colors.border },
+                        series && { backgroundColor: `${series.color}18`, borderColor: series.color },
+                        isDisabled && styles.yearChipDisabled,
+                      ]}
+                      onPress={() => handleToggleCompareYear(yr)}
+                    >
+                      <View
+                        style={[
+                          styles.legendDot,
+                          series
+                            ? { backgroundColor: series.color }
+                            : [styles.legendDotOff, { borderColor: colors.textSecondary }],
+                        ]}
+                      />
+                      <Text style={[styles.yearChipText, { color: isOn ? colors.text : colors.textSecondary }]}>
+                        {yr}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+              {compareAtLimit && (
+                <SelectableText style={[styles.yearChipHint, { color: colors.textSecondary }]}>
+                  {t('trends.compareLimit', { count: MAX_COMPARE_YEARS })}
+                </SelectableText>
+              )}
             </View>
           )}
 
@@ -832,17 +924,46 @@ export default function TrendsScreen() {
           ) : (
             <View style={styles.chartWrapper} onTouchStart={blockTabSwipe} onTouchEnd={handleScrubDrop}>
               <LineChart
-                key={`${selectedCategory}-${categoryBudget}-${selectedYear}-${rangeFilter ? makeRangeKey(rangeFilter.from, rangeFilter.to) : ''}-${niceScale.max}-${showPrevious}`}
+                key={`${selectedCategory}-${categoryBudget}-${selectedYear}-${rangeFilter ? makeRangeKey(rangeFilter.from, rangeFilter.to) : ''}-${niceScale.max}-${compareYears.join(',')}`}
                 data={chartData}
-                {...(showPrevious
+                {...(compareSeries[0]
                   ? {
-                      data2: previousChartData,
-                      color2: colors.textSecondary,
+                      data2: compareSeries[0].data,
+                      color2: compareSeries[0].color,
                       thickness2: 1.5,
-                      strokeDashArray2: [4, 4],
                       hideDataPoints2: true,
                       startOpacity2: 0,
                       endOpacity2: 0,
+                    }
+                  : {})}
+                {...(compareSeries[1]
+                  ? {
+                      data3: compareSeries[1].data,
+                      color3: compareSeries[1].color,
+                      thickness3: 1.5,
+                      hideDataPoints3: true,
+                      startOpacity3: 0,
+                      endOpacity3: 0,
+                    }
+                  : {})}
+                {...(compareSeries[2]
+                  ? {
+                      data4: compareSeries[2].data,
+                      color4: compareSeries[2].color,
+                      thickness4: 1.5,
+                      hideDataPoints4: true,
+                      startOpacity4: 0,
+                      endOpacity4: 0,
+                    }
+                  : {})}
+                {...(compareSeries[3]
+                  ? {
+                      data5: compareSeries[3].data,
+                      color5: compareSeries[3].color,
+                      thickness5: 1.5,
+                      hideDataPoints5: true,
+                      startOpacity5: 0,
+                      endOpacity5: 0,
                     }
                   : {})}
                 maxValue={niceScale.max}
@@ -885,6 +1006,9 @@ export default function TrendsScreen() {
                   strokeDashArray: [4, 4],
                   pointerColor: activeColor,
                   hidePointer2: true,
+                  hidePointer3: true,
+                  hidePointer4: true,
+                  hidePointer5: true,
                   radius: 6,
                   activatePointersOnLongPress: false,
                   pointerVanishDelay: 0,
@@ -903,36 +1027,38 @@ export default function TrendsScreen() {
             </View>
           )}
 
-          {chartReady && comparisonMonthKey && comparisonPreviousKey && comparisonPrevious > 0 && (
+          {chartReady && comparisonMonthKey && comparisonRows.length > 0 && (
             <View
               style={[styles.comparisonCard, { backgroundColor: colors.background, borderColor: colors.border }]}
             >
-              <Text style={[styles.gridCardTitle, { color: colors.textSecondary }]} numberOfLines={1}>
-                {t('trends.vsLastYear', { month: formatMonthYear(comparisonMonthKey) })}
-              </Text>
-              <View style={styles.comparisonValueRow}>
-                {comparisonDiff !== 0 && (
-                  <Ionicons
-                    name={comparisonDiff > 0 ? 'arrow-up' : 'arrow-down'}
-                    size={18}
-                    color={comparisonColor}
-                  />
-                )}
-                <Text style={[styles.gridCardHeroValue, { color: comparisonColor }]}>
-                  {comparisonDiff === 0
-                    ? t('trends.sameAmount')
-                    : t(comparisonDiff > 0 ? 'trends.more' : 'trends.less', {
-                        amount: format.money(Math.abs(comparisonDiff), currencySymbol),
-                      })}
-                </Text>
-              </View>
-              <Text style={[styles.gridCardSubtext, { color: colors.textSecondary }]} numberOfLines={1}>
-                {t('trends.nowVsThen', {
-                  current: format.money(comparisonCurrent, currencySymbol),
-                  previous: format.money(comparisonPrevious, currencySymbol),
-                  month: formatMonthYear(comparisonPreviousKey),
-                })}
-              </Text>
+              <SelectableText style={[styles.gridCardTitle, { color: colors.textSecondary }]} numberOfLines={1}>
+                {t('trends.vsOtherYears', { month: formatMonthYear(comparisonMonthKey) })}
+              </SelectableText>
+              {comparisonRows.map((row) => (
+                <View key={row.year} style={styles.comparisonRow}>
+                  <View style={[styles.legendDot, { backgroundColor: row.color }]} />
+                  <SelectableText style={[styles.comparisonYear, { color: colors.text }]}>{row.year}</SelectableText>
+                  <SelectableText style={[styles.comparisonAmount, { color: colors.textSecondary }]} numberOfLines={1}>
+                    {format.money(row.previous, currencySymbol)}
+                  </SelectableText>
+                  <View style={styles.comparisonValueRow}>
+                    {row.diff !== 0 && (
+                      <Ionicons
+                        name={row.diff > 0 ? 'arrow-up' : 'arrow-down'}
+                        size={14}
+                        color={comparisonColor(row.diff)}
+                      />
+                    )}
+                    <SelectableText style={[styles.comparisonDiff, { color: comparisonColor(row.diff) }]} numberOfLines={1}>
+                      {row.diff === 0
+                        ? t('trends.sameAmount')
+                        : t(row.diff > 0 ? 'trends.more' : 'trends.less', {
+                            amount: format.money(Math.abs(row.diff), currencySymbol),
+                          })}
+                    </SelectableText>
+                  </View>
+                </View>
+              ))}
             </View>
           )}
 
@@ -1049,7 +1175,7 @@ export default function TrendsScreen() {
             <View style={[styles.sheetContainer, { backgroundColor: colors.card }]}>
               <View style={styles.sheetHeader}>
                 <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
-                <Text style={[styles.sheetTitle, { color: colors.text }]}>{t('period.select')}</Text>
+                <SelectableText style={[styles.sheetTitle, { color: colors.text }]}>{t('period.select')}</SelectableText>
               </View>
               <ScrollView style={{ maxHeight: 320 }}>
                 <TouchableOpacity
@@ -1297,12 +1423,22 @@ const styles = StyleSheet.create({
   },
   chartTitle: { fontSize: 15, fontWeight: '600' },
   chartHintText: { fontSize: 11 },
-  legendRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: -4, marginBottom: 8 },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  yearChipBlock: { marginTop: -4, marginBottom: 8, gap: 6 },
+  yearChipRow: { gap: 6, paddingRight: 4 },
+  yearChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  yearChipDisabled: { opacity: 0.4 },
+  yearChipText: { fontSize: 12, fontWeight: '600' },
+  yearChipHint: { fontSize: 11 },
   legendDot: { width: 8, height: 8, borderRadius: 4 },
-  legendDash: { flexDirection: 'row', gap: 2 },
-  legendDashPart: { width: 5, height: 1.5, borderRadius: 1 },
-  legendText: { fontSize: 11, fontWeight: '600' },
+  legendDotOff: { backgroundColor: 'transparent', borderWidth: 1.5 },
   chartWrapper: { alignItems: 'center', paddingTop: 8 },
 
   bannerGridContainer: {
@@ -1343,7 +1479,11 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     padding: 12,
   },
+  comparisonRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
+  comparisonYear: { fontSize: 13, fontWeight: '700' },
+  comparisonAmount: { flex: 1, fontSize: 13, fontWeight: '500' },
   comparisonValueRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  comparisonDiff: { fontSize: 13, fontWeight: '700' },
   gridCardSubtext: {
     fontSize: 11,
     fontWeight: '600',

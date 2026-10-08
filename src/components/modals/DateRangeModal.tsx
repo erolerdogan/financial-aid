@@ -1,9 +1,19 @@
+import { SelectableText } from '@/components/SelectableText';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import {
+  clampMonth,
+  isMonthDisabled,
+  isYearDisabled,
+  monthKey,
+  monthTouchesRange,
+  yearOptions,
+  yearTouchesRange,
+} from '@/utils/calendarNav';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Modal, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 
 interface DateRangeModalProps {
   visible: boolean;
@@ -23,8 +33,10 @@ const parseKey = (key: string): Date => {
   return new Date(y, m - 1, d);
 };
 
-const monthKeyOf = (d: Date): string =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+const monthKeyOf = (d: Date): string => monthKey(d.getFullYear(), d.getMonth());
+
+/** The sheet zooms out from days to the months of a year, then to the list of years. */
+type CalendarView = 'days' | 'months' | 'years';
 
 export function DateRangeModal({
   visible,
@@ -44,9 +56,11 @@ export function DateRangeModal({
   const [start, setStart] = useState<string | null>(null);
   const [end, setEnd] = useState<string | null>(null);
   const [cursor, setCursor] = useState<Date>(new Date());
+  const [view, setView] = useState<CalendarView>('days');
 
   useEffect(() => {
     if (!visible) return;
+    setView('days');
     setStart(initialFrom);
     setEnd(initialTo);
     const anchor = initialFrom ?? maxDate ?? toKey(new Date());
@@ -68,14 +82,49 @@ export function DateRangeModal({
   }, [cursor]);
 
   const cursorMonthKey = monthKeyOf(cursor);
-  const canGoPrev = !minDate || cursorMonthKey > minDate.slice(0, 7);
-  const canGoNext = !maxDate || cursorMonthKey < maxDate.slice(0, 7);
+  const cursorYear = cursor.getFullYear();
+  const years = useMemo(() => yearOptions(minDate, maxDate, new Date()), [minDate, maxDate]);
+
+  // The arrows step one month on the day grid and one year on the month grid.
+  const canGoPrev =
+    view === 'days'
+      ? !minDate || cursorMonthKey > minDate.slice(0, 7)
+      : !isYearDisabled(cursorYear - 1, minDate, maxDate) && cursorYear > years[0];
+  const canGoNext =
+    view === 'days'
+      ? !maxDate || cursorMonthKey < maxDate.slice(0, 7)
+      : !isYearDisabled(cursorYear + 1, minDate, maxDate) && cursorYear < years[years.length - 1];
+
+  const moveCursor = (year: number, monthIndex: number) => {
+    setCursor(parseKey(`${clampMonth(year, monthIndex, minDate, maxDate)}-01`));
+  };
 
   const shiftCursor = (direction: 1 | -1) => {
     if (direction === -1 && !canGoPrev) return;
     if (direction === 1 && !canGoNext) return;
     Haptics.selectionAsync().catch(() => {});
-    setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + direction, 1));
+    if (view === 'days') {
+      setCursor(new Date(cursorYear, cursor.getMonth() + direction, 1));
+    } else {
+      moveCursor(cursorYear + direction, cursor.getMonth());
+    }
+  };
+
+  const handleTitlePress = () => {
+    Haptics.selectionAsync().catch(() => {});
+    setView(view === 'days' ? 'months' : view === 'months' ? 'years' : 'months');
+  };
+
+  const handleMonthPress = (monthIndex: number) => {
+    Haptics.selectionAsync().catch(() => {});
+    moveCursor(cursorYear, monthIndex);
+    setView('days');
+  };
+
+  const handleYearPress = (year: number) => {
+    Haptics.selectionAsync().catch(() => {});
+    moveCursor(year, cursor.getMonth());
+    setView('months');
   };
 
   const isDisabledDay = (key: string): boolean =>
@@ -109,6 +158,7 @@ export function DateRangeModal({
     setEnd(toKeyVal);
     const target = parseKey(toKeyVal);
     setCursor(new Date(target.getFullYear(), target.getMonth(), 1));
+    setView('days');
   };
 
   const presets = [
@@ -147,7 +197,9 @@ export function DateRangeModal({
     ? t('range.selectEnd', { start: formatKey(start) })
     : `${formatKey(start)} – ${formatKey(end)}`;
 
-  const monthTitle = format.date(cursor, { month: 'long', year: 'numeric' });
+  const yearLabel = (year: number): string => format.date(new Date(year, 0, 1), { year: 'numeric' });
+  const navTitle = view === 'days' ? format.date(cursor, { month: 'long', year: 'numeric' }) : yearLabel(cursorYear);
+  const showArrows = view !== 'years';
   const chipBg = colors.surface;
 
   return (
@@ -157,10 +209,10 @@ export function DateRangeModal({
           <View style={[styles.sheet, { backgroundColor: colors.card }]}>
             <View style={styles.header}>
               <View style={[styles.handle, { backgroundColor: colors.border }]} />
-              <Text style={[styles.title, { color: colors.text }]}>{t('range.title')}</Text>
-              <Text style={[styles.summary, { color: start ? colors.accent : colors.textSecondary }]}>
+              <SelectableText style={[styles.title, { color: colors.text }]}>{t('range.title')}</SelectableText>
+              <SelectableText style={[styles.summary, { color: start ? colors.accent : colors.textSecondary }]}>
                 {summaryText}
-              </Text>
+              </SelectableText>
             </View>
 
             <View style={styles.presetRow}>
@@ -179,66 +231,158 @@ export function DateRangeModal({
             <View style={styles.monthNav}>
               <TouchableOpacity
                 onPress={() => shiftCursor(-1)}
-                disabled={!canGoPrev}
+                disabled={!showArrows || !canGoPrev}
                 hitSlop={10}
-                style={[styles.navBtn, { backgroundColor: chipBg }, !canGoPrev && styles.navBtnDisabled]}
+                style={[
+                  styles.navBtn,
+                  { backgroundColor: chipBg },
+                  !canGoPrev && styles.navBtnDisabled,
+                  !showArrows && styles.navBtnHidden,
+                ]}
               >
                 <Ionicons name="chevron-back" size={18} color={colors.accent} />
               </TouchableOpacity>
-              <Text style={[styles.monthTitle, { color: colors.text }]}>{monthTitle}</Text>
+              <TouchableOpacity
+                accessibilityRole="button"
+                activeOpacity={0.7}
+                hitSlop={10}
+                style={styles.titleBtn}
+                onPress={handleTitlePress}
+              >
+                <Text style={[styles.monthTitle, { color: colors.text }]}>{navTitle}</Text>
+                <Ionicons name={view === 'years' ? 'chevron-up' : 'chevron-down'} size={16} color={colors.accent} />
+              </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => shiftCursor(1)}
-                disabled={!canGoNext}
+                disabled={!showArrows || !canGoNext}
                 hitSlop={10}
-                style={[styles.navBtn, { backgroundColor: chipBg }, !canGoNext && styles.navBtnDisabled]}
+                style={[
+                  styles.navBtn,
+                  { backgroundColor: chipBg },
+                  !canGoNext && styles.navBtnDisabled,
+                  !showArrows && styles.navBtnHidden,
+                ]}
               >
                 <Ionicons name="chevron-forward" size={18} color={colors.accent} />
               </TouchableOpacity>
             </View>
 
-            <View style={styles.weekRow}>
-              {weekdays.map((day) => (
-                <Text key={day} style={[styles.weekday, { color: colors.textSecondary }]}>
-                  {day}
-                </Text>
-              ))}
-            </View>
+            <View style={styles.body}>
+              {view === 'days' && (
+                <>
+                <View style={styles.weekRow}>
+                  {weekdays.map((day) => (
+                    <SelectableText key={day} style={[styles.weekday, { color: colors.textSecondary }]}>
+                      {day}
+                    </SelectableText>
+                  ))}
+                </View>
 
-            <View style={styles.grid}>
-              {cells.map((key, index) => {
-                if (!key) return <View key={`empty-${index}`} style={styles.cell} />;
+                <View style={styles.grid}>
+                  {cells.map((key, index) => {
+                    if (!key) return <View key={`empty-${index}`} style={styles.cell} />;
 
-                const disabled = isDisabledDay(key);
-                const isEdge = key === start || key === end;
-                const inRange = !!start && !!end && key > start && key < end;
-                const dayNumber = Number(key.slice(8));
+                    const disabled = isDisabledDay(key);
+                    const isEdge = key === start || key === end;
+                    const inRange = !!start && !!end && key > start && key < end;
+                    const dayNumber = Number(key.slice(8));
 
-                return (
-                  <TouchableOpacity
-                    key={key}
-                    activeOpacity={0.7}
-                    disabled={disabled}
-                    onPress={() => handleDayPress(key)}
-                    style={[
-                      styles.cell,
-                      inRange && { backgroundColor: colors.tintBackground },
-                      disabled && styles.cellDisabled,
-                    ]}
-                  >
-                    <View style={[styles.dayCircle, isEdge && { backgroundColor: colors.accent }]}>
-                      <Text
+                    return (
+                      <TouchableOpacity
+                        key={key}
+                        activeOpacity={0.7}
+                        disabled={disabled}
+                        onPress={() => handleDayPress(key)}
                         style={[
-                          styles.dayText,
-                          { color: colors.text },
-                          isEdge && styles.dayTextEdge,
+                          styles.cell,
+                          inRange && { backgroundColor: colors.tintBackground },
+                          disabled && styles.cellDisabled,
                         ]}
                       >
-                        {dayNumber}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
+                        <View style={[styles.dayCircle, isEdge && { backgroundColor: colors.accent }]}>
+                          <Text
+                            style={[
+                              styles.dayText,
+                              { color: colors.text },
+                              isEdge && styles.dayTextEdge,
+                            ]}
+                          >
+                            {dayNumber}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                </>
+              )}
+
+              {view === 'months' && (
+                <View style={styles.wideGrid}>
+                  {Array.from({ length: 12 }, (_, monthIndex) => {
+                    const key = monthKey(cursorYear, monthIndex);
+                    const disabled = isMonthDisabled(key, minDate, maxDate);
+                    const isCurrent = key === cursorMonthKey;
+                    const inSelection = monthTouchesRange(key, start, end);
+
+                    return (
+                      <TouchableOpacity
+                        key={key}
+                        accessibilityRole="button"
+                        activeOpacity={0.7}
+                        disabled={disabled}
+                        onPress={() => handleMonthPress(monthIndex)}
+                        style={[styles.wideCell, styles.monthCell, disabled && styles.cellDisabled]}
+                      >
+                        <View
+                          style={[
+                            styles.pill,
+                            inSelection && { backgroundColor: colors.tintBackground },
+                            isCurrent && { backgroundColor: colors.accent },
+                          ]}
+                        >
+                          <Text style={[styles.pillText, { color: colors.text }, isCurrent && styles.dayTextEdge]}>
+                            {format.shortMonth(monthIndex)}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+
+              {view === 'years' && (
+                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.wideGrid}>
+                  {years.map((year) => {
+                    const disabled = isYearDisabled(year, minDate, maxDate);
+                    const isCurrent = year === cursorYear;
+                    const inSelection = yearTouchesRange(year, start, end);
+
+                    return (
+                      <TouchableOpacity
+                        key={year}
+                        accessibilityRole="button"
+                        activeOpacity={0.7}
+                        disabled={disabled}
+                        onPress={() => handleYearPress(year)}
+                        style={[styles.wideCell, styles.yearCell, disabled && styles.cellDisabled]}
+                      >
+                        <View
+                          style={[
+                            styles.pill,
+                            inSelection && { backgroundColor: colors.tintBackground },
+                            isCurrent && { backgroundColor: colors.accent },
+                          ]}
+                        >
+                          <Text style={[styles.pillText, { color: colors.text }, isCurrent && styles.dayTextEdge]}>
+                            {yearLabel(year)}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              )}
             </View>
 
             <View style={styles.footer}>
@@ -293,7 +437,11 @@ const styles = StyleSheet.create({
   },
   navBtn: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   navBtnDisabled: { opacity: 0.35 },
+  navBtnHidden: { opacity: 0 },
+  titleBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   monthTitle: { fontSize: 16, fontWeight: '700' },
+  // Weekday row plus six day rows, so the sheet keeps its height on every level.
+  body: { height: 272 },
   weekRow: { flexDirection: 'row', marginBottom: 4 },
   weekday: { width: `${100 / 7}%`, textAlign: 'center', fontSize: 11, fontWeight: '600' },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
@@ -313,6 +461,12 @@ const styles = StyleSheet.create({
   },
   dayText: { fontSize: 15, fontWeight: '500' },
   dayTextEdge: { color: '#FFFFFF', fontWeight: '700' },
+  wideGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+  wideCell: { width: `${100 / 3}%`, alignItems: 'center', justifyContent: 'center' },
+  monthCell: { height: 68 },
+  yearCell: { height: 56 },
+  pill: { minWidth: 76, height: 38, borderRadius: 19, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center' },
+  pillText: { fontSize: 15, fontWeight: '600' },
   footer: { flexDirection: 'row', gap: 12, marginTop: 16 },
   footerBtn: { flex: 1, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   footerBtnDisabled: { opacity: 0.4 },

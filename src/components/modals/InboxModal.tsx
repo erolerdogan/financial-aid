@@ -1,3 +1,4 @@
+import { SelectableText } from '@/components/SelectableText';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -184,10 +185,10 @@ export function InboxModal({ visible, anchor, items, onClose, onAction, onDismis
           ]}
         >
           <View style={styles.headerRow}>
-            <Text style={[styles.sheetTitle, { color: colors.text }]}>{t('inbox.title')}</Text>
-            <Text style={[styles.sheetSubtitle, { color: colors.textSecondary }]}>
+            <SelectableText style={[styles.sheetTitle, { color: colors.text }]}>{t('inbox.title')}</SelectableText>
+            <SelectableText style={[styles.sheetSubtitle, { color: colors.textSecondary }]}>
               {items.length === 0 ? t('inbox.nothing') : t('inbox.found')}
-            </Text>
+            </SelectableText>
           </View>
 
           {items.length === 0 ? (
@@ -195,10 +196,10 @@ export function InboxModal({ visible, anchor, items, onClose, onAction, onDismis
               <View style={[styles.emptyIcon, { backgroundColor: colors.tintBackground }]}>
                 <Ionicons name="checkmark" size={28} color={colors.accent} />
               </View>
-              <Text style={[styles.emptyTitle, { color: colors.text }]}>{t('review.doneTitle')}</Text>
-              <Text style={[styles.emptySub, { color: colors.textSecondary }]}>
+              <SelectableText style={[styles.emptyTitle, { color: colors.text }]}>{t('review.doneTitle')}</SelectableText>
+              <SelectableText style={[styles.emptySub, { color: colors.textSecondary }]}>
                 {t('inbox.emptySub')}
-              </Text>
+              </SelectableText>
             </View>
           ) : (
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.list}>

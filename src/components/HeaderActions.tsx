@@ -11,13 +11,15 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 interface HeaderActionsProps {
   children?: React.ReactNode;
+  /** Transaction search; off on the Plan tab, which is not about transactions. */
+  showSearch?: boolean;
 }
 
-export function HeaderActions({ children }: HeaderActionsProps) {
+export function HeaderActions({ children, showSearch = true }: HeaderActionsProps) {
   const router = useRouter();
   const { colors } = useTheme();
   const { t } = useI18n();
-  const { activeProfile } = useProfile();
+  const { activeProfile, isDemoMode } = useProfile();
   const { count, hasQuietItems, openInbox, refreshInbox } = useInbox();
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const bellRef = useRef<View>(null);
@@ -37,6 +39,7 @@ export function HeaderActions({ children }: HeaderActionsProps) {
         style={[styles.profilePill, { backgroundColor: colors.card, borderColor: colors.border }]}
         onPress={() => setProfileModalVisible(true)}
         activeOpacity={0.7}
+        disabled={isDemoMode}
       >
         <View style={[styles.miniAvatar, { backgroundColor: activeProfile?.avatarColor || '#007AFF' }]}>
           <Text style={styles.miniAvatarText}>{activeProfile?.name?.substring(0, 1) || 'P'}</Text>
@@ -44,8 +47,22 @@ export function HeaderActions({ children }: HeaderActionsProps) {
         <Text style={[styles.profilePillText, { color: colors.text }]} numberOfLines={1}>
           {activeProfile?.name || t('profile.defaultName')}
         </Text>
-        <Ionicons name="chevron-down" size={12} color={colors.textSecondary} />
+        {!isDemoMode && <Ionicons name="chevron-down" size={12} color={colors.textSecondary} />}
       </TouchableOpacity>
+
+      {showSearch && (
+        <TouchableOpacity
+          style={[styles.settingsBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+          activeOpacity={0.8}
+          onPress={() => {
+            Haptics.selectionAsync().catch(() => {});
+            router.push({ pathname: '/transactions', params: { focusSearch: '1' } });
+          }}
+          accessibilityLabel={t('header.search')}
+        >
+          <Ionicons name="search" size={18} color={colors.text} />
+        </TouchableOpacity>
+      )}
 
       <TouchableOpacity
         ref={bellRef}

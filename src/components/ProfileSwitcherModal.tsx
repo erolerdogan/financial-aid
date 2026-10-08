@@ -1,3 +1,4 @@
+import { SelectableText } from '@/components/SelectableText';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -103,9 +104,9 @@ export function ProfileSwitcherModal({ visible, onClose }: ProfileSwitcherModalP
               <View style={[styles.handle, { backgroundColor: colors.border }]} />
               
               <View style={styles.headerRow}>
-                <Text style={[styles.title, { color: colors.text }]}>
+                <SelectableText style={[styles.title, { color: colors.text }]}>
                   {isEditing ? (selectedForEdit ? t('profile.edit') : t('profile.new')) : t('profile.switch')}
-                </Text>
+                </SelectableText>
                 {!isEditing && (
                   <TouchableOpacity
                     onPress={() => {
@@ -128,7 +129,7 @@ export function ProfileSwitcherModal({ visible, onClose }: ProfileSwitcherModalP
                     onChangeText={setNameInput}
                     autoFocus
                   />
-                  <Text style={[styles.colorLabel, { color: colors.textSecondary }]}>{t('profile.avatarColor')}</Text>
+                  <SelectableText style={[styles.colorLabel, { color: colors.textSecondary }]}>{t('profile.avatarColor')}</SelectableText>
                   <View style={styles.colorRow}>
                     {AVATAR_COLORS.map((col) => (
                       <TouchableOpacity

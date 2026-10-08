@@ -1,8 +1,9 @@
+import { SelectableText } from '@/components/SelectableText';
 import { useImportResult } from '@/contexts/ImportResultContext';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import React from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 // "Reading statement 12 of 45" while several files are imported. A plain View, not a Modal, so the
 // summary sheet and alerts can present afterwards. Rendered by the screens an import starts from.
@@ -17,9 +18,9 @@ export function ImportProgressOverlay() {
     <View style={[styles.overlay, { backgroundColor: colors.background + 'CC' }]} accessibilityLiveRegion="polite">
       <View style={[styles.panel, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <ActivityIndicator size="small" color={colors.accent} />
-        <Text style={[styles.label, { color: colors.text }]}>
+        <SelectableText style={[styles.label, { color: colors.text }]}>
           {t('import.progress', { current: progress.current, total: progress.total })}
-        </Text>
+        </SelectableText>
       </View>
     </View>
   );

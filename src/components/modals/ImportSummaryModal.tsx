@@ -1,3 +1,4 @@
+import { SelectableText } from '@/components/SelectableText';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -119,7 +120,9 @@ export function ImportSummaryModal({ visible, summary, profileName, onClose }: I
   const handleReview = () => {
     Haptics.selectionAsync().catch(() => {});
     onClose();
-    router.navigate('/(tabs)/transactions');
+    // Transactions is pushed on the root stack, so a modal route on top (Settings) has to go first.
+    if (router.canDismiss()) router.dismissAll();
+    router.push('/transactions');
   };
 
   const handleDone = () => {
@@ -141,26 +144,26 @@ export function ImportSummaryModal({ visible, summary, profileName, onClose }: I
                   color={hasNewRows ? colors.accent : colors.textSecondary}
                 />
               </View>
-              <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
-              <Text style={[styles.subtitle, { color: colors.textSecondary }]}>{subtitle}</Text>
+              <SelectableText style={[styles.title, { color: colors.text }]}>{title}</SelectableText>
+              <SelectableText style={[styles.subtitle, { color: colors.textSecondary }]}>{subtitle}</SelectableText>
               {hasNewRows && dateRange && (
-                <Text style={[styles.dateRange, { color: colors.accent }]}>{dateRange}</Text>
+                <SelectableText style={[styles.dateRange, { color: colors.accent }]}>{dateRange}</SelectableText>
               )}
             </View>
 
             {hasNewRows && (
               <View style={styles.statRow}>
                 <View style={[styles.statTile, { backgroundColor: chipBg }]}>
-                  <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{t('category.income')}</Text>
-                  <Text style={[styles.statValue, { color: colors.text }]} numberOfLines={1} adjustsFontSizeToFit>
+                  <SelectableText style={[styles.statLabel, { color: colors.textSecondary }]}>{t('category.income')}</SelectableText>
+                  <SelectableText style={[styles.statValue, { color: colors.text }]} numberOfLines={1} adjustsFontSizeToFit>
                     {format.money(summary.incomeTotal, currencySymbol, { maximumFractionDigits: 0 })}
-                  </Text>
+                  </SelectableText>
                 </View>
                 <View style={[styles.statTile, { backgroundColor: chipBg }]}>
-                  <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{t('import.spending')}</Text>
-                  <Text style={[styles.statValue, { color: colors.text }]} numberOfLines={1} adjustsFontSizeToFit>
+                  <SelectableText style={[styles.statLabel, { color: colors.textSecondary }]}>{t('import.spending')}</SelectableText>
+                  <SelectableText style={[styles.statValue, { color: colors.text }]} numberOfLines={1} adjustsFontSizeToFit>
                     {format.money(summary.expenseTotal, currencySymbol, { maximumFractionDigits: 0 })}
-                  </Text>
+                  </SelectableText>
                 </View>
               </View>
             )}
@@ -170,7 +173,7 @@ export function ImportSummaryModal({ visible, summary, profileName, onClose }: I
                 {notes.map((note, index) => (
                   <View key={index} style={styles.noteRow}>
                     <Ionicons name={note.icon} size={16} color={colors.textSecondary} style={styles.noteIcon} />
-                    <Text style={[styles.noteText, { color: colors.textSecondary }]}>{note.text}</Text>
+                    <SelectableText style={[styles.noteText, { color: colors.textSecondary }]}>{note.text}</SelectableText>
                   </View>
                 ))}
               </ScrollView>

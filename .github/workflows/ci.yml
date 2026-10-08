@@ -30,5 +30,8 @@ jobs:
       - name: Check bank guides
         run: npx --yes tsx src/content/bankGuides.test.ts
 
+      - name: Check site copy
+        run: npx --yes tsx src/content/site/site.test.ts
+
       - name: Build website
         run: npx --yes tsx scripts/build-site.ts

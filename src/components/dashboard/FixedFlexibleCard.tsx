@@ -1,3 +1,4 @@
+import { SelectableText } from '@/components/SelectableText';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -29,16 +30,16 @@ export function FixedFlexibleCard({ summary, onPressFixed, onPressFlexible }: Fi
     >
       {/* Header */}
       <View style={styles.cardHeader}>
-        <Text style={[styles.cardTitle, { color: colors.text }]}>{t('fixed.title')}</Text>
+        <SelectableText style={[styles.cardTitle, { color: colors.text }]}>{t('fixed.title')}</SelectableText>
         <View
           style={[
             styles.badge,
             { backgroundColor: isDark ? '#2A2840' : '#5856D615' },
           ]}
         >
-          <Text style={[styles.badgeText, { color: '#5856D6' }]}>
+          <SelectableText style={[styles.badgeText, { color: '#5856D6' }]}>
             {t('fixed.itemsCount', { count: fixedItemsCount })}
-          </Text>
+          </SelectableText>
         </View>
       </View>
 

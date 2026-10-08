@@ -1,3 +1,4 @@
+import { SelectableText } from '@/components/SelectableText';
 import { CATEGORY_COLOR_PALETTE } from '@/constants/colors';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -389,10 +390,10 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
     options?: { keyboard?: 'default' | 'decimal-pad' | 'number-pad' | 'numbers-and-punctuation'; prefix?: string; suffix?: string; maxLength?: number }
   ) => (
     <>
-      <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>{label}</Text>
+      <SelectableText style={[styles.sectionLabel, { color: colors.textSecondary }]}>{label}</SelectableText>
       <View style={[styles.inputWrap, { backgroundColor: fieldBg, borderColor: colors.border }]}>
         {options?.prefix ? (
-          <Text style={[styles.affix, { color: colors.textSecondary }]}>{options.prefix}</Text>
+          <SelectableText style={[styles.affix, { color: colors.textSecondary }]}>{options.prefix}</SelectableText>
         ) : null}
         <TextInput
           style={[styles.input, { color: colors.text }]}
@@ -405,7 +406,7 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
           autoCorrect={false}
         />
         {options?.suffix ? (
-          <Text style={[styles.affix, { color: colors.textSecondary }]}>{options.suffix}</Text>
+          <SelectableText style={[styles.affix, { color: colors.textSecondary }]}>{options.suffix}</SelectableText>
         ) : null}
       </View>
     </>
@@ -427,9 +428,9 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
             <TouchableOpacity onPress={onClose} hitSlop={8}>
               <Text style={[styles.headerAction, { color: colors.accent }]}>{t('common.cancel')}</Text>
             </TouchableOpacity>
-            <Text style={[styles.headerTitle, { color: colors.text }]}>
+            <SelectableText style={[styles.headerTitle, { color: colors.text }]}>
               {debt ? t('debt.form.editTitle') : t('debt.form.newTitle')}
-            </Text>
+            </SelectableText>
             <TouchableOpacity onPress={handleSave} disabled={saving} hitSlop={8}>
               {saving ? (
                 <ActivityIndicator size="small" color={colors.accent} />
@@ -448,17 +449,17 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
           >
             {renderField(t('categoryForm.name'), name, setName, t('debt.form.namePlaceholder'), { maxLength: 40 })}
 
-            <Text
+            <SelectableText
               style={[styles.sectionLabel, { color: colors.textSecondary }]}
               onLayout={(event) => {
                 keywordSectionY.current = event.nativeEvent.layout.y;
               }}
             >
               {t('debt.form.keywords')}
-            </Text>
-            <Text style={[styles.footnote, styles.footnoteTop, { color: colors.textSecondary }]}>
+            </SelectableText>
+            <SelectableText style={[styles.footnote, styles.footnoteTop, { color: colors.textSecondary }]}>
               {t('debt.form.keywordsHelp')}
-            </Text>
+            </SelectableText>
             <View style={styles.keywordInputRow}>
               <View
                 style={[
@@ -533,7 +534,7 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
               </View>
             )}
 
-            <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t('debt.form.type')}</Text>
+            <SelectableText style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t('debt.form.type')}</SelectableText>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.typeRow}>
               {DEBT_TYPE_OPTIONS.map((option) => {
                 const isActive = option.key === type;
@@ -568,7 +569,7 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
               keyboard: 'decimal-pad',
               prefix: currencySymbol,
             })}
-            <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t('debt.form.term')}</Text>
+            <SelectableText style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t('debt.form.term')}</SelectableText>
             <View style={styles.termRow}>
               <View style={[styles.inputWrap, styles.flex, { backgroundColor: fieldBg, borderColor: colors.border }]}>
                 <TextInput
@@ -611,9 +612,9 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
             })}
             {showAprEstimate && (
               <View style={styles.estimateRow}>
-                <Text style={[styles.estimateText, { color: colors.textSecondary }]}>
+                <SelectableText style={[styles.estimateText, { color: colors.textSecondary }]}>
                   {t('debt.form.estimatedRate', { rate: estimatedApr ?? '' })}
-                </Text>
+                </SelectableText>
                 <TouchableOpacity
                   activeOpacity={0.8}
                   hitSlop={8}
@@ -629,12 +630,12 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
               </View>
             )}
             {needsTermForEstimate && (
-              <Text style={[styles.footnote, { color: colors.textSecondary }]}>
+              <SelectableText style={[styles.footnote, { color: colors.textSecondary }]}>
                 {t('debt.form.rateHelp')}
-              </Text>
+              </SelectableText>
             )}
             {canEstimateApr && estimatedApr === null && (
-              <Text style={[styles.footnote, { color: colors.textSecondary }]}>
+              <SelectableText style={[styles.footnote, { color: colors.textSecondary }]}>
                 {paymentNumber * termNumber < amountNumber
                   ? t('debt.form.noRateLow', {
                       count: termNumber,
@@ -648,7 +649,7 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
                       total: formatMoney(paymentNumber * termNumber),
                       amount: formatMoney(amountNumber),
                     })}
-              </Text>
+              </SelectableText>
             )}
             {renderField(t('debt.form.payDay'), payDay, setPayDay, '1', {
               keyboard: 'number-pad',
@@ -659,15 +660,15 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
               maxLength: 10,
             })}
             {autoFilledFrom > 0 && (
-              <Text style={[styles.footnote, { color: colors.accent }]}>
+              <SelectableText style={[styles.footnote, { color: colors.accent }]}>
                 {t('debt.form.autoFilled', { count: autoFilledFrom })}
-              </Text>
+              </SelectableText>
             )}
-            <Text style={[styles.footnote, { color: colors.textSecondary }]}>
+            <SelectableText style={[styles.footnote, { color: colors.textSecondary }]}>
               {t('debt.form.interestNote')}
-            </Text>
+            </SelectableText>
 
-            <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t('categoryForm.color')}</Text>
+            <SelectableText style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t('categoryForm.color')}</SelectableText>
             <View style={styles.swatchGrid}>
               {CATEGORY_COLOR_PALETTE.map((swatch) => {
                 const isSelected = swatch === color;
@@ -691,13 +692,13 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
 
             {keywords.length > 0 && (
               <>
-                <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
+                <SelectableText style={[styles.sectionLabel, { color: colors.textSecondary }]}>
                   {t('debt.form.matching', { count: included.length })}
-                </Text>
+                </SelectableText>
                 {payable.length === 0 ? (
-                  <Text style={[styles.footnote, styles.footnoteTop, { color: colors.textSecondary }]}>
+                  <SelectableText style={[styles.footnote, styles.footnoteTop, { color: colors.textSecondary }]}>
                     {t('debt.form.noMatches')}
-                  </Text>
+                  </SelectableText>
                 ) : (
                   <View style={[styles.previewCard, { backgroundColor: colors.card }]}>
                     {shownPayable.map((match, index) => {
@@ -714,7 +715,7 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
                           ]}
                         >
                           <View style={[styles.previewLeft, isExcluded && styles.disabled]}>
-                            <Text
+                            <SelectableText
                               style={[
                                 styles.previewMerchant,
                                 { color: colors.text },
@@ -725,13 +726,13 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
                               {match.merchant && match.merchant !== 'Unknown'
                                 ? match.merchant
                                 : match.rawDescription}
-                            </Text>
-                            <Text style={[styles.previewDate, { color: colors.textSecondary }]}>
+                            </SelectableText>
+                            <SelectableText style={[styles.previewDate, { color: colors.textSecondary }]}>
                               {match.date}
                               {isExcluded ? ` • ${t('debt.form.willUnlink')}` : ''}
-                            </Text>
+                            </SelectableText>
                           </View>
-                          <Text
+                          <SelectableText
                             style={[
                               styles.previewAmount,
                               { color: colors.text },
@@ -740,7 +741,7 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
                             ]}
                           >
                             {fmt(match.amount)}
-                          </Text>
+                          </SelectableText>
                           <TouchableOpacity
                             onPress={() => toggleExcluded(match.id)}
                             hitSlop={10}
@@ -775,26 +776,26 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
                         { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
                       ]}
                     >
-                      <Text style={[styles.previewDate, styles.previewLeft, { color: colors.textSecondary }]}>
+                      <SelectableText style={[styles.previewDate, styles.previewLeft, { color: colors.textSecondary }]}>
                         {t('debt.form.total')}
-                      </Text>
-                      <Text style={[styles.previewAmount, { color: colors.text }]}>{fmt(payableTotal)}</Text>
+                      </SelectableText>
+                      <SelectableText style={[styles.previewAmount, { color: colors.text }]}>{fmt(payableTotal)}</SelectableText>
                     </View>
                   </View>
                 )}
                 {payable.length > 0 && (
-                  <Text style={[styles.footnote, { color: colors.textSecondary }]}>
+                  <SelectableText style={[styles.footnote, { color: colors.textSecondary }]}>
                     {t('debt.form.unlinkHelp')}
-                  </Text>
+                  </SelectableText>
                 )}
                 {possible.length > 0 && (
                   <>
-                    <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
+                    <SelectableText style={[styles.sectionLabel, { color: colors.textSecondary }]}>
                       {t('debt.form.possible', { count: possible.length })}
-                    </Text>
-                    <Text style={[styles.footnote, styles.footnoteTop, { color: colors.textSecondary }]}>
+                    </SelectableText>
+                    <SelectableText style={[styles.footnote, styles.footnoteTop, { color: colors.textSecondary }]}>
                       {t('debt.form.possibleHelp')}
-                    </Text>
+                    </SelectableText>
                     <View style={[styles.previewCard, { backgroundColor: colors.card }]}>
                       {possible.slice(0, 8).map((match, index) => {
                         const isAdded = addedIds.includes(match.id);
@@ -810,15 +811,15 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
                             ]}
                           >
                             <View style={styles.previewLeft}>
-                              <Text style={[styles.previewMerchant, { color: colors.text }]} numberOfLines={1}>
+                              <SelectableText style={[styles.previewMerchant, { color: colors.text }]} numberOfLines={1}>
                                 {match.merchant && match.merchant !== 'Unknown'
                                   ? match.merchant
                                   : match.rawDescription}
-                              </Text>
-                              <Text style={[styles.previewDate, { color: colors.textSecondary }]} numberOfLines={1}>
+                              </SelectableText>
+                              <SelectableText style={[styles.previewDate, { color: colors.textSecondary }]} numberOfLines={1}>
                                 {match.date} • {fmt(match.amount)} •{' '}
                                 {match.strength === 'EXACT' ? t('debt.form.unusualAmount') : t('debt.form.similarTo', { keyword: match.keyword })}
-                              </Text>
+                              </SelectableText>
                             </View>
                             <TouchableOpacity
                               activeOpacity={0.8}
@@ -839,21 +840,21 @@ export function DebtFormModal({ visible, debt, prefill, onClose, onSaved }: Debt
                       })}
                     </View>
                     {possible.length > 8 && (
-                      <Text style={[styles.footnote, { color: colors.textSecondary }]}>
+                      <SelectableText style={[styles.footnote, { color: colors.textSecondary }]}>
                         +{possible.length - 8} more. Use a more specific keyword to narrow these down.
-                      </Text>
+                      </SelectableText>
                     )}
                   </>
                 )}
                 {unmatchedKeywords.length > 0 && payable.length > 0 && (
-                  <Text style={[styles.footnote, { color: colors.textSecondary }]}>
+                  <SelectableText style={[styles.footnote, { color: colors.textSecondary }]}>
                     {t('debt.form.noneContain', { keywords: unmatchedKeywords.join(', ') })}
-                  </Text>
+                  </SelectableText>
                 )}
                 {previewHints.length > 0 && (
-                  <Text style={[styles.footnote, { color: colors.textSecondary }]}>
+                  <SelectableText style={[styles.footnote, { color: colors.textSecondary }]}>
                     {t('debt.form.notCounted', { hints: previewHints.join(' • ') })}
-                  </Text>
+                  </SelectableText>
                 )}
               </>
             )}

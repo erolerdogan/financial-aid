@@ -8,8 +8,9 @@ React Native / Expo SDK 57, TypeScript, Expo Router, expo-sqlite. Local-first pe
 - `npx tsc --noEmit`: type check (also in CI). Run it after every step.
 - `npm test`: every `src/**/*.test.ts` with tsx (`scripts/run-tests.js`). `npm test -- freedom` runs the files whose path contains that word; one file: `npx tsx src/utils/freedom.test.ts`.
 - `npm run lint`: ESLint.
-- `npm run site`: builds the export-guide website into `site-dist/`.
+- `npm run site`: builds the website into `site-dist/`.
 - `npm run pdfhost`: rebuilds `assets/pdf/pdfhost.html` (pdf.js inlined, for PDF statement import) after changing the `pdfjs-dist` version or the page script.
+- `npm run licenses`: rebuilds `src/constants/licenses.ts` (Personal Data & Privacy → Open-Source Licenses) after adding, removing or upgrading a dependency.
 - `npm run icons`: regenerates the app icon PNGs and SVG sources from `scripts/build-icons.js` (macOS, needs Google Chrome); then rebuild natively.
 - `npx expo customize tsconfig.json`: after adding a route file, regenerates `.expo/types/router.d.ts` so `tsc` knows the new path.
 
@@ -41,13 +42,17 @@ React Native / Expo SDK 57, TypeScript, Expo Router, expo-sqlite. Local-first pe
 - Currency, demo mode, active profile: `src/contexts/ProfileContext.tsx`. Switching currency rewrites stored transaction, debt and household amounts with hardcoded `DEFAULT_EXCHANGE_RATES` (not `freedom_plans`).
 - Picked period: `PeriodContext`. Theme and Home chart type: `ThemeContext`. Language: `LanguageContext`, `src/i18n/`.
 - `app_meta`: key/value table (theme, language, last backup date, dismissals, intro flags). It survives "Reset" and is replaced by a restore.
+- Passcode lock: `src/contexts/PasscodeContext.tsx`, `src/components/passcode/`, pure logic `src/utils/passcode.ts`. Its hash is in a file (`src/services/passcodeStore.ts`), on purpose not in the database, so it stays out of backups; see `docs/navigation.md`.
 - Debt UI helpers: `src/utils/debt.ts`. Reminders and notifications: `src/utils/notifications.ts`.
+- Legal: privacy policy, terms of use and disclaimer are in `src/content/legal/` (nine files plus `LEGAL_DOCUMENTS`), shown in the app by `src/app/legal.tsx` (Settings → About → Personal Data & Privacy, Welcome) and published by the website from the same text; `src/app/data-privacy.tsx` is the short version of the privacy policy. Licenses screen: `src/app/licenses.tsx`.
+- FAQ: questions and answers are in `src/content/faq/` (nine files plus `FAQ_GROUPS`), shown in the app by `src/app/faq.tsx` (Settings → About) and published by the website from the same text. Answers follow `README.md` and `docs/`; update them when a feature they describe changes.
+- Website: entry `scripts/build-site.ts`, page builders `scripts/site/pages/`, web-only copy `src/content/site/` (nine files, like the locales; legal texts in `src/content/legal/`, FAQ in `src/content/faq/`), images `site/`.
 - Budget Health: engine `src/utils/budgetHealth.ts`, alerts `src/utils/healthAlerts.ts`, loaders `src/services/healthService.ts`, UI `src/components/health/`.
 
 Naming traps:
 - The "Plan" tab is the route `debts` (`src/app/(tabs)/debts.tsx`), with segments Health (Budget Health), Debts and Future Growth. "Debts tab" means its Debts segment.
 - "Future Growth" in the UI is "Freedom" in code (`src/components/freedom/`, `freedom_plans`, `segment: 'freedom'`).
-- Budgets is `src/app/goals.tsx`. Home is `src/app/(tabs)/index.tsx`.
+- Budgets is `src/app/goals.tsx`. Home is `src/app/(tabs)/index.tsx`. Transactions is `src/app/transactions.tsx`, a pushed screen, not a tab.
 - Freedom keys keep old names: Outlook is `PESSIMISTIC | NEUTRAL | OPTIMISTIC`, the prices switch is `ValueMode` `NOMINAL | REAL`, Starting amount is `lumpSum`.
 - `getAllTransactionsByDate` has an unused `type` argument; the Transactions screen has no type filter.
 - Not wired up (exists, nothing renders or calls it; left in English): `RecurringSuggestionsModal`, `CategoryDetailModal`, `EditCategoryModal`, `MonthSelector` (all in `src/components/`), `dashboard/CommitmentLink`, and `detectRecurringPatterns` / `getRecurringCandidates` in `database.ts`.
@@ -62,8 +67,9 @@ Naming traps:
 | `docs/freedom.md` | Future Growth: layout, inputs, scenarios, persistence, math, goal solvers, reference test vector |
 | `docs/health.md` | Budget Health: benchmarks, tables, engine, pillars, alerts, UI, PDF report |
 | `docs/backup.md` | Backup and restore, encrypted `.fabackup` format, transaction export |
-| `docs/navigation.md` | Routes, headers, tab swipe, picked period, drill-down, Home chart, Trends, Transactions, For You inbox, themes |
+| `docs/navigation.md` | Routes, headers, passcode lock, tab swipe, picked period, drill-down, Home chart, Trends, Transactions, For You inbox, themes |
 | `docs/i18n.md` | Languages, keys and plurals, `format`, category names, `Message`, what stays English |
+| `docs/website.md` | Website pages, copy files, changelog, images, build settings, deployment |
 
 ## Definition of done
 - `npx tsc --noEmit` passes and `npm test` passes; a change to a pure util comes with a check in its `*.test.ts`.

@@ -106,11 +106,14 @@ Known limits:
 
 ## Website
 
-- The same guide data becomes a static site with `npx tsx scripts/build-site.ts` (`npm run site`), written to `site-dist/`: a page per bank per language with `hreflang` and `HowTo` JSON-LD.
+- The same guide data becomes the `export-csv/` section of the website: a page per bank per language with `hreflang` and `HowTo` JSON-LD (`scripts/site/pages/guides.ts`).
 - `site.*` translation keys are web only.
-- Deployed by `.github/workflows/site.yml`.
+- Build, the other pages and deployment: [website.md](website.md).
 
 ## Demo workspace
 
 - Demo seed: `src/db/demoSeeder.ts`. Demo mode lives in `src/contexts/ProfileContext.tsx`.
-- Nothing is imported into the demo workspace, so it gets no health alerts and no backup reminder.
+- Nothing is imported into the demo workspace, so it gets no health alerts, no backup reminder and no partial-month row in For You (`getInboxItems` with `isDemo`).
+- Import is blocked in `useStatementImporter` itself: `importStatement` returns, `importSharedFile` (share sheet) shows an alert. The hook returns `importDisabled`; every Import button uses it to gray out.
+- Also off in demo mode (grayed, opacity 0.4, with `settings.demoNote` under the Data card): Settings rows Import, Backup & Restore, Reset, the active profile row and the Import Reminders switch; the profile pill in `HeaderActions`. Reminders are not scheduled at launch. The export guide stays readable.
+- Why profiles and Reset are off: the demo profile is found by its name, a profile added there would be a real one inside demo mode, and Reset would leave `isDemoMode` on. "Exit Demo" is the only way out.

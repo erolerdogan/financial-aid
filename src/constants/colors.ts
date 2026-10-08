@@ -29,6 +29,16 @@ export const CATEGORY_COLOR_PALETTE: string[] = [
   '#8E8E93',
 ];
 
+/** Line colours of the years compared on the Trends chart, in the order they are handed out. */
+export const COMPARE_SERIES_COLORS: string[] = [
+  '#FF9500',
+  '#AF52DE',
+  '#00C7BE',
+  '#FF2D55',
+  '#5856D6',
+  '#A2845E',
+];
+
 let customCategoryColors: Record<string, string> = {};
 
 export function setCustomCategoryColors(map: Record<string, string>): void {

@@ -10,6 +10,7 @@ import {
 import { PillarRow } from '@/components/health/PillarRow';
 import { ScoreRing } from '@/components/health/ScoreRing';
 import { ScreenContainer } from '@/components/ScreenContainer';
+import { SelectableText } from '@/components/SelectableText';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -261,7 +262,7 @@ export default function HealthReportScreen() {
   return (
     <ScreenContainer showDemoBanner={false}>
       <View style={[styles.headerRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>{t('report.title')}</Text>
+        <SelectableText style={[styles.headerTitle, { color: colors.text }]}>{t('report.title')}</SelectableText>
         <TouchableOpacity
           style={[styles.closeBtn, { backgroundColor: colors.surface }]}
           onPress={() => router.back()}
@@ -278,7 +279,7 @@ export default function HealthReportScreen() {
           <ActivityIndicator size="small" color={colors.accent} style={styles.loading} />
         ) : !result ? (
           <View style={cardStyle}>
-            <Text style={[styles.empty, { color: colors.textSecondary }]}>{t('health.notEnough')}</Text>
+            <SelectableText style={[styles.empty, { color: colors.textSecondary }]}>{t('health.notEnough')}</SelectableText>
           </View>
         ) : (
           <>
@@ -295,23 +296,23 @@ export default function HealthReportScreen() {
 
             <View style={[cardStyle, styles.scoreCard]}>
               <ScoreRing score={score} size={76} strokeWidth={8} color={ringColor} trackColor={colors.track}>
-                <Text style={[styles.score, { color: colors.text }]}>{score ?? '–'}</Text>
+                <SelectableText style={[styles.score, { color: colors.text }]}>{score ?? '–'}</SelectableText>
               </ScoreRing>
               <View style={styles.scoreBody}>
-                <Text style={[styles.cardTitle, { color: colors.text }]}>{t('report.score')}</Text>
+                <SelectableText style={[styles.cardTitle, { color: colors.text }]}>{t('report.score')}</SelectableText>
                 {score !== null ? (
                   <>
-                    <Text style={[styles.level, { color: ringColor }]}>{t(levelKey(score))}</Text>
-                    <Text style={[styles.sub, { color: colors.textSecondary }]}>{changeText}</Text>
-                    <Text style={[styles.sub, { color: colors.textSecondary }]}>{improvementText}</Text>
+                    <SelectableText style={[styles.level, { color: ringColor }]}>{t(levelKey(score))}</SelectableText>
+                    <SelectableText style={[styles.sub, { color: colors.textSecondary }]}>{changeText}</SelectableText>
+                    <SelectableText style={[styles.sub, { color: colors.textSecondary }]}>{improvementText}</SelectableText>
                   </>
                 ) : (
-                  <Text style={[styles.sub, { color: colors.textSecondary }]}>
+                  <SelectableText style={[styles.sub, { color: colors.textSecondary }]}>
                     {result.income.source === 'none' ? t('health.noIncome') : t('report.noData')}
-                  </Text>
+                  </SelectableText>
                 )}
                 {result.partial ? (
-                  <Text style={[styles.sub, { color: colors.textSecondary }]}>{t('health.partial')}</Text>
+                  <SelectableText style={[styles.sub, { color: colors.textSecondary }]}>{t('health.partial')}</SelectableText>
                 ) : null}
               </View>
             </View>
@@ -322,15 +323,15 @@ export default function HealthReportScreen() {
                   key={label}
                   style={[styles.kvRow, index > 0 && { borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth }]}
                 >
-                  <Text style={[styles.kvLabel, { color: colors.textSecondary }]}>{label}</Text>
-                  <Text style={[styles.kvValue, { color: colors.text }]}>{value}</Text>
+                  <SelectableText style={[styles.kvLabel, { color: colors.textSecondary }]}>{label}</SelectableText>
+                  <SelectableText style={[styles.kvValue, { color: colors.text }]}>{value}</SelectableText>
                 </View>
               ))}
             </View>
 
             {score !== null ? (
               <View style={cardStyle}>
-                <Text style={[styles.cardTitle, { color: colors.text }]}>{t('health.pillars')}</Text>
+                <SelectableText style={[styles.cardTitle, { color: colors.text }]}>{t('health.pillars')}</SelectableText>
                 {result.pillars.map((pillar) => (
                   <PillarRow key={pillar.id} pillar={pillar} />
                 ))}
@@ -338,20 +339,20 @@ export default function HealthReportScreen() {
             ) : null}
 
             <View style={cardStyle}>
-              <Text style={[styles.cardTitle, { color: colors.text }]}>{t('health.categories')}</Text>
+              <SelectableText style={[styles.cardTitle, { color: colors.text }]}>{t('health.categories')}</SelectableText>
               {result.categories.length === 0 ? (
-                <Text style={[styles.empty, { color: colors.textSecondary }]}>{t('health.category.empty')}</Text>
+                <SelectableText style={[styles.empty, { color: colors.textSecondary }]}>{t('health.category.empty')}</SelectableText>
               ) : (
                 result.categories.map((item) => (
                   <View key={item.category} style={[styles.tableRow, { borderTopColor: colors.border }]}>
                     <View style={styles.tableMain}>
-                      <Text style={[styles.tableName, { color: colors.text }]} numberOfLines={1}>
+                      <SelectableText style={[styles.tableName, { color: colors.text }]} numberOfLines={1}>
                         {categoryName(item.category)}
-                      </Text>
-                      <Text style={[styles.tableAmount, { color: colors.text }]}>{money(item.amount)}</Text>
+                      </SelectableText>
+                      <SelectableText style={[styles.tableAmount, { color: colors.text }]}>{money(item.amount)}</SelectableText>
                     </View>
                     <View style={styles.tableMeta}>
-                      <Text style={[styles.sub, { color: colors.textSecondary }]}>
+                      <SelectableText style={[styles.sub, { color: colors.textSecondary }]}>
                         {[
                           item.pct !== null ? t('health.category.pct', { value: format.number(trimNumber(item.pct)) }) : null,
                           item.normal !== null && item.normal > 0
@@ -360,8 +361,8 @@ export default function HealthReportScreen() {
                         ]
                           .filter(Boolean)
                           .join(' · ')}
-                      </Text>
-                      <Text style={[styles.status, { color: statusColor(item.status, colors) }]}>{statusText(item)}</Text>
+                      </SelectableText>
+                      <SelectableText style={[styles.status, { color: statusColor(item.status, colors) }]}>{statusText(item)}</SelectableText>
                     </View>
                   </View>
                 ))
@@ -370,63 +371,63 @@ export default function HealthReportScreen() {
 
             {report.fixed ? (
               <View style={cardStyle}>
-                <Text style={[styles.cardTitle, { color: colors.text }]}>{t('fixed.title')}</Text>
+                <SelectableText style={[styles.cardTitle, { color: colors.text }]}>{t('fixed.title')}</SelectableText>
                 <View style={[styles.splitTrack, { backgroundColor: colors.track }]}>
                   <View
                     style={{ width: `${report.fixed.fixedPercentage}%`, backgroundColor: colors.accent, height: '100%' }}
                   />
                 </View>
                 <View style={styles.kvRow}>
-                  <Text style={[styles.kvLabel, { color: colors.textSecondary }]}>{t('report.fixed')}</Text>
-                  <Text style={[styles.kvValue, { color: colors.text }]}>
+                  <SelectableText style={[styles.kvLabel, { color: colors.textSecondary }]}>{t('report.fixed')}</SelectableText>
+                  <SelectableText style={[styles.kvValue, { color: colors.text }]}>
                     {money(report.fixed.fixedTotal)} ({Math.round(report.fixed.fixedPercentage)}%)
-                  </Text>
+                  </SelectableText>
                 </View>
                 <View style={[styles.kvRow, { borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
-                  <Text style={[styles.kvLabel, { color: colors.textSecondary }]}>{t('report.flexible')}</Text>
-                  <Text style={[styles.kvValue, { color: colors.text }]}>
+                  <SelectableText style={[styles.kvLabel, { color: colors.textSecondary }]}>{t('report.flexible')}</SelectableText>
+                  <SelectableText style={[styles.kvValue, { color: colors.text }]}>
                     {money(report.fixed.flexibleTotal)} ({Math.round(report.fixed.flexiblePercentage)}%)
-                  </Text>
+                  </SelectableText>
                 </View>
               </View>
             ) : null}
 
             <View style={cardStyle}>
-              <Text style={[styles.cardTitle, { color: colors.text }]}>{t('report.debts')}</Text>
+              <SelectableText style={[styles.cardTitle, { color: colors.text }]}>{t('report.debts')}</SelectableText>
               {report.debts.length === 0 ? (
-                <Text style={[styles.empty, { color: colors.textSecondary }]}>{t('report.debt.none')}</Text>
+                <SelectableText style={[styles.empty, { color: colors.textSecondary }]}>{t('report.debt.none')}</SelectableText>
               ) : (
                 <>
                   {report.debts.map((debt) => (
                     <View key={debt.id} style={[styles.tableRow, { borderTopColor: colors.border }]}>
-                      <Text style={[styles.tableName, { color: colors.text }]} numberOfLines={1}>
+                      <SelectableText style={[styles.tableName, { color: colors.text }]} numberOfLines={1}>
                         {debt.name}
-                      </Text>
-                      <Text style={[styles.sub, { color: colors.textSecondary }]}>{debtDetail(debt)}</Text>
+                      </SelectableText>
+                      <SelectableText style={[styles.sub, { color: colors.textSecondary }]}>{debtDetail(debt)}</SelectableText>
                     </View>
                   ))}
                   {debtFreeMonth ? (
-                    <Text style={[styles.debtFree, { color: colors.text }]}>
+                    <SelectableText style={[styles.debtFree, { color: colors.text }]}>
                       {t('report.debt.freeBy', { month: format.monthYear(debtFreeMonth) })}
-                    </Text>
+                    </SelectableText>
                   ) : null}
                 </>
               )}
             </View>
 
             <View style={cardStyle}>
-              <Text style={[styles.cardTitle, { color: colors.text }]}>{t('report.alerts')}</Text>
+              <SelectableText style={[styles.cardTitle, { color: colors.text }]}>{t('report.alerts')}</SelectableText>
               {report.alerts.length === 0 ? (
-                <Text style={[styles.empty, { color: colors.textSecondary }]}>{t('report.alerts.none')}</Text>
+                <SelectableText style={[styles.empty, { color: colors.textSecondary }]}>{t('report.alerts.none')}</SelectableText>
               ) : (
                 report.alerts.map((alert) => (
                   <View key={alert.id} style={[styles.tableRow, { borderTopColor: colors.border }]}>
-                    <Text style={[styles.alertText, { color: colors.text }]}>
+                    <SelectableText style={[styles.alertText, { color: colors.text }]}>
                       {alertText(alert.message, t, format, currencySymbol)}
-                    </Text>
-                    <Text style={[styles.sub, { color: colors.textSecondary }]}>
+                    </SelectableText>
+                    <SelectableText style={[styles.sub, { color: colors.textSecondary }]}>
                       {t(`health.alertStatus.${alert.status}`)}
-                    </Text>
+                    </SelectableText>
                   </View>
                 ))
               )}
@@ -447,7 +448,7 @@ export default function HealthReportScreen() {
               <Text style={styles.exportText}>{t('report.exportPdf')}</Text>
             </TouchableOpacity>
 
-            <Text style={[styles.disclaimer, { color: colors.textSecondary }]}>{t('health.disclaimer')}</Text>
+            <SelectableText style={[styles.disclaimer, { color: colors.textSecondary }]}>{t('health.disclaimer')}</SelectableText>
           </>
         )}
       </ScrollView>

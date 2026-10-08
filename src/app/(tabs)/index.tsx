@@ -2,12 +2,14 @@ import { AllocationChart } from '@/components/dashboard/AllocationChart';
 import { DebtsCard } from '@/components/dashboard/DebtsCard';
 import { FreedomCard } from '@/components/dashboard/FreedomCard';
 import { MonthStepper } from '@/components/dashboard/MonthStepper';
+import { RecentActivityCard } from '@/components/dashboard/RecentActivityCard';
 import { SummaryCards } from '@/components/dashboard/SummaryCards';
 import { HeaderActions } from '@/components/HeaderActions';
 import { DateRangeModal } from '@/components/modals/DateRangeModal';
 import { TransactionDetailModal } from '@/components/modals/TransactionDetailModal';
 import { TransactionListModal } from '@/components/modals/TransactionListModal';
 import { ScreenContainer } from '@/components/ScreenContainer';
+import { SelectableText } from '@/components/SelectableText';
 import { useI18n } from '@/contexts/LanguageContext';
 import { usePeriod } from '@/contexts/PeriodContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -24,6 +26,7 @@ import {
   getIncomeFixedVsFlexibleSummary,
   getMonthlyCategoryTotals,
   getMonthlySummary,
+  getRecentTransactions,
   getTransactionDateBounds,
   getTransactionFixedExplanation,
   getTransactionsByMonthAndCategory,
@@ -94,7 +97,7 @@ export default function DashboardScreen() {
   const activeProfileId = activeProfile?.id ?? 1;
   const { period, setPeriod } = usePeriod();
 
-  const { importStatement, importing } = useStatementImporter();
+  const { importStatement, importing, importDisabled } = useStatementImporter();
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -135,6 +138,7 @@ export default function DashboardScreen() {
   });
   const [categoryData, setCategoryData] = useState<CategoryTotal[]>([]);
   const [budgets, setBudgets] = useState<Record<string, number>>(NO_BUDGETS);
+  const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
 
   const currentMonthKey = getCurrentMonthKey();
 
@@ -175,6 +179,7 @@ export default function DashboardScreen() {
         setCoverageStatus({ status: 'EMPTY' });
         setSummary({ totalIncome: 0, totalExpenses: 0, netSavings: 0 });
         setCategoryData([]);
+        setRecentTransactions([]);
         return;
       }
 
@@ -183,11 +188,12 @@ export default function DashboardScreen() {
       const activeRange = period.kind === 'RANGE' ? period : null;
       const activePeriod = activeRange ? makeRangeKey(activeRange.from, activeRange.to) : activeMonth;
 
-      const [summaryRes, categoryRes, goalsRes, dateRangeRes] =
+      const [summaryRes, categoryRes, goalsRes, recentRes, dateRangeRes] =
         await Promise.all([
           getMonthlySummary(db, activePeriod, activeProfileId),
           getMonthlyCategoryTotals(db, activePeriod, activeProfileId),
           getCategoryGoals(db, activeProfileId),
+          getRecentTransactions(db, activePeriod, activeProfileId),
           activeRange
             ? Promise.resolve(null)
             : db.getFirstAsync<{ minDate: string; maxDate: string }>(
@@ -199,6 +205,7 @@ export default function DashboardScreen() {
       setSummary(summaryRes);
       setCategoryData(categoryRes || []);
       setBudgets(goalsRes);
+      setRecentTransactions(recentRes);
 
       if (activeRange) {
         setCoverageStatus({ status: 'EMPTY' });
@@ -315,6 +322,15 @@ export default function DashboardScreen() {
   const handleSelectFromCategory = (trx: Transaction) => {
     setDetailFromList(false);
     openDetail(trx);
+  };
+
+  const handleSeeAllTransactions = () => {
+    Haptics.selectionAsync().catch(() => {});
+    // With nothing picked Home shows the latest month but Transactions would list everything; pin the shown month.
+    if (!rangeFilter && selectedMonth && !(period.kind === 'MONTH' && period.month === selectedMonth)) {
+      setPeriod({ kind: 'MONTH', month: selectedMonth });
+    }
+    router.push('/transactions');
   };
 
   const loadListModal = async (type: ListType, category: string | null) => {
@@ -451,7 +467,7 @@ export default function DashboardScreen() {
       >
         {/* Top Header Bar */}
         <View style={styles.headerRow}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>{t('tabs.home')}</Text>
+          <SelectableText style={[styles.headerTitle, { color: colors.text }]}>{t('tabs.home')}</SelectableText>
           <HeaderActions />
         </View>
 
@@ -462,18 +478,22 @@ export default function DashboardScreen() {
               <View style={[styles.emptyIconContainer, { backgroundColor: colors.tintBackground }]}>
                 <Ionicons name="wallet-outline" size={32} color={colors.accent} />
               </View>
-              <Text style={[styles.emptyHeroTitle, { color: colors.text }]}>
+              <SelectableText style={[styles.emptyHeroTitle, { color: colors.text }]}>
                 {t('home.emptyTitle', { name: activeProfile?.name || t('home.thisProfile') })}
-              </Text>
-              <Text style={[styles.emptyHeroSubtitle, { color: colors.textSecondary }]}>
+              </SelectableText>
+              <SelectableText style={[styles.emptyHeroSubtitle, { color: colors.textSecondary }]}>
                 {t('home.emptySubtitle')}
-              </Text>
+              </SelectableText>
 
               <View style={styles.emptyActionStack}>
                 <TouchableOpacity
-                  style={[styles.primaryImportBtn, { backgroundColor: colors.accent }]}
+                  style={[
+                    styles.primaryImportBtn,
+                    { backgroundColor: colors.accent },
+                    importDisabled && styles.primaryImportBtnDisabled,
+                  ]}
                   onPress={importStatement}
-                  disabled={importing}
+                  disabled={importing || importDisabled}
                   activeOpacity={0.85}
                 >
                   {importing ? (
@@ -526,6 +546,12 @@ export default function DashboardScreen() {
               onCategoryPress={handleCategoryPress}
               onSelectTransaction={handleSelectFromCategory}
               onOpenBudgets={() => router.push('/goals')}
+            />
+
+            <RecentActivityCard
+              transactions={recentTransactions}
+              onSelectTransaction={handleSelectFromCategory}
+              onSeeAll={handleSeeAllTransactions}
             />
 
             <DebtsCard />
@@ -586,7 +612,7 @@ export default function DashboardScreen() {
             <View style={[styles.sheetContainer, { backgroundColor: colors.card }]}>
               <View style={styles.sheetHeader}>
                 <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
-                <Text style={[styles.sheetTitle, { color: colors.text }]}>{t('period.select')}</Text>
+                <SelectableText style={[styles.sheetTitle, { color: colors.text }]}>{t('period.select')}</SelectableText>
               </View>
               <ScrollView style={{ maxHeight: 360 }}>
                 <TouchableOpacity
@@ -733,6 +759,7 @@ const styles = StyleSheet.create({
     width: '100%',
     gap: 12,
   },
+  primaryImportBtnDisabled: { opacity: 0.4 },
   primaryImportBtn: {
     height: 48,
     borderRadius: 14,

@@ -10,6 +10,7 @@ import { ScoreHistoryChart } from '@/components/health/ScoreHistoryChart';
 import { ScoreRing } from '@/components/health/ScoreRing';
 import { TransactionDetailModal } from '@/components/modals/TransactionDetailModal';
 import { TransactionListModal } from '@/components/modals/TransactionListModal';
+import { SelectableText } from '@/components/SelectableText';
 import type { BenchmarkGroupId, Household } from '@/constants/benchmarks';
 import { useI18n } from '@/contexts/LanguageContext';
 import { usePeriod } from '@/contexts/PeriodContext';
@@ -378,54 +379,54 @@ export function HealthScreen() {
           <ActivityIndicator size="small" color={colors.accent} style={styles.loading} />
         ) : !result ? (
           <View style={cardStyle}>
-            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>{t('health.notEnough')}</Text>
+            <SelectableText style={[styles.emptyText, { color: colors.textSecondary }]}>{t('health.notEnough')}</SelectableText>
           </View>
         ) : (
           <>
             <View style={[cardStyle, styles.hero]}>
-              <Text style={[styles.month, { color: colors.textSecondary }]}>{monthLabel}</Text>
+              <SelectableText style={[styles.month, { color: colors.textSecondary }]}>{monthLabel}</SelectableText>
 
               {score !== null ? (
                 <>
                   <ScoreRing score={score} size={156} strokeWidth={12} color={ringColor} trackColor={colors.track} animated>
-                    <Text
+                    <SelectableText
                       style={[styles.score, { color: colors.text }]}
                       accessibilityLabel={t('health.scoreOf', { score })}
                     >
                       {score}
-                    </Text>
+                    </SelectableText>
                   </ScoreRing>
-                  <Text style={[styles.level, { color: ringColor }]}>{t(levelKey(score))}</Text>
+                  <SelectableText style={[styles.level, { color: ringColor }]}>{t(levelKey(score))}</SelectableText>
                   {snapshot.previous ? (
-                    <Text style={[styles.delta, { color: colors.textSecondary }]}>
+                    <SelectableText style={[styles.delta, { color: colors.textSecondary }]}>
                       {score === snapshot.previous.score
                         ? t('health.delta.same', { month: format.monthYear(snapshot.previous.month) })
                         : t(score > snapshot.previous.score ? 'health.delta.a11yUp' : 'health.delta.a11yDown', {
                             points: Math.abs(score - snapshot.previous.score),
                             month: format.monthYear(snapshot.previous.month),
                           })}
-                    </Text>
+                    </SelectableText>
                   ) : null}
                   {result.partial ? (
-                    <Text style={[styles.note, { color: colors.textSecondary }]}>{t('health.partial')}</Text>
+                    <SelectableText style={[styles.note, { color: colors.textSecondary }]}>{t('health.partial')}</SelectableText>
                   ) : null}
 
                   <View style={[styles.improveBox, { backgroundColor: colors.tintBackground }]}>
-                    <Text style={[styles.improveLabel, { color: colors.accent }]}>{t('health.biggest')}</Text>
-                    <Text style={[styles.improveText, { color: colors.text }]}>
+                    <SelectableText style={[styles.improveLabel, { color: colors.accent }]}>{t('health.biggest')}</SelectableText>
+                    <SelectableText style={[styles.improveText, { color: colors.text }]}>
                       {result.improvement
                         ? t(result.improvement.message.key, result.improvement.message.params)
                         : t('health.allGood')}
-                    </Text>
+                    </SelectableText>
                   </View>
 
-                  <Text style={[styles.explain, { color: colors.textSecondary }]}>{t('health.explain')}</Text>
+                  <SelectableText style={[styles.explain, { color: colors.textSecondary }]}>{t('health.explain')}</SelectableText>
                 </>
               ) : (
                 <>
-                  <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+                  <SelectableText style={[styles.emptyText, { color: colors.textSecondary }]}>
                     {result.income.source === 'none' ? t('health.noIncome') : t('health.notEnough')}
-                  </Text>
+                  </SelectableText>
                   <TouchableOpacity
                     style={[styles.primaryBtn, { backgroundColor: colors.accent }]}
                     onPress={() => setHouseholdVisible(true)}
@@ -436,12 +437,12 @@ export function HealthScreen() {
                 </>
               )}
 
-              <Text style={[styles.disclaimer, { color: colors.textSecondary }]}>{t('health.disclaimer')}</Text>
+              <SelectableText style={[styles.disclaimer, { color: colors.textSecondary }]}>{t('health.disclaimer')}</SelectableText>
             </View>
 
             {score !== null ? (
               <View style={cardStyle}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('health.pillars')}</Text>
+                <SelectableText style={[styles.sectionTitle, { color: colors.text }]}>{t('health.pillars')}</SelectableText>
                 {result.pillars.map((pillar) => (
                   <PillarRow key={pillar.id} pillar={pillar} onAddBuffer={() => setHouseholdVisible(true)} />
                 ))}
@@ -449,10 +450,10 @@ export function HealthScreen() {
             ) : null}
 
             <View style={cardStyle}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('health.categories')}</Text>
-              <Text style={[styles.hint, { color: colors.textSecondary }]}>{t('health.categories.hint')}</Text>
+              <SelectableText style={[styles.sectionTitle, { color: colors.text }]}>{t('health.categories')}</SelectableText>
+              <SelectableText style={[styles.hint, { color: colors.textSecondary }]}>{t('health.categories.hint')}</SelectableText>
               {spendingRows.length === 0 ? (
-                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>{t('health.category.empty')}</Text>
+                <SelectableText style={[styles.emptyText, { color: colors.textSecondary }]}>{t('health.category.empty')}</SelectableText>
               ) : (
                 spendingRows.map((item) => (
                   <CategoryRangeRow
@@ -467,7 +468,7 @@ export function HealthScreen() {
 
             {/* TODO(pro): score history is a Pro item; gate it here once useEntitlement() / FEATURES exists. */}
             <View style={cardStyle}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('health.history')}</Text>
+              <SelectableText style={[styles.sectionTitle, { color: colors.text }]}>{t('health.history')}</SelectableText>
               <ScoreHistoryChart points={snapshot.history} />
             </View>
 

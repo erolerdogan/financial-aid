@@ -5,6 +5,7 @@ import { HeaderActions } from '@/components/HeaderActions';
 import { DebtDetailModal } from '@/components/modals/DebtDetailModal';
 import { DebtFormModal, DebtPrefill } from '@/components/modals/DebtFormModal';
 import { ScreenContainer } from '@/components/ScreenContainer';
+import { SelectableText } from '@/components/SelectableText';
 import { useInbox } from '@/contexts/InboxContext';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -34,8 +35,8 @@ const MAX_SUGGESTIONS = 3;
 type PlanSegment = 'HEALTH' | 'DEBTS' | 'FREEDOM';
 
 const SEGMENTS: { key: PlanSegment; label: TranslationKey }[] = [
-  { key: 'HEALTH', label: 'health.cardTitle' },
   { key: 'DEBTS', label: 'home.debts.title' },
+  { key: 'HEALTH', label: 'health.cardTitle' },
   { key: 'FREEDOM', label: 'freedom.name' },
 ];
 
@@ -43,7 +44,7 @@ export default function DebtsScreen() {
   const db = useSQLiteContext();
   const router = useRouter();
   const { segment: segmentParam } = useLocalSearchParams<{ segment?: string }>();
-  const [segment, setSegment] = useState<PlanSegment>('HEALTH');
+  const [segment, setSegment] = useState<PlanSegment>('DEBTS');
 
   // Links from Home and the inbox ask for a segment; the param is cleared so the next link fires again.
   useEffect(() => {
@@ -238,9 +239,9 @@ export default function DebtsScreen() {
   const suggestionCards =
     suggestions.length === 0 ? null : (
       <View style={styles.suggestions}>
-        <Text style={[styles.suggestionsLabel, { color: colors.textSecondary }]}>
+        <SelectableText style={[styles.suggestionsLabel, { color: colors.textSecondary }]}>
           {t('debt.suggestedLabel')}
-        </Text>
+        </SelectableText>
         {suggestions.slice(0, MAX_SUGGESTIONS).map((suggestion) => (
           <View
             key={suggestion.key}
@@ -250,16 +251,16 @@ export default function DebtsScreen() {
               <Ionicons name={getDebtTypeIcon(suggestion.type)} size={18} color={colors.accent} />
             </View>
             <View style={styles.debtTitleWrap}>
-              <Text style={[styles.debtName, { color: colors.text }]} numberOfLines={1}>
+              <SelectableText style={[styles.debtName, { color: colors.text }]} numberOfLines={1}>
                 {suggestion.name}
-              </Text>
-              <Text style={[styles.debtSub, { color: colors.textSecondary }]} numberOfLines={1}>
+              </SelectableText>
+              <SelectableText style={[styles.debtSub, { color: colors.textSecondary }]} numberOfLines={1}>
                 {t('debt.suggestionSub', {
                   payment: fmt(suggestion.payment),
                   count: suggestion.count,
                   month: format.monthYear(suggestion.firstDate.slice(0, 7), 'short'),
                 })}
-              </Text>
+              </SelectableText>
             </View>
             <TouchableOpacity
               activeOpacity={0.8}
@@ -285,8 +286,8 @@ export default function DebtsScreen() {
   return (
     <ScreenContainer>
       <View style={styles.headerRow}>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>{t('tabs.plan')}</Text>
-        <HeaderActions>
+        <SelectableText style={[styles.headerTitle, { color: colors.text }]}>{t('tabs.plan')}</SelectableText>
+        <HeaderActions showSearch={false}>
           {segment === 'DEBTS' && (
             <TouchableOpacity
               style={[styles.addBtn, { backgroundColor: colors.accent }]}
@@ -343,10 +344,10 @@ export default function DebtsScreen() {
           <View style={[styles.emptyIcon, { backgroundColor: colors.tintBackground }]}>
             <Ionicons name="trending-down-outline" size={32} color={colors.accent} />
           </View>
-          <Text style={[styles.emptyTitle, { color: colors.text }]}>{t('home.debts.emptyTitle')}</Text>
-          <Text style={[styles.emptySub, { color: colors.textSecondary }]}>
+          <SelectableText style={[styles.emptyTitle, { color: colors.text }]}>{t('home.debts.emptyTitle')}</SelectableText>
+          <SelectableText style={[styles.emptySub, { color: colors.textSecondary }]}>
             {t('debt.emptySub')}
-          </Text>
+          </SelectableText>
           {suggestionCards}
           <TouchableOpacity
             activeOpacity={0.85}
@@ -360,18 +361,18 @@ export default function DebtsScreen() {
       ) : (
         <ScrollView contentContainerStyle={styles.content}>
           <View style={[styles.summaryCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>{t('debt.totalRemaining')}</Text>
-            <Text style={[styles.summaryValue, { color: colors.text }]}>{fmt(totalBalance)}</Text>
+            <SelectableText style={[styles.summaryLabel, { color: colors.textSecondary }]}>{t('debt.totalRemaining')}</SelectableText>
+            <SelectableText style={[styles.summaryValue, { color: colors.text }]}>{fmt(totalBalance)}</SelectableText>
             <View style={styles.summaryBar}>
               <DebtProgressBar percent={overallPercent} color={colors.accent} height={12} />
             </View>
             <View style={styles.summaryFooter}>
-              <Text style={[styles.summaryFooterText, { color: colors.textSecondary }]}>
+              <SelectableText style={[styles.summaryFooterText, { color: colors.textSecondary }]}>
                 {t('debt.percentPaid', { percent: overallPercent.toFixed(0) })} • {t('home.debts.active', { count: activeCount })}
-              </Text>
-              <Text style={[styles.summaryFooterText, { color: colors.textSecondary }]}>
+              </SelectableText>
+              <SelectableText style={[styles.summaryFooterText, { color: colors.textSecondary }]}>
                 {t('debt.interestEst', { amount: fmt(totalInterest) })}
-              </Text>
+              </SelectableText>
             </View>
           </View>
 

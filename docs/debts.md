@@ -4,7 +4,7 @@ Debt math and payment linking: bottom of `src/db/database.ts`. UI helpers: `src/
 
 ## The Plan tab
 
-- The tab is labelled "Plan" but the route is still `debts` (`src/app/(tabs)/debts.tsx`). "Debts tab" in these docs means its Debts segment; the other segments are Health ([health.md](health.md)), which the tab opens on, and Future Growth ([freedom.md](freedom.md)).
+- The tab is labelled "Plan" but the route is still `debts` (`src/app/(tabs)/debts.tsx`). "Debts tab" in these docs means its Debts segment, the first one and the one the tab opens on; the other segments are Health ([health.md](health.md)) and Future Growth ([freedom.md](freedom.md)).
 - The segment is local state. Links into it navigate with `params: { segment: 'health' | 'debts' | 'freedom' }`, which the screen applies and clears.
 - Debts `load` writes without bumping `dataVersion`, so it calls `refreshInbox` itself.
 

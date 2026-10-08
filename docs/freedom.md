@@ -1,6 +1,6 @@
 # Future Growth (Freedom calculator)
 
-Plan tab (Health | Debts | Future Growth) with a compound-growth investment projection. 100% local, no network calls, no user data leaves the device.
+Plan tab (Debts | Health | Future Growth) with a compound-growth investment projection. 100% local, no network calls, no user data leaves the device.
 
 ## Naming
 

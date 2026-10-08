@@ -1,3 +1,4 @@
+import { SelectableText } from '@/components/SelectableText';
 import {
   BENCHMARK_GROUPS,
   getRangesForHousehold,
@@ -30,10 +31,10 @@ export function BenchmarkGroupSheet({ category, selected, household, onSelect, o
         <TouchableWithoutFeedback>
           <View style={[styles.sheet, { backgroundColor: colors.card }]}>
             <View style={[styles.handle, { backgroundColor: colors.border }]} />
-            <Text style={[styles.title, { color: colors.text }]}>{t('health.groupSheet.title')}</Text>
-            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+            <SelectableText style={[styles.title, { color: colors.text }]}>{t('health.groupSheet.title')}</SelectableText>
+            <SelectableText style={[styles.subtitle, { color: colors.textSecondary }]}>
               {t('health.groupSheet.for', { category: category ? categoryName(category) : '' })}
-            </Text>
+            </SelectableText>
             <ScrollView style={styles.list}>
               {BENCHMARK_GROUPS.map((group) => {
                 const isSelected = group.id === selected;

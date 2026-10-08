@@ -1,4 +1,6 @@
+import { SelectableText } from '@/components/SelectableText';
 import { useI18n } from '@/contexts/LanguageContext';
+import { usePasscode } from '@/contexts/PasscodeContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useStatementImporter } from '@/hooks/useStatementImporter';
@@ -6,7 +8,7 @@ import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { usePathname, useRouter } from 'expo-router';
 import { useIncomingShare } from 'expo-sharing';
 import React, { useEffect, useRef } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
 
 // Imports a statement shared into the app ("Share → Financial Aid" in a bank app).
 // Mounted once at the root, next to the Stack. The progress overlay is a plain View: a Modal
@@ -46,6 +48,7 @@ function SharedImportListener() {
   const { colors } = useTheme();
   const { t } = useI18n();
   const { loadingProfiles } = useProfile();
+  const { locked } = usePasscode();
   const { resolvedSharedPayloads, isResolving, error, clearSharedPayloads, refreshSharePayloads } =
     useIncomingShare();
   const pathnameRef = useRef(pathname);
@@ -70,7 +73,8 @@ function SharedImportListener() {
   }, [error, clearSharedPayloads, refreshSharePayloads, t]);
 
   useEffect(() => {
-    if (loadingProfiles || isResolving || handlingRef.current) return;
+    // A file shared into a locked app waits for the passcode.
+    if (loadingProfiles || isResolving || locked || handlingRef.current) return;
     if (resolvedSharedPayloads.length === 0) return;
 
     const file = resolvedSharedPayloads.find(
@@ -95,6 +99,7 @@ function SharedImportListener() {
   }, [
     loadingProfiles,
     isResolving,
+    locked,
     resolvedSharedPayloads,
     clearSharedPayloads,
     refreshSharePayloads,
@@ -108,7 +113,7 @@ function SharedImportListener() {
     <View style={[styles.overlay, { backgroundColor: colors.background + 'CC' }]}>
       <View style={[styles.panel, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <ActivityIndicator size="small" color={colors.accent} />
-        <Text style={[styles.label, { color: colors.text }]}>{t('welcome.processing')}</Text>
+        <SelectableText style={[styles.label, { color: colors.text }]}>{t('welcome.processing')}</SelectableText>
       </View>
     </View>
   );
