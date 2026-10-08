@@ -1,5 +1,13 @@
+import {
+  DEFAULT_CATEGORY_GROUPS,
+  isBenchmarkGroupId,
+  type BenchmarkGroupId,
+  type BenchmarkRange,
+  type Household,
+} from '@/constants/benchmarks';
 import { CATEGORY_COLORS, setCustomCategoryColors } from '@/constants/colors';
 import type { Message } from '@/i18n';
+import type { HealthDebt, HealthDebtPayment, HealthTransaction } from '@/utils/budgetHealth';
 import { DebtMatchStrength, evaluateDebtKeyword } from '@/utils/debt';
 import { buildDebtSuggestions, type DebtSuggestion } from '@/utils/debtSuggestion';
 import {
@@ -12,6 +20,7 @@ import {
   scoreFixed,
 } from '@/utils/fixedCost';
 import { type FreedomInput, type GoalType } from '@/utils/freedom';
+import type { AlertStatus, AlertType, HealthAlert } from '@/utils/healthAlerts';
 import {
   buildMerchantIndex,
   type CategorySuggestion,
@@ -257,7 +266,50 @@ export async function initDatabase(db: SQLiteDatabase): Promise<void> {
       goal_income REAL NOT NULL DEFAULT 0,
       updated_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS household_profile (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      profile_id INTEGER NOT NULL UNIQUE,
+      adults INTEGER NOT NULL DEFAULT 2,
+      children INTEGER NOT NULL DEFAULT 0,
+      housing_type TEXT NOT NULL DEFAULT 'rent',
+      net_income_override REAL,
+      safety_savings REAL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS category_range_overrides (
+      profile_id INTEGER NOT NULL,
+      category TEXT NOT NULL,
+      min_pct REAL NOT NULL,
+      max_pct REAL NOT NULL,
+      PRIMARY KEY (profile_id, category)
+    );
+
+    CREATE TABLE IF NOT EXISTS health_alerts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      profile_id INTEGER NOT NULL,
+      month TEXT NOT NULL,
+      type TEXT NOT NULL,
+      key TEXT NOT NULL,
+      message TEXT NOT NULL,
+      severity INTEGER NOT NULL DEFAULT 1,
+      status TEXT NOT NULL DEFAULT 'new',
+      created_at TEXT NOT NULL,
+      UNIQUE(profile_id, month, type, key)
+    );
+
+    CREATE TABLE IF NOT EXISTS alert_settings (
+      profile_id INTEGER NOT NULL,
+      type TEXT NOT NULL,
+      enabled INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (profile_id, type)
+    );
   `);
+
+  try {
+    await db.runAsync(`ALTER TABLE categories ADD COLUMN benchmark_group TEXT;`);
+  } catch (e) {}
 
   try {
     await db.runAsync(`ALTER TABLE freedom_plans ADD COLUMN goal_type TEXT NOT NULL DEFAULT 'BALANCE';`);
@@ -472,6 +524,7 @@ export async function deleteProfile(
     await db.runAsync(`DELETE FROM category_goals WHERE profileId = ?;`, [id]);
     await db.runAsync(`DELETE FROM category_rules WHERE profileId = ?;`, [id]);
     await db.runAsync(`DELETE FROM fixed_cost_rules WHERE profileId = ?;`, [id]);
+    await clearHealthTables(db, id);
     await db.runAsync(`DELETE FROM profiles WHERE id = ?;`, [id]);
   });
 }
@@ -1209,6 +1262,7 @@ export async function clearAllData(
       await db.runAsync(`DELETE FROM debt_rules WHERE profileId = ?;`, [profileId]);
       await db.runAsync(`DELETE FROM debts WHERE profileId = ?;`, [profileId]);
       await db.runAsync(`DELETE FROM freedom_plans WHERE profile_id = ?;`, [profileId]);
+      await clearHealthTables(db, profileId);
     });
   } else {
     await db.execAsync(`
@@ -1221,6 +1275,10 @@ export async function clearAllData(
       DROP TABLE IF EXISTS debt_rules;
       DROP TABLE IF EXISTS debts;
       DROP TABLE IF EXISTS freedom_plans;
+      DROP TABLE IF EXISTS household_profile;
+      DROP TABLE IF EXISTS category_range_overrides;
+      DROP TABLE IF EXISTS health_alerts;
+      DROP TABLE IF EXISTS alert_settings;
       DROP TABLE IF EXISTS profiles;
     `);
     await initDatabase(db);
@@ -1703,6 +1761,7 @@ export async function clearDemoWorkspace(db: SQLiteDatabase, demoProfileId: numb
     await db.runAsync('DELETE FROM debt_payments WHERE profileId = ?;', [demoProfileId]);
     await db.runAsync('DELETE FROM debt_rules WHERE profileId = ?;', [demoProfileId]);
     await db.runAsync('DELETE FROM debts WHERE profileId = ?;', [demoProfileId]);
+    await clearHealthTables(db, demoProfileId);
   });
 }
 
@@ -2011,6 +2070,15 @@ export async function ensureCategoriesSeeded(
     );
   }
 
+  // Built-in categories start with their benchmark group; a group the user picked is never replaced.
+  for (const [name, group] of Object.entries(DEFAULT_CATEGORY_GROUPS)) {
+    await db.runAsync(
+      `UPDATE categories SET benchmark_group = ?
+       WHERE profileId = ? AND name = ? AND isBuiltIn = 1 AND benchmark_group IS NULL;`,
+      [group, profileId, name]
+    );
+  }
+
   await db.runAsync(
     `INSERT OR IGNORE INTO categories (profileId, name, color, isBuiltIn)
      SELECT DISTINCT ?, category, '#8E8E93', 0
@@ -2205,6 +2273,14 @@ export async function renameCategory(
       `UPDATE category_goals SET category = ? WHERE category = ? AND profileId = ?;`,
       [trimmed, row.name, profileId]
     );
+    await db.runAsync(`DELETE FROM category_range_overrides WHERE category = ? AND profile_id = ?;`, [
+      trimmed,
+      profileId,
+    ]);
+    await db.runAsync(
+      `UPDATE category_range_overrides SET category = ? WHERE category = ? AND profile_id = ?;`,
+      [trimmed, row.name, profileId]
+    );
   });
 }
 
@@ -2236,6 +2312,10 @@ export async function deleteCategory(
       [reassignTo, row.name, profileId]
     );
     await db.runAsync(`DELETE FROM category_goals WHERE category = ? AND profileId = ?;`, [
+      row.name,
+      profileId,
+    ]);
+    await db.runAsync(`DELETE FROM category_range_overrides WHERE category = ? AND profile_id = ?;`, [
       row.name,
       profileId,
     ]);
@@ -2930,4 +3010,313 @@ export async function saveFreedomPlan(db: SQLiteDatabase, profileId: number, pla
       new Date().toISOString(),
     ]
   );
+}
+
+// ---------------------------------------------------------------------------
+// Budget Health
+// ---------------------------------------------------------------------------
+
+/** Household, range overrides, alerts and alert settings of one profile. Runs inside the caller's transaction. */
+async function clearHealthTables(db: SQLiteDatabase, profileId: number): Promise<void> {
+  await db.runAsync(`DELETE FROM household_profile WHERE profile_id = ?;`, [profileId]);
+  await db.runAsync(`DELETE FROM category_range_overrides WHERE profile_id = ?;`, [profileId]);
+  await db.runAsync(`DELETE FROM health_alerts WHERE profile_id = ?;`, [profileId]);
+  await db.runAsync(`DELETE FROM alert_settings WHERE profile_id = ?;`, [profileId]);
+}
+
+/** The household saved for this profile, or null when the questions have not been answered yet. */
+export async function getHousehold(db: SQLiteDatabase, profileId: number): Promise<Household | null> {
+  if (!db) return null;
+
+  const row = await db.getFirstAsync<{
+    adults: number;
+    children: number;
+    housing_type: string;
+    net_income_override: number | null;
+    safety_savings: number | null;
+  }>(
+    `SELECT adults, children, housing_type, net_income_override, safety_savings
+     FROM household_profile WHERE profile_id = ?;`,
+    [profileId]
+  );
+  if (!row) return null;
+
+  return {
+    adults: row.adults,
+    children: row.children,
+    housingType: row.housing_type === 'own' ? 'own' : 'rent',
+    netIncomeOverride: row.net_income_override,
+    safetySavings: row.safety_savings,
+  };
+}
+
+export async function saveHousehold(db: SQLiteDatabase, profileId: number, household: Household): Promise<void> {
+  if (!db) return;
+
+  await db.runAsync(
+    `INSERT INTO household_profile
+       (profile_id, adults, children, housing_type, net_income_override, safety_savings, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(profile_id) DO UPDATE SET
+       adults = excluded.adults,
+       children = excluded.children,
+       housing_type = excluded.housing_type,
+       net_income_override = excluded.net_income_override,
+       safety_savings = excluded.safety_savings,
+       updated_at = excluded.updated_at;`,
+    [
+      profileId,
+      household.adults,
+      household.children,
+      household.housingType,
+      household.netIncomeOverride,
+      household.safetySavings,
+      new Date().toISOString(),
+    ]
+  );
+}
+
+/** Currency switch: the two amounts typed by the user follow the transactions. */
+export async function convertHouseholdAmounts(db: SQLiteDatabase, profileId: number, factor: number): Promise<void> {
+  await db.runAsync(
+    `UPDATE household_profile
+     SET net_income_override = ROUND(net_income_override * ?, 2), safety_savings = ROUND(safety_savings * ?, 2)
+     WHERE profile_id = ?;`,
+    [factor, factor, profileId]
+  );
+}
+
+/** Category name → benchmark group; a category without a row here has not been given a group yet. */
+export async function getCategoryBenchmarkGroups(
+  db: SQLiteDatabase,
+  profileId: number
+): Promise<Record<string, BenchmarkGroupId>> {
+  await ensureCategoriesSeeded(db, profileId);
+
+  const rows = await db.getAllAsync<{ name: string; benchmark_group: string | null }>(
+    `SELECT name, benchmark_group FROM categories WHERE profileId = ?;`,
+    [profileId]
+  );
+  const groups: Record<string, BenchmarkGroupId> = {};
+  for (const row of rows) {
+    if (isBenchmarkGroupId(row.benchmark_group)) groups[row.name] = row.benchmark_group;
+  }
+  return groups;
+}
+
+export async function setCategoryBenchmarkGroup(
+  db: SQLiteDatabase,
+  profileId: number,
+  category: string,
+  group: BenchmarkGroupId
+): Promise<void> {
+  await db.runAsync(`UPDATE categories SET benchmark_group = ? WHERE profileId = ? AND name = ?;`, [
+    group,
+    profileId,
+    category,
+  ]);
+}
+
+export async function getRangeOverrides(
+  db: SQLiteDatabase,
+  profileId: number
+): Promise<Record<string, BenchmarkRange>> {
+  const rows = await db.getAllAsync<{ category: string; min_pct: number; max_pct: number }>(
+    `SELECT category, min_pct, max_pct FROM category_range_overrides WHERE profile_id = ?;`,
+    [profileId]
+  );
+  const overrides: Record<string, BenchmarkRange> = {};
+  for (const row of rows) overrides[row.category] = { min: row.min_pct, max: row.max_pct };
+  return overrides;
+}
+
+export async function setRangeOverride(
+  db: SQLiteDatabase,
+  profileId: number,
+  category: string,
+  range: BenchmarkRange
+): Promise<void> {
+  await db.runAsync(
+    `INSERT INTO category_range_overrides (profile_id, category, min_pct, max_pct)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT(profile_id, category) DO UPDATE SET min_pct = excluded.min_pct, max_pct = excluded.max_pct;`,
+    [profileId, category, range.min, range.max]
+  );
+}
+
+export async function clearRangeOverride(db: SQLiteDatabase, profileId: number, category: string): Promise<void> {
+  await db.runAsync(`DELETE FROM category_range_overrides WHERE profile_id = ? AND category = ?;`, [
+    profileId,
+    category,
+  ]);
+}
+
+export async function clearAllRangeOverrides(db: SQLiteDatabase, profileId: number): Promise<void> {
+  await db.runAsync(`DELETE FROM category_range_overrides WHERE profile_id = ?;`, [profileId]);
+}
+
+export interface StoredHealthAlert extends HealthAlert {
+  id: number;
+  status: AlertStatus;
+  createdAt: string;
+}
+
+/** Stores new alerts; one that already exists for the month (same type and key) is left as it is. Returns the new ones. */
+export async function insertAlerts(
+  db: SQLiteDatabase,
+  profileId: number,
+  alerts: HealthAlert[]
+): Promise<HealthAlert[]> {
+  const inserted: HealthAlert[] = [];
+  const createdAt = new Date().toISOString();
+
+  for (const alert of alerts) {
+    const result = await db.runAsync(
+      `INSERT OR IGNORE INTO health_alerts (profile_id, month, type, key, message, severity, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'new', ?);`,
+      [profileId, alert.month, alert.type, alert.key, JSON.stringify(alert.message), alert.severity, createdAt]
+    );
+    if (result.changes > 0) inserted.push(alert);
+  }
+  return inserted;
+}
+
+export async function getAlerts(db: SQLiteDatabase, profileId: number, month: string): Promise<StoredHealthAlert[]> {
+  const rows = await db.getAllAsync<{
+    id: number;
+    month: string;
+    type: AlertType;
+    key: string;
+    message: string;
+    severity: number;
+    status: AlertStatus;
+    created_at: string;
+  }>(
+    `SELECT id, month, type, key, message, severity, status, created_at
+     FROM health_alerts WHERE profile_id = ? AND month = ?
+     ORDER BY severity DESC, id ASC;`,
+    [profileId, month]
+  );
+
+  const alerts: StoredHealthAlert[] = [];
+  for (const row of rows) {
+    try {
+      const message = JSON.parse(row.message) as HealthAlert['message'];
+      if (!message || typeof message.key !== 'string') continue;
+      alerts.push({
+        id: row.id,
+        month: row.month,
+        type: row.type,
+        key: row.key,
+        message,
+        severity: row.severity,
+        status: row.status,
+        createdAt: row.created_at,
+      });
+    } catch {}
+  }
+  return alerts;
+}
+
+export async function setAlertStatus(
+  db: SQLiteDatabase,
+  profileId: number,
+  alertId: number,
+  status: AlertStatus
+): Promise<void> {
+  await db.runAsync(`UPDATE health_alerts SET status = ? WHERE id = ? AND profile_id = ?;`, [
+    status,
+    alertId,
+    profileId,
+  ]);
+}
+
+/** "Don't alert me about this": every alert of this type for this merchant or category is muted, now and later. */
+export async function muteAlertKey(db: SQLiteDatabase, profileId: number, type: AlertType, key: string): Promise<void> {
+  await db.runAsync(`UPDATE health_alerts SET status = 'muted' WHERE profile_id = ? AND type = ? AND key = ?;`, [
+    profileId,
+    type,
+    key,
+  ]);
+}
+
+/** `type|key` of everything the user muted. */
+export async function getMutedAlertKeys(db: SQLiteDatabase, profileId: number): Promise<string[]> {
+  const rows = await db.getAllAsync<{ type: string; key: string }>(
+    `SELECT DISTINCT type, key FROM health_alerts WHERE profile_id = ? AND status = 'muted';`,
+    [profileId]
+  );
+  return rows.map((row) => `${row.type}|${row.key}`);
+}
+
+/** Saved switches only; a type without a row follows `DEFAULT_ENABLED_ALERTS`. */
+export async function getAlertSettings(
+  db: SQLiteDatabase,
+  profileId: number
+): Promise<Partial<Record<AlertType, boolean>>> {
+  const rows = await db.getAllAsync<{ type: AlertType; enabled: number }>(
+    `SELECT type, enabled FROM alert_settings WHERE profile_id = ?;`,
+    [profileId]
+  );
+  const settings: Partial<Record<AlertType, boolean>> = {};
+  for (const row of rows) settings[row.type] = row.enabled === 1;
+  return settings;
+}
+
+export async function setAlertSetting(
+  db: SQLiteDatabase,
+  profileId: number,
+  type: AlertType,
+  enabled: boolean
+): Promise<void> {
+  await db.runAsync(
+    `INSERT INTO alert_settings (profile_id, type, enabled) VALUES (?, ?, ?)
+     ON CONFLICT(profile_id, type) DO UPDATE SET enabled = excluded.enabled;`,
+    [profileId, type, enabled ? 1 : 0]
+  );
+}
+
+export interface HealthData {
+  transactions: HealthTransaction[];
+  debts: HealthDebt[];
+  debtPayments: HealthDebtPayment[];
+}
+
+/** Everything the health and alert engines read, with fixed / flexible already resolved. */
+export async function getHealthData(db: SQLiteDatabase, profileId: number): Promise<HealthData> {
+  const [rows, debts, debtPayments, resolver] = await Promise.all([
+    db.getAllAsync<Transaction>(`SELECT * FROM transactions WHERE profileId = ? ORDER BY date ASC, id ASC;`, [
+      profileId,
+    ]),
+    db.getAllAsync<Debt>(`SELECT * FROM debts WHERE profileId = ? AND status != 'ARCHIVED' ORDER BY id ASC;`, [
+      profileId,
+    ]),
+    db.getAllAsync<HealthDebtPayment>(
+      `SELECT debtId, substr(date, 1, 10) AS date, amount FROM debt_payments WHERE profileId = ? AND ignored = 0;`,
+      [profileId]
+    ),
+    getFixedResolver(db, profileId),
+  ]);
+
+  return {
+    transactions: rows.map((tx) => ({
+      id: tx.id,
+      date: tx.date.slice(0, 10),
+      amount: tx.amount,
+      category: tx.category,
+      merchant: tx.merchant,
+      rawDescription: tx.rawDescription,
+      isFixed: resolver.resolve(tx).isFixed,
+    })),
+    debts: debts.map((debt) => ({
+      id: debt.id,
+      name: debt.name,
+      isMortgage: debt.type === 'MORTGAGE',
+      paymentAmount: debt.paymentAmount,
+      paymentDay: debt.paymentDay,
+      startDate: debt.startDate ? debt.startDate.slice(0, 10) : null,
+      active: debt.status === 'ACTIVE',
+    })),
+    debtPayments,
+  };
 }

@@ -4,9 +4,12 @@ import {
   getDebtKeywordMatches,
   getDebtSuggestions,
   getDebtSummaries,
+  setAlertStatus,
   setAppMeta,
+  type StoredHealthAlert,
 } from '@/db/database';
 import { getLastBackupDate } from '@/services/backupService';
+import { loadNewAlerts } from '@/services/healthService';
 import { DebtSuggestion } from '@/utils/debtSuggestion';
 import { UNCATEGORISED } from '@/utils/parser';
 import type { SQLiteDatabase } from 'expo-sqlite';
@@ -24,6 +27,8 @@ interface InboxItemBase {
 }
 
 export type InboxItem =
+  // One row per Budget Health alert the user has not answered; dismissing it is "Got it".
+  | (InboxItemBase & { kind: 'HEALTH_ALERT'; alert: StoredHealthAlert })
   // One row however many there are; the Debts tab lists them one by one.
   | (InboxItemBase & { kind: 'DEBT_SUGGESTIONS'; suggestions: DebtSuggestion[] })
   | (InboxItemBase & { kind: 'UNCATEGORISED'; count: number })
@@ -32,7 +37,8 @@ export type InboxItem =
   | (InboxItemBase & { kind: 'BACKUP'; daysSince: number | null });
 
 /** Reminders show a dot on the bell; everything else needs a decision and is counted. */
-export const isQuietInboxItem = (item: InboxItem): boolean => item.kind === 'BACKUP';
+export const isQuietInboxItem = (item: InboxItem): boolean =>
+  item.kind === 'BACKUP' || (item.kind === 'HEALTH_ALERT' && item.alert.severity <= 1);
 
 const dismissedKey = (profileId: number) => `inbox_dismissed:${profileId}`;
 
@@ -61,7 +67,8 @@ export async function getInboxItems(
   profileId: number,
   options: { includeBackup: boolean }
 ): Promise<InboxItem[]> {
-  const [dismissed, suggestions, uncategorised, debts, months, lastBackup] = await Promise.all([
+  const [healthAlerts, dismissed, suggestions, uncategorised, debts, months, lastBackup] = await Promise.all([
+    loadNewAlerts(db, profileId),
     getDismissed(db, profileId),
     getDebtSuggestions(db, profileId),
     db.getFirstAsync<{ cnt: number; maxId: number | null }>(
@@ -80,6 +87,11 @@ export async function getInboxItems(
   // Dismissed with a value at or past the threshold: nothing new since, keep it hidden.
   const hidden = (key: string, threshold: number) => (dismissed[key] ?? -Infinity) >= threshold;
   const items: InboxItem[] = [];
+
+  // Their state lives in `health_alerts` (new / seen / muted), not in the dismissal map.
+  for (const alert of healthAlerts) {
+    items.push({ kind: 'HEALTH_ALERT', key: `health-alert:${alert.id}`, dismissValue: 1, alert });
+  }
 
   if (suggestions.length > 0) {
     items.push({ kind: 'DEBT_SUGGESTIONS', key: 'debt-suggestions', dismissValue: 1, suggestions });
@@ -158,6 +170,10 @@ export async function dismissInboxItem(db: SQLiteDatabase, profileId: number, it
     for (const suggestion of item.suggestions) {
       await dismissDebtSuggestion(db, profileId, suggestion.key);
     }
+    return;
+  }
+  if (item.kind === 'HEALTH_ALERT') {
+    await setAlertStatus(db, profileId, item.alert.id, 'seen');
     return;
   }
   const dismissed = await getDismissed(db, profileId);

@@ -29,6 +29,7 @@ Other commands:
 ```bash
 npm run lint       # ESLint
 npx tsc --noEmit   # type check (also run in CI)
+npm test           # every src/**/*.test.ts with tsx; "npm test -- freedom" runs matching files
 ```
 
 On first launch the welcome screen offers two paths: import a statement, or open the demo workspace to explore the app with sample data.
@@ -93,7 +94,7 @@ npm run site       # writes site-dist/
 ### For You (bell)
 
 - One list of things found in your statements that you can act on, opened from the bell in any tab header.
-- Possible debts (one row: a single one opens the debt form prefilled, several open the Debts tab), uncategorised transactions (opens Review), possible payments for an existing debt, past months with a partial statement (import), and a backup reminder after 30 days.
+- Budget Health alerts (tap to open the Health segment, dismiss for "Got it"), possible debts (one row: a single one opens the debt form prefilled, several open the Debts tab), uncategorised transactions (opens Review), possible payments for an existing debt, past months with a partial statement (import), and a backup reminder after 30 days.
 - The bell shows a count for items that need a decision and a dot when only a reminder is left.
 - Every item can be dismissed; it comes back only when there is something new (a later import, a new month, 30 days for backups).
 
@@ -165,9 +166,23 @@ npm run site       # writes site-dist/
 - Home card: once a plan is saved, Home shows the estimated balance at the plan's end year and, if a goal is set, the progress towards it. Tapping it opens the Future Growth segment.
 - Projection, not guaranteed. Not financial advice.
 
+### Budget Health
+
+- A health score from 0 to 100 that answers "is our money in good shape, and what is the one thing to fix?". It combines five pillars: savings rate (30%), housing (20%), fixed costs (15%), debt payments without the mortgage (20%) and a safety buffer (15%). Each pillar is compared with a common rule of thumb; a buffer you have not entered is left out and the other pillars share its weight.
+- Net monthly income is the average of the last three complete months of income in your statements, or the figure you type yourself.
+- Where it lives: the Plan tab opens on its Health segment (Health | Debts | Future Growth). Home is unchanged. Until there is a month with income the segment shows "Import at least one month to see your health score", or asks for your income.
+- The Health segment shows the score ring, how the score moved since the previous month, the single change that would add the most points, the five pillars, and every category against a typical range (as a share of net income) with your own average of the previous three months marked. Green is within the range, yellow up to 20% above, red beyond that; for savings it is the other way round. It follows the month picked on Home.
+- Introduction: the first visit shows a short page explaining the score with a worked example; "How it works" at the top reopens it.
+- Options (the ⋯ button at the top of the segment): household profile, a switch per alert type, and a reset for the category ranges you accepted.
+- Typical ranges adapt to your household (adults, children, rent or own), asked once in a short sheet. Hold a category to accept its current level ("This is fine for us"), reset it, or compare it with a different group. Custom categories are compared once you pick a group for them.
+- Alerts after each import, at most three, shown at the top of the Health segment with "Got it" and "Don't alert me about this", and as rows under the For You bell: a debt payment that did not come through, a new recurring charge, a price increase, a category ahead of its usual pace, an unusually large purchase, a drop in the savings rate, and good news when a category comes in clearly below your normal. Missed debt payments and new recurring charges are on by default; the others are switched on from the ⋯ button at the top of the Health segment. Alerts that are on also arrive as a local notification when notifications are allowed.
+- Monthly report: score and change, income, expenses, saved and savings rate, pillars, the category table, fixed vs. flexible, debts with the estimated debt-free month, and the month's alerts. "Export PDF" creates the file on the device and opens the share sheet.
+- Score history: a line chart of the last 12 months.
+- Guidance, not financial advice. Nothing leaves the device.
+
 ### Swipe between tabs
 
-- Swipe left or right anywhere on a screen to move to the next or previous tab: Home, Transactions, Trends, Plan. On the Plan tab the swipe steps through Debts and Future Growth first.
+- Swipe left or right anywhere on a screen to move to the next or previous tab: Home, Transactions, Trends, Plan. On the Plan tab the swipe steps through Health, Debts and Future Growth first.
 - Areas with their own horizontal gesture keep it: the Trends chart, the category filter rows and the debt cards.
 
 ### Profiles
@@ -190,10 +205,12 @@ npm run site       # writes site-dist/
 
 ### Backup and restore
 
-- Settings → Backup & Restore saves one file with all profiles (transactions, categories, rules, goals, debts). You choose where it goes (Files, iCloud Drive, AirDrop); the app does not upload it. The file is not encrypted.
+- Settings → Backup & Restore saves one file with all profiles (transactions, categories, rules, goals, debts). You choose where it goes (Files, iCloud Drive, AirDrop); the app does not upload it.
+- A backup can be protected with a password (at least 8 characters): the file (`.fabackup`) is then encrypted with AES-256-GCM, the key derived from the password with scrypt. A forgotten password cannot be recovered. Without a password the backup is a plain, unencrypted `.db` file.
 - Restore replaces all data on the device with the backup; nothing is merged. Before anything changes, the app shows what is in the backup, what is on the device, and whether the device has newer transactions that would be removed.
 - The data replaced by a restore is kept as a safety copy; "Undo Last Restore" brings it back.
 - Backups from older app versions are upgraded on restore. Files that are damaged, not a backup, or from a newer app version are refused and nothing is changed.
+- Export Transactions (same sheet) saves all transactions of the active profile as a CSV or Excel file (date, merchant, category, amount, bank text). It is a readable file, not a backup, and is never encrypted.
 
 ## Privacy
 
@@ -210,6 +227,7 @@ The app makes no network calls with user data. Statements are read on the device
 | Charts | react-native-gifted-charts, react-native-svg |
 | File import | expo-document-picker, expo-sharing (share sheet), expo-file-system, papaparse, xlsx |
 | Notifications | expo-notifications |
+| PDF report | expo-print, expo-sharing |
 | Languages | expo-localization, own dictionary in `src/i18n` |
 | State | React Context (`ProfileContext`, `ThemeContext`, `LanguageContext`) |
 
@@ -218,11 +236,12 @@ The app makes no network calls with user data. Statements are read on the device
 ```
 src/
   app/            Routes (Expo Router)
-    (tabs)/       Home, Transactions, Trends, Plan (Debts | Future Growth)
+    (tabs)/       Home, Transactions, Trends, Plan (Health | Debts | Future Growth)
     welcome.tsx   First-launch screen
     settings.tsx  Settings (modal)
     goals.tsx     Budgets (modal)
     categories.tsx  Categories (modal)
+    health-report.tsx  Monthly health report (modal)
   components/     Shared components, dashboard cards and modals
   contexts/       Profile, period, theme and language contexts
   db/             Schema, queries and demo seed data
@@ -230,11 +249,16 @@ src/
   hooks/          Shared hooks
   i18n/           Translations (`locales/*.ts`), number and date formatting
   utils/          Parsing, notifications and debt helpers
+docs/             How each feature works inside (import, classifier, debts, freedom, health, backup, navigation, i18n)
+scripts/          Website build, test runner
 ```
+
+## Documentation
+
+- `docs/`: how each feature works and what to watch out for when changing it.
+- `CLAUDE.md` / `AGENTS.md`: rules and a map of the code for coding agents.
+- `ROADMAP.md`: what is planned.
 
 ## Roadmap
 
-- Category lists driven by the `categories` table everywhere.
-- Debts: credit cards, payoff simulator, due-date reminders.
-- Recurring subscription detection (the detection logic exists but is not shown in the app yet).
-- Live exchange rates, as an optional network call that sends no user data.
+See [ROADMAP.md](ROADMAP.md).

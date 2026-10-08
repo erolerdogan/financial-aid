@@ -53,7 +53,7 @@ export function TabSwipeProvider({ children }: { children: React.ReactNode }) {
       Keyboard.dismiss();
       Haptics.selectionAsync().catch(() => {});
       // Coming from Trends the Plan tab opens on Debts, so the order stays Trends → Debts → Future Growth.
-      if (target === '/debts') router.navigate({ pathname: '/debts', params: { segment: 'debts' } });
+      if (target === '/debts') router.navigate({ pathname: '/debts', params: { segment: 'health' } });
       else router.navigate(target);
     },
     [pathname, router]

@@ -152,6 +152,10 @@ export function InboxHost() {
       case 'UNCATEGORISED':
         router.push('/review');
         break;
+      case 'HEALTH_ALERT':
+        // The Health segment lists the same alerts with "Don't alert me about this".
+        router.navigate({ pathname: '/debts', params: { segment: 'health' } });
+        break;
       case 'PARTIAL_MONTH':
         await importStatement();
         break;

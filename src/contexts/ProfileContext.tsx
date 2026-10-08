@@ -1,5 +1,5 @@
 import {
-  clearAllData, convertDebtAmounts, createProfile,
+  clearAllData, convertDebtAmounts, convertHouseholdAmounts, createProfile,
   getProfiles,
   Profile,
   syncCategoryColors, updateProfileCurrency
@@ -281,7 +281,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
           [conversionFactor, activeProfile.id]
         );
         await convertDebtAmounts(db, activeProfile.id, conversionFactor);
-        
+        await convertHouseholdAmounts(db, activeProfile.id, conversionFactor);
       }
 
       await updateProfileCurrency(db, activeProfile.id, newCurrencyCode);

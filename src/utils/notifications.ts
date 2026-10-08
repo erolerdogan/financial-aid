@@ -90,3 +90,46 @@ export async function cancelCurrentMonthReminders() {
     console.error('Failed to cancel notifications:', error);
   }
 }
+const HEALTH_CHANNEL = 'health-alerts';
+
+/**
+ * Shows Budget Health alerts right away. Never asks for permission: that only happens when the user turns an
+ * alert type on (`requestHealthAlertPermission`). Delivered at once because the import flow cancels scheduled ones.
+ */
+export async function notifyHealthAlerts(bodies: string[]): Promise<void> {
+  if (bodies.length === 0) return;
+  try {
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== 'granted') return;
+
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync(HEALTH_CHANNEL, {
+        name: tNow('health.notification.channel'),
+        importance: Notifications.AndroidImportance.DEFAULT,
+      });
+    }
+
+    const title = tNow('health.title');
+    for (const body of bodies) {
+      await Notifications.scheduleNotificationAsync({
+        content: { title, body },
+        trigger: Platform.OS === 'android' ? { channelId: HEALTH_CHANNEL } : null,
+      });
+    }
+  } catch (error) {
+    console.error('Failed to show health alerts:', error);
+  }
+}
+
+/** Asked when the user turns an alert type on; false when notifications stay off. */
+export async function requestHealthAlertPermission(): Promise<boolean> {
+  try {
+    const existing = await Notifications.getPermissionsAsync();
+    if (existing.status === 'granted') return true;
+    const requested = await Notifications.requestPermissionsAsync();
+    return requested.status === 'granted';
+  } catch (error) {
+    console.error('Failed to request notification permission:', error);
+    return false;
+  }
+}

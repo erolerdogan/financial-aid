@@ -89,6 +89,13 @@ function AppInitializer() {
           presentation: 'modal',
         }}
       />
+      <Stack.Screen
+        name="health-report"
+        options={{
+          headerShown: false,
+          presentation: 'modal',
+        }}
+      />
     </Stack>
     <SharedImportHost />
     </>

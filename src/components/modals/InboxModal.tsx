@@ -3,6 +3,7 @@ import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { InboxItem } from '@/services/inboxService';
 import { getDebtTypeIcon } from '@/utils/debt';
+import { alertText } from '@/utils/healthAlertText';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -45,6 +46,8 @@ interface RowContent {
   title: string;
   subtitle: string;
   action: string;
+  /** Lines the subtitle may take; alert sentences are longer than the other rows' hints. */
+  subtitleLines?: number;
 }
 
 const dayOfMonth = (date: string) => String(parseInt(date.slice(8, 10), 10));
@@ -83,6 +86,19 @@ export function InboxModal({ visible, anchor, items, onClose, onAction, onDismis
 
   const describe = (item: InboxItem): RowContent => {
     switch (item.kind) {
+      case 'HEALTH_ALERT':
+        return {
+          icon:
+            item.alert.severity >= 3
+              ? 'alert-circle-outline'
+              : item.alert.severity === 2
+                ? 'information-circle-outline'
+                : 'happy-outline',
+          title: t(`health.alertType.${item.alert.type}`),
+          subtitle: alertText(item.alert.message, t, format, currencySymbol),
+          action: t('common.view'),
+          subtitleLines: 4,
+        };
       case 'DEBT_SUGGESTIONS': {
         const [first, ...rest] = item.suggestions;
         if (rest.length === 0) {
@@ -206,7 +222,10 @@ export function InboxModal({ visible, anchor, items, onClose, onAction, onDismis
                       <Text style={[styles.rowTitle, { color: colors.text }]} numberOfLines={2}>
                         {row.title}
                       </Text>
-                      <Text style={[styles.rowSubtitle, { color: colors.textSecondary }]} numberOfLines={2}>
+                      <Text
+                        style={[styles.rowSubtitle, { color: colors.textSecondary }]}
+                        numberOfLines={row.subtitleLines ?? 2}
+                      >
                         {row.subtitle}
                       </Text>
                     </View>

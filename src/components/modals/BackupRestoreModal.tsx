@@ -10,11 +10,15 @@ import {
   exportBackup,
   getLastBackupDate,
   getSafetyCopyDate,
+  LockedBackup,
   openSafetyCopy,
   PendingBackup,
   pickBackup,
   summarizeDatabase,
+  unlockBackup,
 } from '@/services/backupService';
+import { ExportFormat, exportTransactions } from '@/services/exportService';
+import { MIN_PASSWORD_LENGTH } from '@/utils/backupFormat';
 import type { TranslationKey } from '@/i18n';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -23,9 +27,13 @@ import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   StyleSheet,
+  Switch,
   Text,
+  TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
   View,
@@ -36,14 +44,21 @@ interface BackupRestoreModalProps {
   onClose: () => void;
 }
 
-type BusyAction = 'backup' | 'restore' | 'undo';
+type BusyAction = 'backup' | 'restore' | 'undo' | 'export';
 
-const NOTICE_SEEN_KEY = 'backupNoticeSeen';
+type Step = 'menu' | 'setPassword' | 'enterPassword';
+
+type PasswordError = 'backup.passwordTooShort' | 'backup.passwordMismatch';
+
+/** Last choice of the "Protect with a password" switch: '0' is off, anything else on. */
+const ENCRYPT_KEY = 'backupEncrypt';
+const ERROR_COLOR = '#FF3B30';
 
 const ERROR_MESSAGES: Record<BackupError['code'], TranslationKey> = {
   NOT_BACKUP: 'backup.error.notBackup',
   DAMAGED: 'backup.error.damaged',
   NEWER_VERSION: 'backup.error.newer',
+  WRONG_PASSWORD: 'backup.error.wrongPassword',
 };
 
 const DATE_OPTIONS: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short', year: 'numeric' };
@@ -51,7 +66,7 @@ const DATE_OPTIONS: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short
 export function BackupRestoreModal({ visible, onClose }: BackupRestoreModalProps) {
   const db = useSQLiteContext();
   const { colors } = useTheme();
-  const { t, format } = useI18n();
+  const { t, format, categoryName } = useI18n();
 
   const formatDate = (date: Date): string => format.date(date, DATE_OPTIONS);
   const formatDateKey = format.day;
@@ -63,9 +78,16 @@ export function BackupRestoreModal({ visible, onClose }: BackupRestoreModalProps
     summary.firstDate && summary.lastDate
       ? ` (${formatDateKey(summary.firstDate)} – ${formatDateKey(summary.lastDate)})`
       : '';
-  const { isDemoMode, reloadAfterRestore } = useProfile();
+  const { isDemoMode, reloadAfterRestore, activeProfile } = useProfile();
 
   const [busy, setBusy] = useState<BusyAction | null>(null);
+  const [step, setStep] = useState<Step>('menu');
+  const [protect, setProtect] = useState(true);
+  const [password, setPassword] = useState('');
+  const [repeat, setRepeat] = useState('');
+  const [passwordError, setPasswordError] = useState<PasswordError | null>(null);
+  const [locked, setLocked] = useState<LockedBackup | null>(null);
+  const [unlockFailed, setUnlockFailed] = useState(false);
   const [lastBackup, setLastBackup] = useState<Date | null>(null);
   const [safetyCopy, setSafetyCopy] = useState<Date | null>(null);
 
@@ -80,6 +102,33 @@ export function BackupRestoreModal({ visible, onClose }: BackupRestoreModalProps
 
   const disabled = busy !== null || isDemoMode;
 
+  /** Back to the three rows; typed passwords and a picked file are dropped. */
+  const resetStep = () => {
+    setStep('menu');
+    setPassword('');
+    setRepeat('');
+    setPasswordError(null);
+    setLocked(null);
+    setUnlockFailed(false);
+  };
+
+  const handleShow = () => {
+    resetStep();
+    refreshStatus();
+  };
+
+  const handleClose = () => {
+    if (busy) return;
+    resetStep();
+    onClose();
+  };
+
+  const handleRequestClose = () => {
+    if (busy) return;
+    if (step === 'menu') onClose();
+    else resetStep();
+  };
+
   const showError = (title: string, error: unknown) => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     const message =
@@ -88,13 +137,14 @@ export function BackupRestoreModal({ visible, onClose }: BackupRestoreModalProps
     Alert.alert(title, message);
   };
 
-  const runBackup = async () => {
+  const runBackup = async (secret?: string) => {
     setBusy('backup');
     try {
-      const saved = await exportBackup(db);
+      const saved = await exportBackup(db, secret);
       if (saved) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         await refreshStatus();
+        resetStep();
       }
     } catch (error) {
       showError(t('backup.failedTitle'), error);
@@ -105,24 +155,37 @@ export function BackupRestoreModal({ visible, onClose }: BackupRestoreModalProps
 
   const handleBackup = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (await getAppMeta(db, NOTICE_SEEN_KEY)) {
-      runBackup();
+    setProtect((await getAppMeta(db, ENCRYPT_KEY)) !== '0');
+    setStep('setPassword');
+  };
+
+  const handleToggleProtect = (value: boolean) => {
+    Haptics.selectionAsync();
+    setProtect(value);
+    setPasswordError(null);
+  };
+
+  const handleSubmitBackup = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (protect) {
+      const error: PasswordError | null =
+        password.length < MIN_PASSWORD_LENGTH
+          ? 'backup.passwordTooShort'
+          : password !== repeat
+            ? 'backup.passwordMismatch'
+            : null;
+      setPasswordError(error);
+      if (error) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        return;
+      }
+      await setAppMeta(db, ENCRYPT_KEY, '1');
+      runBackup(password);
       return;
     }
-    Alert.alert(
-      t('backup.noticeTitle'),
-      t('backup.noticeMessage'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('common.continue'),
-          onPress: async () => {
-            await setAppMeta(db, NOTICE_SEEN_KEY, '1');
-            runBackup();
-          },
-        },
-      ]
-    );
+
+    await setAppMeta(db, ENCRYPT_KEY, '0');
+    runBackup();
   };
 
   const apply = async (backup: PendingBackup, action: BusyAction) => {
@@ -192,12 +255,79 @@ export function BackupRestoreModal({ visible, onClose }: BackupRestoreModalProps
     setBusy('restore');
     try {
       const backup = await pickBackup();
-      if (backup) await confirmReplace(backup, 'restore');
+      if (!backup) return;
+      if ('locked' in backup) {
+        setLocked(backup);
+        setStep('enterPassword');
+      } else {
+        await confirmReplace(backup, 'restore');
+      }
     } catch (error) {
       showError(t('backup.cannotRestoreTitle'), error);
     } finally {
       setBusy(null);
     }
+  };
+
+  const handleUnlock = async () => {
+    if (!locked || password.length === 0) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setUnlockFailed(false);
+    setBusy('restore');
+    try {
+      const backup = await unlockBackup(locked, password);
+      resetStep();
+      await confirmReplace(backup, 'restore');
+    } catch (error) {
+      if (error instanceof BackupError && error.code === 'WRONG_PASSWORD') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        setUnlockFailed(true);
+      } else {
+        resetStep();
+        showError(t('backup.cannotRestoreTitle'), error);
+      }
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const runExport = async (exportFormat: ExportFormat) => {
+    if (!activeProfile) return;
+    setBusy('export');
+    try {
+      const result = await exportTransactions(db, {
+        profileId: activeProfile.id,
+        profileName: activeProfile.name,
+        format: exportFormat,
+        sheetName: t('backup.sheetName'),
+        labels: {
+          date: t('backup.column.date'),
+          merchant: t('backup.column.merchant'),
+          category: t('backup.column.category'),
+          amount: t('backup.column.amount'),
+          description: t('backup.column.description'),
+          categoryName,
+        },
+      });
+      if (result === 'SAVED') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else if (result === 'EMPTY') {
+        Alert.alert(t('backup.exportEmptyTitle'), t('backup.exportEmptyMessage'));
+      }
+    } catch (error) {
+      showError(t('backup.exportFailedTitle'), error);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleExport = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Alert.alert(t('backup.export'), t('backup.exportMessage'), [
+      { text: t('backup.exportCsv'), onPress: () => runExport('csv') },
+      { text: t('backup.exportExcel'), onPress: () => runExport('xlsx') },
+      { text: t('common.cancel'), style: 'cancel' },
+    ]);
   };
 
   const handleUndo = async () => {
@@ -241,61 +371,194 @@ export function BackupRestoreModal({ visible, onClose }: BackupRestoreModalProps
     </TouchableOpacity>
   );
 
-  return (
-    <Modal visible={visible} transparent animationType="slide" onShow={refreshStatus} onRequestClose={onClose}>
-      <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={busy ? undefined : onClose}>
-        <TouchableWithoutFeedback>
-          <View style={[styles.sheet, { backgroundColor: colors.card }]}>
-            <View style={styles.header}>
-              <View style={[styles.handle, { backgroundColor: colors.border }]} />
-              <Text style={[styles.title, { color: colors.text }]}>{t('settings.backup')}</Text>
-            </View>
+  const renderField = (
+    value: string,
+    onChangeText: (text: string) => void,
+    placeholder: string,
+    options: { isNew: boolean; autoFocus?: boolean; onSubmit?: () => void }
+  ) => (
+    <TextInput
+      style={[styles.input, { backgroundColor: colors.surface, color: colors.text, borderColor: colors.border }]}
+      value={value}
+      onChangeText={onChangeText}
+      placeholder={placeholder}
+      placeholderTextColor={colors.textSecondary}
+      secureTextEntry
+      autoCapitalize="none"
+      autoCorrect={false}
+      textContentType={options.isNew ? 'newPassword' : 'password'}
+      autoFocus={options.autoFocus}
+      editable={busy === null}
+      returnKeyType="done"
+      onSubmitEditing={options.onSubmit}
+    />
+  );
 
-            {renderRow(
-              'backup',
-              'cloud-upload-outline',
-              t('backup.backUp'),
-              lastBackup ? t('backup.lastBackup', { date: formatDate(lastBackup) }) : t('backup.never'),
-              handleBackup
-            )}
-
-            <View style={[styles.divider, { backgroundColor: colors.border }]} />
-
-            {renderRow(
-              'restore',
-              'cloud-download-outline',
-              t('backup.restoreFrom'),
-              t('backup.restoreSub'),
-              handleRestore
-            )}
-
-            {safetyCopy && (
-              <>
-                <View style={[styles.divider, { backgroundColor: colors.border }]} />
-                {renderRow(
-                  'undo',
-                  'arrow-undo-outline',
-                  t('backup.undo'),
-                  t('backup.undoSub', { date: formatDate(safetyCopy) }),
-                  handleUndo
-                )}
-              </>
-            )}
-
-            <Text style={[styles.footer, { color: colors.textSecondary }]}>
-              {isDemoMode
-                ? t('backup.demoNote')
-                : t('backup.footer')}
-            </Text>
-          </View>
-        </TouchableWithoutFeedback>
+  const renderActions = (action: BusyAction, label: string, onPress: () => void, enabled: boolean) => (
+    <View style={styles.actionRow}>
+      <TouchableOpacity
+        style={[styles.actionBtn, { backgroundColor: colors.track }, busy !== null && styles.rowDisabled]}
+        onPress={resetStep}
+        disabled={busy !== null}
+      >
+        <Text style={[styles.actionText, { color: colors.text }]}>{t('common.cancel')}</Text>
       </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.actionBtn, { backgroundColor: colors.accent }, !enabled && busy === null && styles.rowDisabled]}
+        onPress={onPress}
+        disabled={busy !== null || !enabled}
+      >
+        {busy === action ? (
+          <ActivityIndicator size="small" color="#FFFFFF" />
+        ) : (
+          <Text style={[styles.actionText, styles.primaryText]}>{label}</Text>
+        )}
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderMenu = () => (
+    <>
+      <View style={styles.header}>
+        <View style={[styles.handle, { backgroundColor: colors.border }]} />
+        <Text style={[styles.title, { color: colors.text }]}>{t('settings.backup')}</Text>
+      </View>
+
+      {renderRow(
+        'backup',
+        'cloud-upload-outline',
+        t('backup.backUp'),
+        lastBackup ? t('backup.lastBackup', { date: formatDate(lastBackup) }) : t('backup.never'),
+        handleBackup
+      )}
+
+      <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+      {renderRow(
+        'restore',
+        'cloud-download-outline',
+        t('backup.restoreFrom'),
+        t('backup.restoreSub'),
+        handleRestore
+      )}
+
+      {safetyCopy && (
+        <>
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
+          {renderRow(
+            'undo',
+            'arrow-undo-outline',
+            t('backup.undo'),
+            t('backup.undoSub', { date: formatDate(safetyCopy) }),
+            handleUndo
+          )}
+        </>
+      )}
+
+      <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+      {renderRow(
+        'export',
+        'download-outline',
+        t('backup.export'),
+        t('backup.exportSub', { profile: activeProfile?.name ?? '' }),
+        handleExport
+      )}
+
+      <Text style={[styles.footer, { color: colors.textSecondary }]}>
+        {isDemoMode
+          ? t('backup.demoNote')
+          : t('backup.footer')}
+      </Text>
+    </>
+  );
+
+  const renderSetPassword = () => (
+    <>
+      <View style={styles.header}>
+        <View style={[styles.handle, { backgroundColor: colors.border }]} />
+        <Text style={[styles.title, { color: colors.text }]}>{t('backup.backUp')}</Text>
+      </View>
+
+      <View style={styles.row}>
+        <View style={styles.rowText}>
+          <Text style={[styles.rowTitle, { color: colors.text }]}>{t('backup.protect')}</Text>
+          <Text style={[styles.rowSub, { color: colors.textSecondary }]}>{t('backup.protectSub')}</Text>
+        </View>
+        <Switch
+          value={protect}
+          onValueChange={handleToggleProtect}
+          disabled={busy !== null}
+          trackColor={{ false: '#78788029', true: colors.accent }}
+          thumbColor="#FFFFFF"
+          ios_backgroundColor="#78788029"
+        />
+      </View>
+
+      {protect ? (
+        <>
+          {renderField(password, setPassword, t('backup.password'), { isNew: true, autoFocus: true })}
+          {renderField(repeat, setRepeat, t('backup.passwordRepeat'), { isNew: true, onSubmit: handleSubmitBackup })}
+          {passwordError && (
+            <Text style={[styles.note, { color: ERROR_COLOR }]}>
+              {t(passwordError, { min: MIN_PASSWORD_LENGTH })}
+            </Text>
+          )}
+          <Text style={[styles.note, { color: colors.textSecondary }]}>{t('backup.passwordWarning')}</Text>
+        </>
+      ) : (
+        <Text style={[styles.note, { color: colors.textSecondary }]}>{t('backup.noticeMessage')}</Text>
+      )}
+
+      {renderActions('backup', t('backup.backUp'), handleSubmitBackup, true)}
+    </>
+  );
+
+  const renderEnterPassword = () => (
+    <>
+      <View style={styles.header}>
+        <View style={[styles.handle, { backgroundColor: colors.border }]} />
+        <Text style={[styles.title, { color: colors.text }]}>{t('backup.unlockTitle')}</Text>
+      </View>
+
+      <Text style={[styles.note, { color: colors.textSecondary }]}>{t('backup.unlockSub')}</Text>
+      {renderField(password, setPassword, t('backup.password'), {
+        isNew: false,
+        autoFocus: true,
+        onSubmit: handleUnlock,
+      })}
+      {unlockFailed && (
+        <Text style={[styles.note, { color: ERROR_COLOR }]}>
+          {`${t('backup.error.wrongPassword')} ${t('backup.unchanged')}`}
+        </Text>
+      )}
+
+      {renderActions('restore', t('backup.unlock'), handleUnlock, password.length > 0)}
+    </>
+  );
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onShow={handleShow} onRequestClose={handleRequestClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.overlay}>
+        <TouchableOpacity style={styles.dismissArea} activeOpacity={1} onPress={handleClose}>
+          <TouchableWithoutFeedback>
+            <View style={[styles.sheet, { backgroundColor: colors.card }]}>
+              {step === 'setPassword'
+                ? renderSetPassword()
+                : step === 'enterPassword'
+                  ? renderEnterPassword()
+                  : renderMenu()}
+            </View>
+          </TouchableWithoutFeedback>
+        </TouchableOpacity>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
+  dismissArea: { flex: 1, justifyContent: 'flex-end' },
   sheet: {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
@@ -320,4 +583,17 @@ const styles = StyleSheet.create({
   },
   divider: { height: StyleSheet.hairlineWidth },
   footer: { fontSize: 12, lineHeight: 16, marginTop: 12 },
+  input: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 16,
+    marginTop: 8,
+  },
+  note: { fontSize: 12, lineHeight: 16, marginTop: 8 },
+  actionRow: { flexDirection: 'row', gap: 12, marginTop: 20 },
+  actionBtn: { flex: 1, height: 48, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  actionText: { fontSize: 15, fontWeight: '600' },
+  primaryText: { color: '#FFFFFF' },
 });

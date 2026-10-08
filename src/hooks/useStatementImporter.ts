@@ -2,6 +2,7 @@ import { useImportResult } from '@/contexts/ImportResultContext';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { getCustomRules, getLearnedCategories, getProfiles, Profile } from '@/db/database';
+import { runHealthAlerts } from '@/services/healthService';
 import { parseFileToTransactions, processBatchImport } from '@/services/importService';
 import { cancelCurrentMonthReminders } from '@/utils/notifications';
 import { UNSUPPORTED_MESSAGE_KEYS, UnsupportedFileError } from '@/utils/statementFormat';
@@ -78,10 +79,19 @@ export function useStatementImporter(options?: UseStatementImporterOptions) {
     // Import strictly bound to targetProfileId
     const summary = await processBatchImport(db, parsedTransactions, targetProfileId, bank);
 
+    await cancelCurrentMonthReminders();
+
+    // After the reminders are cleared (these are shown at once, not scheduled) and before the refresh,
+    // so Home reloads with the new alerts already stored.
+    try {
+      await runHealthAlerts(db, targetProfileId);
+    } catch (error) {
+      console.error('Failed to run health alerts after import:', error);
+    }
+
     // Ensure target profile is explicitly active in state and refresh context
     switchProfile(targetProfile);
     await refreshProfiles();
-    await cancelCurrentMonthReminders();
 
     if (options?.onSuccess) {
       await options.onSuccess();

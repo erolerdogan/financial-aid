@@ -1,5 +1,6 @@
 import { DebtProgressBar } from '@/components/debts/DebtProgressBar';
 import { FreedomScreen } from '@/components/freedom/FreedomScreen';
+import { HealthScreen } from '@/components/health/HealthScreen';
 import { HeaderActions } from '@/components/HeaderActions';
 import { DebtDetailModal } from '@/components/modals/DebtDetailModal';
 import { DebtFormModal, DebtPrefill } from '@/components/modals/DebtFormModal';
@@ -30,9 +31,10 @@ import Swipeable, { SwipeableMethods } from 'react-native-gesture-handler/Reanim
 
 const MAX_SUGGESTIONS = 3;
 
-type PlanSegment = 'DEBTS' | 'FREEDOM';
+type PlanSegment = 'HEALTH' | 'DEBTS' | 'FREEDOM';
 
 const SEGMENTS: { key: PlanSegment; label: TranslationKey }[] = [
+  { key: 'HEALTH', label: 'health.cardTitle' },
   { key: 'DEBTS', label: 'home.debts.title' },
   { key: 'FREEDOM', label: 'freedom.name' },
 ];
@@ -41,12 +43,12 @@ export default function DebtsScreen() {
   const db = useSQLiteContext();
   const router = useRouter();
   const { segment: segmentParam } = useLocalSearchParams<{ segment?: string }>();
-  const [segment, setSegment] = useState<PlanSegment>('DEBTS');
+  const [segment, setSegment] = useState<PlanSegment>('HEALTH');
 
   // Links from Home and the inbox ask for a segment; the param is cleared so the next link fires again.
   useEffect(() => {
-    if (segmentParam !== 'debts' && segmentParam !== 'freedom') return;
-    setSegment(segmentParam === 'freedom' ? 'FREEDOM' : 'DEBTS');
+    if (segmentParam !== 'health' && segmentParam !== 'debts' && segmentParam !== 'freedom') return;
+    setSegment(segmentParam === 'freedom' ? 'FREEDOM' : segmentParam === 'health' ? 'HEALTH' : 'DEBTS');
     router.setParams({ segment: undefined });
   }, [segmentParam, router]);
 
@@ -58,15 +60,11 @@ export default function DebtsScreen() {
 
   // A swipe steps through the segments before it leaves the tab.
   useTabSwipeInterceptor((direction) => {
-    if (direction === 'next' && segment === 'DEBTS') {
-      selectSegment('FREEDOM');
-      return true;
-    }
-    if (direction === 'prev' && segment === 'FREEDOM') {
-      selectSegment('DEBTS');
-      return true;
-    }
-    return false;
+    const index = SEGMENTS.findIndex((item) => item.key === segment);
+    const target = SEGMENTS[index + (direction === 'next' ? 1 : -1)];
+    if (!target) return false;
+    selectSegment(target.key);
+    return true;
   });
 
   const { colors } = useTheme();
@@ -321,6 +319,9 @@ export default function DebtsScreen() {
                   { color: colors.textSecondary },
                   active && [styles.segmentTextActive, { color: colors.text }],
                 ]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.8}
               >
                 {t(label)}
               </Text>
@@ -329,7 +330,9 @@ export default function DebtsScreen() {
         })}
       </View>
 
-      {segment === 'FREEDOM' ? (
+      {segment === 'HEALTH' ? (
+        <HealthScreen />
+      ) : segment === 'FREEDOM' ? (
         <FreedomScreen />
       ) : loading ? (
         <View style={styles.centered}>
@@ -472,7 +475,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginBottom: 12,
   },
-  segmentBtn: { flex: 1, paddingVertical: 7, alignItems: 'center', borderRadius: 8 },
+  segmentBtn: { flex: 1, paddingVertical: 7, paddingHorizontal: 4, alignItems: 'center', borderRadius: 8 },
   segmentBtnActive: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
