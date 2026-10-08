@@ -32,7 +32,7 @@ Debt math and payment linking: bottom of `src/db/database.ts`. UI helpers: `src/
 - Cards on the Debts tab are wrapped in `ReanimatedSwipeable`: swipe left for Edit (opens `DebtFormModal`) and Delete (confirms, then `deleteDebt`). One row is open at a time.
 - `GestureHandlerRootView` wraps the app in `src/app/_layout.tsx`.
 - The `Swipeable` rows block the tab swipe (see [navigation.md](navigation.md)).
-- The live detail modal is `src/components/modals/DebtDetailModal.tsx`. `src/components/components/modals/DebtDetailModal.tsx` is a stray duplicate.
+- The detail modal is `src/components/modals/DebtDetailModal.tsx`.
 
 ## Suggestions
 

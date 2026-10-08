@@ -55,8 +55,7 @@ Naming traps:
 - Budgets is `src/app/goals.tsx`. Home is `src/app/(tabs)/index.tsx`. Transactions is `src/app/transactions.tsx`, a pushed screen, not a tab.
 - Freedom keys keep old names: Outlook is `PESSIMISTIC | NEUTRAL | OPTIMISTIC`, the prices switch is `ValueMode` `NOMINAL | REAL`, Starting amount is `lumpSum`.
 - `getAllTransactionsByDate` has an unused `type` argument; the Transactions screen has no type filter.
-- Not wired up (exists, nothing renders or calls it; left in English): `RecurringSuggestionsModal`, `CategoryDetailModal`, `EditCategoryModal`, `MonthSelector` (all in `src/components/`), `dashboard/CommitmentLink`, and `detectRecurringPatterns` / `getRecurringCandidates` in `database.ts`.
-- `src/components/components/modals/DebtDetailModal.tsx` is a stray duplicate; the live one is `src/components/modals/DebtDetailModal.tsx`.
+- Not wired up (exists, nothing calls it): `detectRecurringPatterns` / `getRecurringCandidates` in `database.ts`.
 
 ## Feature docs
 | File | Covers |

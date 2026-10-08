@@ -9,7 +9,7 @@ Status notes were checked against the code on 2026-10-07.
 
 ## Partly done
 
-- **Recurring subscription detection.** The `new_recurring` Budget Health alert already reports a new recurring charge after an import. The dedicated flow is still not wired up: `RecurringSuggestionsModal`, `detectRecurringPatterns` and `getRecurringCandidates` exist but nothing renders or calls them. Decide whether the alert is enough or the modal should be finished.
+- **Recurring subscription detection.** The `new_recurring` Budget Health alert already reports a new recurring charge after an import. There is no dedicated flow: `detectRecurringPatterns` and `getRecurringCandidates` exist in `database.ts` but nothing calls them, and the unfinished `RecurringSuggestionsModal` was removed. Decide whether the alert is enough or a suggestions screen should be built on those queries.
 
 ## Looks done (confirm, then remove)
 
