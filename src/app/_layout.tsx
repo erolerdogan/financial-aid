@@ -7,15 +7,18 @@ import { LanguageProvider } from '@/contexts/LanguageContext';
 import { PasscodeProvider } from '@/contexts/PasscodeContext';
 import { PeriodProvider } from '@/contexts/PeriodContext';
 import { ProfileProvider, useProfile } from '@/contexts/ProfileContext';
-import { ThemeProvider } from '@/contexts/ThemeContext';
+import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import { initDatabase } from '@/db/database';
 import { requestAndScheduleImportReminders } from '@/utils/notifications';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, usePathname, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { SQLiteProvider, useSQLiteContext } from 'expo-sqlite';
-import React, { Suspense, useEffect, useRef, useState } from 'react';
-import { StyleSheet } from 'react-native';
+import React, { Suspense, useEffect, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+
+// Welcome normally shows within a frame; the cover never stays longer than this.
+const ROUTE_TIMEOUT_MS = 1000;
 
 SplashScreen.preventAutoHideAsync().catch(() => {
   /* ignore error if called multiple times in fast-refresh */
@@ -24,9 +27,14 @@ SplashScreen.preventAutoHideAsync().catch(() => {
 function AppInitializer() {
   const db = useSQLiteContext();
   const router = useRouter();
+  const pathname = usePathname();
+  const { colors } = useTheme();
   const { loadingProfiles, hasData, isDemoMode } = useProfile();
-  const [isReady, setIsReady] = useState(false);
-  const routedRef = useRef(false);
+  // Decided once per launch: 'welcome' lasts from the redirect until that screen is the one on top.
+  const [launch, setLaunch] = useState<'pending' | 'welcome' | 'ready'>('pending');
+  if (launch === 'pending' && !loadingProfiles) setLaunch(hasData ? 'ready' : 'welcome');
+  if (launch === 'welcome' && pathname === '/welcome') setLaunch('ready');
+  const isReady = launch === 'ready';
 
   useEffect(() => {
     // Not in the demo workspace: nothing can be imported there.
@@ -37,14 +45,12 @@ function AppInitializer() {
   }, [db, loadingProfiles, isDemoMode]);
 
   useEffect(() => {
-    if (loadingProfiles || routedRef.current) return;
-    routedRef.current = true;
-
-    if (!hasData) {
-      router.replace('/welcome');
-    }
-    setIsReady(true);
-  }, [loadingProfiles, hasData, router]);
+    if (launch !== 'welcome') return;
+    // Home is mounted underneath and would show its empty state until Welcome is on top.
+    router.replace('/welcome');
+    const timer = setTimeout(() => setLaunch('ready'), ROUTE_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, [launch, router]);
 
   useEffect(() => {
     if (!isReady) return;
@@ -58,7 +64,15 @@ function AppInitializer() {
     <>
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="welcome" options={{ headerShown: false, gestureEnabled: false }} />
+      <Stack.Screen
+        name="welcome"
+        options={{
+          headerShown: false,
+          gestureEnabled: false,
+          // The launch redirect swaps in place; later visits (Reset, Exit Demo) animate.
+          animation: isReady ? 'default' : 'none',
+        }}
+      />
       <Stack.Screen name="transactions" options={{ headerShown: false }} />
       <Stack.Screen name="debt-plan" options={{ headerShown: false }} />
       <Stack.Screen
@@ -139,6 +153,8 @@ function AppInitializer() {
         }}
       />
     </Stack>
+    {/* A reload has no splash screen: hide Home until the first route is decided. */}
+    {!isReady && <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.background }]} />}
     <SharedImportHost />
     <PdfTextHost />
     <PasscodeLockHost />

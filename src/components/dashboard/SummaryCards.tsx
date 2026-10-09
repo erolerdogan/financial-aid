@@ -33,9 +33,10 @@ export function SummaryCards({
           style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
           activeOpacity={0.8}
           onPress={() => onPressCard('INCOME')}
+          accessibilityRole="button"
         >
           <Text style={[styles.label, { color: colors.textSecondary }]}>{t('home.totalIncome')}</Text>
-          <Text style={[styles.amount, { color: '#34C759' }]}>
+          <Text style={[styles.amount, { color: '#34C759' }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>
             {format.money(summary.totalIncome, currencySymbol, 2)}
           </Text>
         </TouchableOpacity>
@@ -44,9 +45,10 @@ export function SummaryCards({
           style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
           activeOpacity={0.8}
           onPress={() => onPressCard('EXPENSE')}
+          accessibilityRole="button"
         >
           <Text style={[styles.label, { color: colors.textSecondary }]}>{t('home.totalExpenses')}</Text>
-          <Text style={[styles.amount, { color: '#FF3B30' }]}>
+          <Text style={[styles.amount, { color: '#FF3B30' }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>
             {format.money(summary.totalExpenses, currencySymbol, 2)}
           </Text>
         </TouchableOpacity>
@@ -86,6 +88,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 18,
     flexDirection: 'row',
+    // With large text the amount moves under the label instead of running off the card.
+    flexWrap: 'wrap',
+    gap: 6,
     justifyContent: 'space-between',
     alignItems: 'center',
     borderWidth: StyleSheet.hairlineWidth,

@@ -437,13 +437,13 @@ export function DebtFormModal({ visible, debt, prefill, focusApr = false, onClos
       >
         <View style={styles.flex}>
           <View style={[styles.header, { borderBottomColor: colors.border }]}>
-            <TouchableOpacity onPress={onClose} hitSlop={8}>
+            <TouchableOpacity onPress={onClose} hitSlop={8} accessibilityRole="button">
               <Text style={[styles.headerAction, { color: colors.accent }]}>{t('common.cancel')}</Text>
             </TouchableOpacity>
             <SelectableText style={[styles.headerTitle, { color: colors.text }]}>
               {debt ? t('debt.form.editTitle') : t('debt.form.newTitle')}
             </SelectableText>
-            <TouchableOpacity onPress={handleSave} disabled={saving} hitSlop={8}>
+            <TouchableOpacity onPress={handleSave} disabled={saving} hitSlop={8} accessibilityRole="button">
               {saving ? (
                 <ActivityIndicator size="small" color={colors.accent} />
               ) : (
@@ -503,6 +503,7 @@ export function DebtFormModal({ visible, debt, prefill, focusApr = false, onClos
                   { backgroundColor: colors.accent },
                   keywordInput.trim().length === 0 && styles.disabled,
                 ]}
+                accessibilityRole="button"
               >
                 <Text style={styles.addKeywordText}>{editingKeyword !== null ? t('debt.form.update') : t('common.add')}</Text>
               </TouchableOpacity>
@@ -525,6 +526,7 @@ export function DebtFormModal({ visible, debt, prefill, focusApr = false, onClos
                       hitSlop={{ top: 8, bottom: 8, left: 8 }}
                       style={styles.chipLabel}
                       accessibilityLabel={t('debt.form.a11yEditKeyword', { keyword })}
+                      accessibilityRole="button"
                     >
                       <Text
                         style={[
@@ -538,7 +540,12 @@ export function DebtFormModal({ visible, debt, prefill, focusApr = false, onClos
                         {matches.filter((m) => m.keyword === keyword).length}
                       </Text>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => handleRemoveKeyword(keyword)} hitSlop={8}>
+                    <TouchableOpacity
+                      onPress={() => handleRemoveKeyword(keyword)}
+                      hitSlop={14}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('a11y.remove', { name: keyword })}
+                    >
                       <Ionicons name="close-circle" size={16} color={colors.textSecondary} />
                     </TouchableOpacity>
                   </View>
@@ -563,6 +570,8 @@ export function DebtFormModal({ visible, debt, prefill, focusApr = false, onClos
                       { backgroundColor: fieldBg, borderColor: colors.border },
                       isActive && { backgroundColor: colors.accent, borderColor: colors.accent },
                     ]}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: isActive }}
                   >
                     <Ionicons name={option.icon} size={15} color={isActive ? '#FFFFFF' : colors.textSecondary} />
                     <Text style={[styles.typeText, { color: isActive ? '#FFFFFF' : colors.text }]}>
@@ -688,11 +697,14 @@ export function DebtFormModal({ visible, debt, prefill, focusApr = false, onClos
 
             <SelectableText style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t('categoryForm.color')}</SelectableText>
             <View style={styles.swatchGrid}>
-              {CATEGORY_COLOR_PALETTE.map((swatch) => {
+              {CATEGORY_COLOR_PALETTE.map((swatch, index) => {
                 const isSelected = swatch === color;
                 return (
                   <TouchableOpacity
                     key={swatch}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('a11y.colorOption', { number: index + 1, total: CATEGORY_COLOR_PALETTE.length })}
+                    accessibilityState={{ selected: isSelected }}
                     activeOpacity={0.8}
                     style={[styles.swatchRing, isSelected && { borderColor: swatch }]}
                     onPress={() => {
@@ -764,6 +776,7 @@ export function DebtFormModal({ visible, debt, prefill, focusApr = false, onClos
                             onPress={() => toggleExcluded(match.id)}
                             hitSlop={10}
                             accessibilityLabel={isExcluded ? t('debt.form.a11yKeep') : t('debt.form.a11yUnlink')}
+                            accessibilityRole="button"
                           >
                             <Ionicons
                               name={isExcluded ? 'arrow-undo-circle-outline' : 'close-circle-outline'}
@@ -782,6 +795,7 @@ export function DebtFormModal({ visible, debt, prefill, focusApr = false, onClos
                           styles.previewRow,
                           { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
                         ]}
+                        accessibilityRole="button"
                       >
                         <Text style={[styles.showAllText, { color: colors.accent }]}>
                           {showAllMatches ? t('debt.form.showFewer') : t('debt.form.showAll', { count: payable.length })}
@@ -848,6 +862,7 @@ export function DebtFormModal({ visible, debt, prefill, focusApr = false, onClos
                                 { borderColor: colors.accent },
                                 isAdded && { backgroundColor: colors.accent },
                               ]}
+                              accessibilityRole="button"
                             >
                               <Text style={[styles.possibleBtnText, { color: isAdded ? '#FFFFFF' : colors.accent }]}>
                                 {isAdded ? t('debt.form.added') : t('common.add')}
@@ -882,6 +897,7 @@ export function DebtFormModal({ visible, debt, prefill, focusApr = false, onClos
                 activeOpacity={0.8}
                 style={[styles.dangerRow, { backgroundColor: colors.card }]}
                 onPress={handleDelete}
+                accessibilityRole="button"
               >
                 <Ionicons name="trash-outline" size={18} color="#FF3B30" />
                 <Text style={styles.dangerText}>{t('debt.form.delete')}</Text>

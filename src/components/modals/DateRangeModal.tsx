@@ -204,9 +204,12 @@ export function DateRangeModal({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
-        <TouchableWithoutFeedback>
-          <View style={[styles.sheet, { backgroundColor: colors.card }]}>
+      <TouchableOpacity style={styles.overlay} activeOpacity={1} accessible={false} onPress={onClose}>
+        <TouchableWithoutFeedback accessible={false}>
+          <View
+            style={[styles.sheet, { backgroundColor: colors.card }]}
+            onAccessibilityEscape={onClose}
+          >
             <View style={styles.header}>
               <View style={[styles.handle, { backgroundColor: colors.border }]} />
               <SelectableText style={[styles.title, { color: colors.text }]}>{t('range.title')}</SelectableText>
@@ -222,6 +225,7 @@ export function DateRangeModal({
                   activeOpacity={0.7}
                   style={[styles.presetChip, { backgroundColor: chipBg }]}
                   onPress={preset.run}
+                  accessibilityRole="button"
                 >
                   <Text style={[styles.presetText, { color: colors.text }]}>{preset.label}</Text>
                 </TouchableOpacity>
@@ -232,6 +236,11 @@ export function DateRangeModal({
               <TouchableOpacity
                 onPress={() => shiftCursor(-1)}
                 disabled={!showArrows || !canGoPrev}
+                accessibilityRole="button"
+                accessibilityLabel={t('a11y.previous')}
+                accessibilityState={{ disabled: !showArrows || !canGoPrev }}
+                accessibilityElementsHidden={!showArrows}
+                importantForAccessibility={showArrows ? 'auto' : 'no-hide-descendants'}
                 hitSlop={10}
                 style={[
                   styles.navBtn,
@@ -255,6 +264,11 @@ export function DateRangeModal({
               <TouchableOpacity
                 onPress={() => shiftCursor(1)}
                 disabled={!showArrows || !canGoNext}
+                accessibilityRole="button"
+                accessibilityLabel={t('a11y.next')}
+                accessibilityState={{ disabled: !showArrows || !canGoNext }}
+                accessibilityElementsHidden={!showArrows}
+                importantForAccessibility={showArrows ? 'auto' : 'no-hide-descendants'}
                 hitSlop={10}
                 style={[
                   styles.navBtn,
@@ -298,6 +312,7 @@ export function DateRangeModal({
                           inRange && { backgroundColor: colors.tintBackground },
                           disabled && styles.cellDisabled,
                         ]}
+                        accessibilityRole="button"
                       >
                         <View style={[styles.dayCircle, isEdge && { backgroundColor: colors.accent }]}>
                           <Text
@@ -390,6 +405,7 @@ export function DateRangeModal({
                 activeOpacity={0.8}
                 style={[styles.footerBtn, { backgroundColor: chipBg }]}
                 onPress={onClose}
+                accessibilityRole="button"
               >
                 <Text style={[styles.footerBtnText, { color: colors.text }]}>{t('common.cancel')}</Text>
               </TouchableOpacity>
@@ -402,6 +418,7 @@ export function DateRangeModal({
                   !start && styles.footerBtnDisabled,
                 ]}
                 onPress={handleApply}
+                accessibilityRole="button"
               >
                 <Text style={[styles.footerBtnText, { color: '#FFFFFF' }]}>{t('common.apply')}</Text>
               </TouchableOpacity>

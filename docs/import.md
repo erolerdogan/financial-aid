@@ -18,9 +18,15 @@ Categorisation of the imported rows is in [classifier.md](classifier.md). Debt p
 ## Dedup
 
 - Import dedup relies on the unique index `(date, amount, rawDescription, profileId)`.
+- `insertTransactions` writes 50 rows per `INSERT OR IGNORE` statement; the inserted count is the statement's `changes`, the rest of the chunk counts as skipped.
 - `rawDescription` is name + memo cells joined. `legacyRawDescription` (the single cell older versions stored) is only used by `processBatchImport` for dedup and is not stored.
 - A bank format must not change the dedup key of rows already stored. Where its amount, date or text differs from what the generic header guess produced, the row carries `previousKeys` (date, amount, text as the generic guess read them) and `processBatchImport` treats a stored match as a duplicate.
 - ING, Rabobank, bunq, ABN AMRO and N26 read the same text as before (the tests assert no `previousKeys`).
+- The generic reading changed twice; rows stored by the earlier reading are recognised through `previousKeys`, which every row now gets when `readRow(…, { legacySign: true })` without a file date order reads it differently:
+  - Date order is decided per file (`detectDateOrder`): one `25/06/2026` makes every `03/04/2026` day first and unflagged, one `06/25/2026` makes them month first. Before, each row was read on its own, so a month-first file got day-first dates on every row with a day up to 12. A file that proves neither order, or both, is read day first with `dateAmbiguous` as before. A bank format's `dayFirst` comes first.
+  - A minus sign after a currency symbol (`€ -45,00`), at the end (`45,00-`) or typographic (`−45,00`) makes the amount negative. Before, only a minus as the first character did.
+- A date no calendar has (`2026-13-45`, `2026-02-30`) is not a row.
+- Not handled: two bookings in a CSV with the same date, amount and text are stored once (the dedup key cannot tell them apart; PDF rows are numbered for this). A CSV imported after the PDF statement of the same period is stored again, because only PDF rows carry `crossKeys`. A date with a two-digit year is not read.
 - PDF rows carry `crossKeys` (see [PDF statements](#pdf-statements)): a PDF row that misses the exact key is still skipped when a stored row has the same date and amount and the same counterparty IBAN, card terminal reference (`NR:…`) or card time stamp. These are counted apart, as `possibleDuplicateCount` ("N possible duplicates skipped").
 
 ## Unsupported files
@@ -116,4 +122,4 @@ Known limits:
 - Nothing is imported into the demo workspace, so it gets no health alerts, no backup reminder and no partial-month row in For You (`getInboxItems` with `isDemo`).
 - Import is blocked in `useStatementImporter` itself: `importStatement` returns, `importSharedFile` (share sheet) shows an alert. The hook returns `importDisabled`; every Import button uses it to gray out.
 - Also off in demo mode (grayed, opacity 0.4, with `settings.demoNote` under the Data card): Settings rows Import, Backup & Restore, Reset, the active profile row and the Import Reminders switch; the profile pill in `HeaderActions`. Reminders are not scheduled at launch. The export guide stays readable.
-- Why profiles and Reset are off: the demo profile is found by its name, a profile added there would be a real one inside demo mode, and Reset would leave `isDemoMode` on. "Exit Demo" is the only way out.
+- Why profiles and Reset are off: the demo profile is found by its name, a profile added there would be a real one inside demo mode, and Reset would leave `isDemoMode` on. "Exit Demo" is the only way out. It removes the demo profile and its data only; the user's own profiles are kept ([navigation.md](navigation.md)).

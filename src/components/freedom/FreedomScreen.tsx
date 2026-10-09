@@ -1,3 +1,4 @@
+import { CashComparison } from '@/components/freedom/CashComparison';
 import { DisclosureRow } from '@/components/freedom/DisclosureRow';
 import {
   ADVANCED_FIELD_KEYS,
@@ -15,7 +16,7 @@ import { ImpactSection, type ValueMode } from '@/components/freedom/ImpactSectio
 import { ResultCards } from '@/components/freedom/ResultCards';
 import { ScenarioSelector } from '@/components/freedom/ScenarioSelector';
 import { YearlyTable } from '@/components/freedom/YearlyTable';
-import { ProGate } from '@/components/pro/ProGate';
+import { ReadOnlyNote } from '@/components/pro/ReadOnlySheet';
 import { SelectableText } from '@/components/SelectableText';
 import { useEntitlement } from '@/contexts/EntitlementContext';
 import { useProfile } from '@/contexts/ProfileContext';
@@ -25,6 +26,7 @@ import {
   DEFAULT_FREEDOM_PLAN,
   getAppMeta,
   getFreedomPlan,
+  getSavedFreedomPlan,
   saveFreedomPlan,
   setAppMeta,
   type FreedomPlan,
@@ -33,6 +35,7 @@ import { usePaywall } from '@/hooks/usePaywall';
 import { useProfileAccess } from '@/hooks/useProfileAccess';
 import { parseNumber } from '@/utils/debt';
 import {
+  cashComparison,
   clampYears,
   compareScenarios,
   feeImpact,
@@ -70,12 +73,15 @@ export function FreedomScreen() {
   const db = useSQLiteContext();
   const { colors } = useTheme();
   const { t } = useI18n();
-  const { activeProfile, dataVersion, currencySymbol } = useProfile();
+  const { activeProfile, dataVersion, currencySymbol, isDemoMode } = useProfile();
   const profileId = activeProfile?.id ?? 1;
-  const { can, source } = useEntitlement();
+  const { can } = useEntitlement();
   const { openPaywall } = usePaywall();
   const { readOnly, guardWrite } = useProfileAccess();
-  const canSeeDetails = can('growthDetails');
+  // Future Growth is a Pro feature. Without Pro the screen is read-only: the saved plan, or the default one as an example.
+  const locked = !can('futureGrowth');
+  // Null until read. Without a saved plan the read-only note says the numbers are an example.
+  const [hasSavedPlan, setHasSavedPlan] = useState<boolean | null>(null);
 
   const [draft, setDraft] = useState<FreedomDraft | null>(null);
   // The cards keep showing the last valid plan while a field is being edited into an invalid state.
@@ -114,9 +120,10 @@ export function FreedomScreen() {
   useEffect(() => {
     let cancelled = false;
     flushSave();
-    getFreedomPlan(db, profileId)
-      .then((plan) => {
+    Promise.all([getFreedomPlan(db, profileId), getSavedFreedomPlan(db, profileId)])
+      .then(([plan, saved]) => {
         if (cancelled) return;
+        setHasSavedPlan(saved !== null);
         setLastValid(plan);
         setDraft(planToDraft(plan));
         setLoadedSignature(`${profileId}|${dataVersion}`);
@@ -161,8 +168,7 @@ export function FreedomScreen() {
   }, [flushSave]);
 
   const errors = useMemo(() => (draft ? parseDraft(draft).errors : {}), [draft]);
-  // Today's prices are a Pro feature; without it every amount stays in future prices.
-  const real = mode === 'REAL' && can('growthRealPrices');
+  const real = mode === 'REAL';
   const years = clampYears(lastValid.years);
   const nominalRows = useMemo(() => projectGrowth(lastValid), [lastValid]);
   // Cards, chart and table all read these, so the toggle switches them together.
@@ -184,6 +190,17 @@ export function FreedomScreen() {
     if (!real) return impact;
     const deflate = (value: number) => toReal(value, lastValid.inflationPct, years);
     return { withoutFee: deflate(impact.withoutFee), withFee: deflate(impact.withFee), cost: deflate(impact.cost) };
+  }, [lastValid, real, years]);
+  // The same payments left as cash. `today` is that cash in today's money, whatever the mode.
+  const cash = useMemo(() => {
+    const comparison = cashComparison(lastValid);
+    const deflate = (value: number) => toReal(value, lastValid.inflationPct, years);
+    const today = deflate(comparison.cash);
+    if (!real) return { comparison, today };
+    return {
+      comparison: { invested: deflate(comparison.invested), cash: today, gain: deflate(comparison.gain) },
+      today,
+    };
   }, [lastValid, real, years]);
   // In Real mode the goal is in today's money, like every other amount on the screen.
   const goal = useMemo<GoalResult>(() => {
@@ -208,8 +225,8 @@ export function FreedomScreen() {
   const showOptions = optionsOpen || ADVANCED_FIELD_KEYS.some((key) => errors[key]);
 
   const applyDraft = (nextDraft: FreedomDraft, key?: FreedomFieldKey) => {
-    // A profile beyond the free limit: the plan is shown as saved and cannot be changed.
-    if (!guardWrite()) return;
+    // Without Pro, in the demo, or on a profile beyond the free limit: the plan is shown as saved and cannot be changed.
+    if (locked || isDemoMode || !guardWrite()) return;
     const next = parseDraft(nextDraft);
     setDraft(nextDraft);
 
@@ -253,10 +270,6 @@ export function FreedomScreen() {
   };
 
   const handleMode = (next: ValueMode) => {
-    if (next === 'REAL' && !can('growthRealPrices')) {
-      openPaywall('growth');
-      return;
-    }
     if (next === mode) return;
     Haptics.selectionAsync().catch(() => {});
     Keyboard.dismiss();
@@ -282,17 +295,24 @@ export function FreedomScreen() {
     setIntroVisible(true);
   };
 
-  // On a read-only profile the inputs do not take focus; a tap on them explains why.
+  const readOnlyNote = t(locked && hasSavedPlan === false ? 'pro.locked.examplePlan' : 'pro.readOnly.note');
+  // Without Pro or on a read-only profile the inputs do not take focus; a tap on them explains why.
+  const explainReadOnly = () => (locked ? openPaywall('growth') : guardWrite());
+  // In the demo they are grayed out, like the rows Settings switches off there.
   const editable = (node: React.ReactNode) =>
-    readOnly ? (
-      <Pressable onPress={() => guardWrite()} accessibilityRole="button" accessibilityLabel={t('pro.readOnly.note')}>
+    isDemoMode ? (
+      <View pointerEvents="none" style={styles.disabled}>
+        {node}
+      </View>
+    ) : locked || readOnly ? (
+      <Pressable onPress={explainReadOnly} accessibilityRole="button" accessibilityLabel={readOnlyNote}>
         <View pointerEvents="none">{node}</View>
       </Pressable>
     ) : (
       node
     );
 
-  if (introSeen === false) {
+  if (introSeen === false && !locked) {
     return <FreedomIntro currencySymbol={currencySymbol} actionLabel={t('freedom.intro.start')} onDone={handleIntroDone} />;
   }
 
@@ -332,6 +352,20 @@ export function FreedomScreen() {
         automaticallyAdjustKeyboardInsets
         showsVerticalScrollIndicator={false}
       >
+        {locked && (
+          <Pressable onPress={() => openPaywall('growth')} accessibilityRole="button">
+            {/* Nothing saved for this profile: the numbers are the default plan, not the user's. */}
+            <ReadOnlyNote text={readOnlyNote} />
+          </Pressable>
+        )}
+        {isDemoMode && (
+          <View style={[styles.demoNote, { backgroundColor: colors.surface }]}>
+            <Ionicons name="information-circle-outline" size={16} color={colors.textSecondary} />
+            <SelectableText style={[styles.demoNoteText, { color: colors.textSecondary }]}>
+              {t('freedom.demoNote')}
+            </SelectableText>
+          </View>
+        )}
         <TouchableOpacity
           activeOpacity={0.7}
           style={styles.introLink}
@@ -352,17 +386,14 @@ export function FreedomScreen() {
             currencySymbol={currencySymbol}
           />
         )}
-        <ProGate feature="growthScenarios" paywall="growth" label={t('freedom.outlook')}>
-          {editable(
-            <ScenarioSelector
-              scenarios={scenarios}
-              active={activeScenario}
-              onSelect={handleScenario}
-              currencySymbol={currencySymbol}
-              stale={stale}
-            />
-          )}
-        </ProGate>
+        <CashComparison
+          cash={cash.comparison}
+          cashToday={cash.today}
+          inflationPct={lastValid.inflationPct}
+          real={real}
+          currencySymbol={currencySymbol}
+          stale={stale}
+        />
         <ResultCards
           summary={summary}
           years={years}
@@ -370,8 +401,16 @@ export function FreedomScreen() {
           real={real}
           stale={stale}
         />
+        {editable(
+          <ScenarioSelector
+            scenarios={scenarios}
+            active={activeScenario}
+            onSelect={handleScenario}
+            currencySymbol={currencySymbol}
+            stale={stale}
+          />
+        )}
         <GrowthChart rows={rows} currencySymbol={currencySymbol} ready={chartReady} real={real} stale={stale} />
-        <ProGate feature="growthGoals" paywall="growth" label={t('freedom.field.goalBalance')}>
         {editable(
         <GoalSection
           key={profileId}
@@ -389,7 +428,6 @@ export function FreedomScreen() {
           stale={stale}
         />
         )}
-        </ProGate>
         <DisclosureRow
           title={t('freedom.moreOptions')}
           subtitle={t('freedom.moreOptionsSub')}
@@ -409,17 +447,14 @@ export function FreedomScreen() {
         <DisclosureRow
           title={t('freedom.details')}
           subtitle={t('freedom.detailsSub')}
-          expanded={detailsOpen && canSeeDetails}
-          onToggle={() => (canSeeDetails ? setDetailsOpen((value) => !value) : openPaywall('growth'))}
-          locked={!canSeeDetails}
-          pro={source === 'free'}
+          expanded={detailsOpen}
+          onToggle={() => setDetailsOpen((value) => !value)}
         />
-        {detailsOpen && canSeeDetails && (
+        {detailsOpen && (
           <>
             <ImpactSection
-              mode={real ? 'REAL' : 'NOMINAL'}
+              mode={mode}
               onModeChange={handleMode}
-              realLocked={!can('growthRealPrices')}
               inflationPct={lastValid.inflationPct}
               fee={fee}
               feePct={lastValid.feePct}
@@ -452,5 +487,15 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 20, paddingBottom: 40, gap: 12 },
   introLink: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-end', gap: 4 },
   introLinkText: { fontSize: 13, fontWeight: '600' },
+  disabled: { opacity: 0.4 },
+  demoNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  demoNoteText: { flex: 1, fontSize: 13, lineHeight: 18 },
   disclaimer: { fontSize: 12, textAlign: 'center', marginTop: 4 },
 });

@@ -18,7 +18,7 @@ export const de: FaqCopy = {
     'Lade ihn in der App oder auf der Website deiner Bank als CSV- oder Excel-Datei herunter. {settings} → {guide} zeigt die Schritte pro Bank, übernommen von den Hilfeseiten der jeweiligen Bank, und allgemeine Schritte für jede andere Bank.',
   'faq.start.demo.q': 'Kann ich die App ohne meine eigenen Daten ausprobieren?',
   'faq.start.demo.a':
-    'Ja. Der Willkommensbildschirm bietet {demo}: ein eigenes Profil mit drei Monaten Beispieltransaktionen und zwei Beispielschulden. Import, Backup, Zurücksetzen, Profilwechsel und Import-Erinnerungen sind dort ausgeschaltet. Du verlässt die Demo mit {exitDemo}.',
+    'Ja. Der Willkommensbildschirm bietet {demo}: ein eigenes Profil mit drei Monaten Beispieltransaktionen und zwei Beispielschulden. Import, Backup, Zurücksetzen, Profilwechsel und Import-Erinnerungen sind dort ausgeschaltet. Der Plan unter Zukunftswachstum lässt sich dort nicht ändern. Du verlässt die Demo mit {exitDemo}.',
 
   'faq.import.title': 'Kontoauszüge importieren',
   'faq.import.files.q': 'Welche Dateien kann ich importieren?',

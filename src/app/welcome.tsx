@@ -1,30 +1,89 @@
 import { ImportProgressOverlay } from '@/components/ImportProgressOverlay';
 import { BackupRestoreModal } from '@/components/modals/BackupRestoreModal';
+import { FirstStatementStep } from '@/components/profile/FirstStatementStep';
+import { ProfileSetup } from '@/components/profile/ProfileSetup';
 import { SelectableText } from '@/components/SelectableText';
 import { WelcomeIntro } from '@/components/welcome/WelcomeIntro';
 import { useI18n } from '@/contexts/LanguageContext';
-import { useProfile } from '@/contexts/ProfileContext';
+import { CURRENCY_SYMBOLS, useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { getAppMeta, setAppMeta } from '@/db/database';
+import { getAppMeta, getHousehold, saveHousehold, setAppMeta } from '@/db/database';
 import { useStatementImporter } from '@/hooks/useStatementImporter';
+import { AVATAR_COLORS, buildHousehold, defaultCurrency, setupSteps, type SetupAnswers } from '@/utils/profileSetup';
 import { WELCOME_INTRO_SEEN_KEY } from '@/utils/welcomeIntro';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import { useLocales } from 'expo-localization';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Animated, Easing, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Animated,
+  Easing,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const APP_ICON = require('../../assets/images/icon.png');
+// The questions of the first launch, and the import step after them.
+const SETUP_STEP_COUNT = setupSteps(true).length + 1;
 
 export default function WelcomeScreen() {
   const db = useSQLiteContext();
-  const { setIsDemoMode, refreshProfiles, activeProfile, profiles, switchProfile } = useProfile();
+  const {
+    setIsDemoMode,
+    refreshProfiles,
+    activeProfile,
+    profiles,
+    switchProfile,
+    editProfile,
+    updateCurrency,
+    loadingProfiles,
+    dataVersion,
+  } = useProfile();
+  const deviceLocales = useLocales();
   const { colors } = useTheme();
   const { t } = useI18n();
   const [restoreVisible, setRestoreVisible] = useState(false);
+  const [stage, setStage] = useState<'welcome' | 'questions' | 'import'>('welcome');
+  // Whether the profile questions were answered (a household row exists): "Get started" then opens the import step.
+  const [setupDone, setSetupDone] = useState(false);
+  // The questions stay mounted behind the import step, so going back finds the answers as they were typed.
+  const [questionsOpen, setQuestionsOpen] = useState(false);
+  const setupProfileId = (activeProfile ?? profiles[0])?.id;
+  // Coming back from the demo: continue on the import step when the questions are already answered.
+  const { resume } = useLocalSearchParams<{ resume?: string }>();
+  const resumePendingRef = useRef(resume === '1');
+
+  useEffect(() => {
+    // Leaving the demo lands here while the tables are dropped and rebuilt: wait until the profiles are back.
+    if (loadingProfiles || setupProfileId === undefined) return;
+    let active = true;
+    getHousehold(db, setupProfileId)
+      .then((household) => {
+        if (!active) return;
+        setSetupDone(household !== null);
+        if (resumePendingRef.current) {
+          resumePendingRef.current = false;
+          if (household !== null) setStage('import');
+        }
+      })
+      .catch(() => {
+        // Not readable means not answered: the questions are asked.
+        if (active) setSetupDone(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [db, setupProfileId, loadingProfiles, dataVersion]);
   // Null until read; false plays the intro before the screen.
   const [introSeen, setIntroSeen] = useState<boolean | null>(null);
   const [contentOpacity] = useState(() => new Animated.Value(1));
@@ -53,6 +112,37 @@ export default function WelcomeScreen() {
       router.replace('/(tabs)');
     },
   });
+
+  // A profile without household answers gets the questions first; the saved row marks them as asked.
+  const handleGetStarted = () => {
+    if (importing) return;
+    Haptics.selectionAsync().catch(() => {});
+    const ask = !setupDone && setupProfileId !== undefined;
+    setQuestionsOpen(ask);
+    setStage(ask ? 'questions' : 'import');
+  };
+
+  const handleCloseSetup = () => {
+    setQuestionsOpen(false);
+    setStage('welcome');
+  };
+
+  const handleSetupDone = async (answers: SetupAnswers) => {
+    const profile = activeProfile ?? profiles[0];
+    if (profile) {
+      try {
+        await editProfile(profile.id, answers.name, answers.color);
+        // Nothing is stored yet, so there are no amounts to convert.
+        await updateCurrency(answers.currency, false);
+        await saveHousehold(db, profile.id, buildHousehold(answers));
+      } catch (error) {
+        console.error('Failed to save the profile setup:', error);
+      }
+    }
+    // On to the last step; the picker opens only when its button is tapped.
+    setSetupDone(true);
+    setStage('import');
+  };
 
   const handleDemoMode = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -95,7 +185,40 @@ export default function WelcomeScreen() {
   return (
     <LinearGradient colors={gradientColors} style={styles.container}>
       {introSeen === false && <WelcomeIntro onDone={handleIntroDone} />}
-      {introSeen === true && (
+      {introSeen === true && stage === 'import' && (
+        <SafeAreaView style={styles.setup}>
+          <FirstStatementStep
+            current={SETUP_STEP_COUNT}
+            total={SETUP_STEP_COUNT}
+            importing={importing}
+            onImport={importStatement}
+            onHelp={() => router.push('/export-guide')}
+            onDemo={handleDemoMode}
+            onRestore={handleOpenRestore}
+            onClose={handleCloseSetup}
+            onBack={questionsOpen ? () => setStage('questions') : undefined}
+          />
+        </SafeAreaView>
+      )}
+      {introSeen === true && (stage === 'questions' || (stage === 'import' && questionsOpen)) && (
+        <SafeAreaView style={[styles.setup, stage === 'import' && styles.hidden]}>
+          <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <ProfileSetup
+              fill
+              appSteps
+              initialName={(activeProfile ?? profiles[0])?.name || t('profile.defaultName')}
+              initialColor={(activeProfile ?? profiles[0])?.avatarColor || AVATAR_COLORS[0]}
+              initialCurrency={defaultCurrency(deviceLocales[0]?.currencyCode, Object.keys(CURRENCY_SYMBOLS))}
+              submitLabel={t('common.continue')}
+              extraSteps={1}
+              paused={stage === 'import'}
+              onSubmit={handleSetupDone}
+              onCancel={handleCloseSetup}
+            />
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+      )}
+      {introSeen === true && stage === 'welcome' && (
         <Animated.View style={[styles.container, { opacity: contentOpacity }]}>
           <SafeAreaView style={styles.safeArea}>
             <View>
@@ -126,9 +249,10 @@ export default function WelcomeScreen() {
             <View style={styles.actionContainer}>
               <TouchableOpacity 
                 style={[styles.primaryButton, { backgroundColor: colors.accent, shadowColor: colors.accent }]} 
-                onPress={importStatement} 
+                onPress={handleGetStarted}
                 activeOpacity={0.85}
                 disabled={importing}
+                accessibilityRole="button"
               >
                 {importing ? (
                   <ActivityIndicator size="small" color="#FFFFFF" style={styles.buttonIcon} />
@@ -139,7 +263,6 @@ export default function WelcomeScreen() {
                   <Text style={styles.primaryButtonText}>
                     {importing ? t('welcome.processing') : t('welcome.getStarted')}
                   </Text>
-                  <Text style={styles.buttonSubtext}>{t('welcome.importSub')}</Text>
                 </View>
                 {!importing && <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.7)" />}
               </TouchableOpacity>
@@ -155,6 +278,7 @@ export default function WelcomeScreen() {
                 onPress={handleDemoMode} 
                 activeOpacity={0.85}
                 disabled={importing}
+                accessibilityRole="button"
               >
                 <Ionicons name="sparkles-outline" size={20} color={colors.accent} style={styles.buttonIcon} />
                 <View style={styles.buttonTextWrapper}>
@@ -237,6 +361,8 @@ export default function WelcomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  setup: { flex: 1, paddingHorizontal: 24, paddingTop: 8, paddingBottom: 16 },
+  hidden: { display: 'none' },
   safeArea: {
     flex: 1,
     justifyContent: 'space-between',
@@ -293,7 +419,6 @@ const styles = StyleSheet.create({
   buttonIcon: { marginRight: 16 },
   buttonTextWrapper: { flex: 1 },
   primaryButtonText: { color: '#FFFFFF', fontSize: 17, fontWeight: '700', letterSpacing: -0.3 },
-  buttonSubtext: { color: 'rgba(255,255,255,0.75)', fontSize: 12, marginTop: 2, fontWeight: '500' },
   secondaryButtonText: { fontSize: 17, fontWeight: '700', letterSpacing: -0.3 },
   buttonSubtextSecondary: { fontSize: 12, marginTop: 2, fontWeight: '500' },
   linkRow: { flexDirection: 'row', alignItems: 'center', minHeight: 44 },

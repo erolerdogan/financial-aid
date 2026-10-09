@@ -18,10 +18,11 @@ export function DemoBanner() {
   const handleEndDemo = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     // Navigate first so the tabs never render the emptied Personal profile.
-    router.replace('/welcome');
+    // `resume` reopens the import step when the profile questions were already answered.
+    router.replace({ pathname: '/welcome', params: { resume: '1' } });
     try {
-      // ProfileContext.setIsDemoMode(false) executes clearAllData(db)
-      // to purge all tables and reset to a clean Personal profile.
+      // ProfileContext.setIsDemoMode(false) removes the demo profile and its data;
+      // the user's own profile is kept.
       await setIsDemoMode(false);
     } catch (err) {
       console.error('Failed to end demo mode:', err);
@@ -50,6 +51,7 @@ export function DemoBanner() {
         style={[styles.exitButton, { backgroundColor: '#F59E0B' }]} 
         onPress={handleEndDemo}
         activeOpacity={0.8}
+        accessibilityRole="button"
       >
         <Text style={styles.exitButtonText}>{t('demo.exit')}</Text>
       </TouchableOpacity>
@@ -71,11 +73,14 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   leftContent: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    marginRight: 8,
   },
   bannerText: {
+    flexShrink: 1,
     fontSize: 13,
     fontWeight: '700',
     letterSpacing: -0.1,

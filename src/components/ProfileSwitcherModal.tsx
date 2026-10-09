@@ -1,13 +1,16 @@
 import { ProBadge } from '@/components/pro/ProBadge';
+import { ProfileSetup } from '@/components/profile/ProfileSetup';
 import { SelectableText } from '@/components/SelectableText';
 import { useEntitlement } from '@/contexts/EntitlementContext';
 import { useI18n } from '@/contexts/LanguageContext';
-import { useProfile } from '@/contexts/ProfileContext';
+import { CURRENCY_SYMBOLS, useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { deleteProfile, Profile } from '@/db/database';
+import { deleteProfile, Profile, saveHousehold } from '@/db/database';
 import { usePaywall } from '@/hooks/usePaywall';
 import { canAdd, isProfileReadOnly } from '@/utils/entitlement';
+import { AVATAR_COLORS, buildHousehold, defaultCurrency, type SetupAnswers } from '@/utils/profileSetup';
 import { Ionicons } from '@expo/vector-icons';
+import { useLocales } from 'expo-localization';
 import { router } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import React, { useState } from 'react';
@@ -25,8 +28,6 @@ import {
   View
 } from 'react-native';
 
-const AVATAR_COLORS = ['#007AFF', '#34C759', '#FF9500', '#AF52DE', '#FF2D55', '#5856D6'];
-
 interface ProfileSwitcherModalProps {
   visible: boolean;
   onClose: () => void;
@@ -39,6 +40,7 @@ export function ProfileSwitcherModal({ visible, onClose }: ProfileSwitcherModalP
   const { profiles, activeProfile, switchProfile, addNewProfile, editProfile, refreshProfiles, isDemoMode } = useProfile();
   const { isPro } = useEntitlement();
   const { openPaywall } = usePaywall();
+  const deviceLocales = useLocales();
   const profileIds = profiles.map((profile) => profile.id);
   const canAddProfile = canAdd(isPro, 'maxProfiles', profiles.length);
 
@@ -64,17 +66,25 @@ export function ProfileSwitcherModal({ visible, onClose }: ProfileSwitcherModalP
     if (selectedForEdit) {
       await editProfile(selectedForEdit.id, nameInput, selectedColor);
       resetForm();
-    } else {
-      const newProf = await addNewProfile(nameInput, selectedColor);
-      resetForm();
-      if (newProf) {
-        await switchProfile(newProf);
+    }
+  };
+
+  // A new profile answers the questionnaire; its household row is saved with it.
+  const handleSetupDone = async (answers: SetupAnswers) => {
+    const newProf = await addNewProfile(answers.name, answers.color, answers.currency);
+    if (newProf) {
+      try {
+        await saveHousehold(db, newProf.id, buildHousehold(answers));
+      } catch (error) {
+        console.error('Failed to save the household:', error);
       }
-      onClose();
-      if (newProf) {
-        if (router.canDismiss()) router.dismissAll();
-        router.navigate('/(tabs)');
-      }
+      await switchProfile(newProf);
+    }
+    resetForm();
+    onClose();
+    if (newProf) {
+      if (router.canDismiss()) router.dismissAll();
+      router.navigate('/(tabs)');
     }
   };
 
@@ -112,19 +122,34 @@ export function ProfileSwitcherModal({ visible, onClose }: ProfileSwitcherModalP
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide">
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.overlay}
       >
-        <TouchableOpacity style={{ flex: 1, justifyContent: 'flex-end' }} activeOpacity={1} onPress={onClose}>
-          <TouchableWithoutFeedback>
-            <View style={[styles.sheet, { backgroundColor: colors.card }]}>
+        <TouchableOpacity style={{ flex: 1, justifyContent: 'flex-end' }} activeOpacity={1} accessible={false} onPress={onClose}>
+          <TouchableWithoutFeedback accessible={false}>
+            <View
+              style={[styles.sheet, { backgroundColor: colors.card }]}
+              onAccessibilityEscape={onClose}
+            >
               <View style={[styles.handle, { backgroundColor: colors.border }]} />
               
+              {isEditing && !selectedForEdit ? (
+                <ProfileSetup
+                  nameRequired
+                  initialName=""
+                  initialColor={AVATAR_COLORS[0]}
+                  initialCurrency={defaultCurrency(deviceLocales[0]?.currencyCode, Object.keys(CURRENCY_SYMBOLS))}
+                  submitLabel={t('profile.save')}
+                  onSubmit={handleSetupDone}
+                  onCancel={resetForm}
+                />
+              ) : (
+              <>
               <View style={styles.headerRow}>
                 <SelectableText style={[styles.title, { color: colors.text }]}>
-                  {isEditing ? (selectedForEdit ? t('profile.edit') : t('profile.new')) : t('profile.switch')}
+                  {isEditing ? t('profile.edit') : t('profile.switch')}
                 </SelectableText>
                 {!isEditing && (
                   <TouchableOpacity
@@ -153,11 +178,14 @@ export function ProfileSwitcherModal({ visible, onClose }: ProfileSwitcherModalP
                   />
                   <SelectableText style={[styles.colorLabel, { color: colors.textSecondary }]}>{t('profile.avatarColor')}</SelectableText>
                   <View style={styles.colorRow}>
-                    {AVATAR_COLORS.map((col) => (
+                    {AVATAR_COLORS.map((col, index) => (
                       <TouchableOpacity
                         key={col}
                         style={[styles.colorCircle, { backgroundColor: col }, selectedColor === col && styles.selectedColor]}
                         onPress={() => setSelectedColor(col)}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('a11y.colorOption', { number: index + 1, total: AVATAR_COLORS.length })}
+                        accessibilityState={{ selected: selectedColor === col }}
                       />
                     ))}
                   </View>
@@ -166,12 +194,14 @@ export function ProfileSwitcherModal({ visible, onClose }: ProfileSwitcherModalP
                     <TouchableOpacity
                       style={[styles.cancelBtn, { borderColor: colors.border }]}
                       onPress={resetForm}
+                      accessibilityRole="button"
                     >
                       <Text style={[styles.cancelBtnText, { color: colors.text }]}>{t('common.cancel')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.saveBtn, { backgroundColor: colors.accent }]}
                       onPress={handleSave}
+                      accessibilityRole="button"
                     >
                       <Text style={styles.saveBtnText}>{t('profile.save')}</Text>
                     </TouchableOpacity>
@@ -194,6 +224,7 @@ export function ProfileSwitcherModal({ visible, onClose }: ProfileSwitcherModalP
                             await switchProfile(p);
                             onClose();
                           }}
+                          accessibilityRole="button"
                         >
                           <View style={[styles.avatar, { backgroundColor: p.avatarColor }]}>
                             <Text style={styles.avatarTxt}>{p.name.substring(0, 1)}</Text>
@@ -223,6 +254,9 @@ export function ProfileSwitcherModal({ visible, onClose }: ProfileSwitcherModalP
                               setIsEditing(true);
                             }}
                             style={styles.iconBtn}
+                            hitSlop={8}
+                            accessibilityRole="button"
+                            accessibilityLabel={t('a11y.edit', { name: p.name })}
                           >
                             <Ionicons name="pencil-outline" size={16} color={colors.textSecondary} />
                           </TouchableOpacity>
@@ -230,6 +264,9 @@ export function ProfileSwitcherModal({ visible, onClose }: ProfileSwitcherModalP
                           <TouchableOpacity
                             onPress={() => handleDelete(p)}
                             style={styles.iconBtn}
+                            hitSlop={8}
+                            accessibilityRole="button"
+                            accessibilityLabel={t('a11y.delete', { name: p.name })}
                           >
                             <Ionicons name="trash-outline" size={16} color="#FF3B30" />
                           </TouchableOpacity>
@@ -238,6 +275,8 @@ export function ProfileSwitcherModal({ visible, onClose }: ProfileSwitcherModalP
                     );
                   })}
                 </ScrollView>
+              )}
+              </>
               )}
             </View>
           </TouchableWithoutFeedback>

@@ -222,6 +222,7 @@ export function InboxModal({ visible, anchor, items, onClose, onAction, onDismis
                       onAction(item);
                     }}
                     accessibilityLabel={`${row.title}. ${row.action}`}
+                    accessibilityRole="button"
                   >
                     <View style={[styles.rowIcon, { backgroundColor: colors.tintBackground }]}>
                       <Ionicons name={row.icon} size={18} color={colors.accent} />
@@ -245,6 +246,7 @@ export function InboxModal({ visible, anchor, items, onClose, onAction, onDismis
                       }}
                       hitSlop={10}
                       accessibilityLabel={t('inbox.dismissA11y', { title: row.title })}
+                      accessibilityRole="button"
                     >
                       <Ionicons name="close" size={18} color={colors.textSecondary} />
                     </TouchableOpacity>

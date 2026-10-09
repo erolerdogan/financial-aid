@@ -12,17 +12,16 @@ export const FEATURES = {
     maxDebts: 2,
   },
   /** Themes a free user can pick. */
-  freeThemes: ['classic', 'sunset'] as readonly ThemeName[],
+  freeThemes: ['aurora', 'classic', 'sunset'] as readonly ThemeName[],
   /** Pro-only features. */
   flags: [
     'pdfImport',
     'trendsCustomRange',
     'trendsDaily',
     'trendsLastYear',
-    'growthScenarios',
-    'growthGoals',
-    'growthRealPrices',
-    'growthDetails',
+    // Whole segments of the Plan tab. Without Pro they show their explainer, or a read-only view of what was saved.
+    'budgetHealth',
+    'futureGrowth',
     'allThemes',
     'debtSimulator',
     // Placeholders: nothing is gated by these yet.
@@ -44,6 +43,7 @@ export type PaywallFeature =
   | 'debts'
   | 'debtSimulator'
   | 'growth'
+  | 'health'
   | 'profiles'
   | 'themes'
   | 'readOnly'
@@ -56,6 +56,7 @@ export const PAYWALL_FEATURES: readonly PaywallFeature[] = [
   'debts',
   'debtSimulator',
   'growth',
+  'health',
   'profiles',
   'themes',
   'readOnly',

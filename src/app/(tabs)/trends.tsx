@@ -22,6 +22,8 @@ import {
   getDailyTrend,
   getExpenseCategoryNames,
   getFixedVsFlexibleSummary,
+  getIncomeCategoryNames,
+  getIncomeFixedVsFlexibleSummary,
   getRangeTrendWithBudget,
   getTransactionDateBounds,
   getTransactionFixedExplanation,
@@ -31,11 +33,12 @@ import {
   makeRangeKey,
   setCategoryGoal,
   setMerchantFixedOverride,
-  Transaction
+  Transaction,
+  type TrendDirection,
 } from '@/db/database';
 import { useBudgetGate } from '@/hooks/useBudgetGate';
 import { usePaywall } from '@/hooks/usePaywall';
-import type { Message } from '@/i18n';
+import type { Message, TranslationKey } from '@/i18n';
 import type { Formatters } from '@/i18n/format';
 import { parseNumber } from '@/utils/debt';
 import {
@@ -120,6 +123,15 @@ interface YearCoverageStatus {
   maxDate?: string;
 }
 
+// Money in, as on Home and in the transaction rows.
+const INCOME_COLOR = '#34C759';
+const OUTGOING_COLOR = '#FF3B30';
+
+const DIRECTIONS: { key: TrendDirection; label: TranslationKey }[] = [
+  { key: 'EXPENSE', label: 'list.expense' },
+  { key: 'INCOME', label: 'trends.income' },
+];
+
 const NO_YEARS: string[] = [];
 const NO_TOTALS: Record<string, number[]> = {};
 
@@ -145,6 +157,9 @@ export default function TrendsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('All');
+  // Which side the whole tab shows: money out or money in (every positive amount, as "Total income" on Home).
+  const [direction, setDirection] = useState<TrendDirection>('EXPENSE');
+  const isIncome = direction === 'INCOME';
 
   // Year Selection State
   const [availableYears, setAvailableYears] = useState<string[]>([getCurrentYear()]);
@@ -210,7 +225,8 @@ export default function TrendsScreen() {
     lowestMonth: '-',
   });
 
-  const activeColor = selectedCategory === 'All' ? colors.accent : getCategoryColor(selectedCategory);
+  const allColor = isIncome ? INCOME_COLOR : colors.accent;
+  const activeColor = selectedCategory === 'All' ? allColor : getCategoryColor(selectedCategory);
 
   const handleScrubUpdate = useCallback((monthKey: string, amount: number) => {
     if (activeScrubKey.current !== monthKey) {
@@ -241,7 +257,7 @@ export default function TrendsScreen() {
   const [loadedSignature, setLoadedSignature] = useState('');
   const loadAnalyticsData = useCallback(async () => {
     if (!db) return;
-    const signature = `${activeProfileId}|${selectedCategory}|${selectedYear}|${
+    const signature = `${activeProfileId}|${direction}|${selectedCategory}|${selectedYear}|${
       rangeFilter ? makeRangeKey(rangeFilter.from, rangeFilter.to) : ''
     }`;
     try {
@@ -249,16 +265,18 @@ export default function TrendsScreen() {
       const fetchTrend = (cat: string) =>
         rangeFilter
           ? isDailyMode
-            ? getDailyTrend(db, rangeFilter.from, rangeFilter.to, cat, activeProfileId)
-            : getRangeTrendWithBudget(db, rangeFilter.from, rangeFilter.to, cat, activeProfileId)
-          : getAnnualTrendWithBudget(db, selectedYear, cat, activeProfileId);
+            ? getDailyTrend(db, rangeFilter.from, rangeFilter.to, cat, activeProfileId, direction)
+            : getRangeTrendWithBudget(db, rangeFilter.from, rangeFilter.to, cat, activeProfileId, direction)
+          : getAnnualTrendWithBudget(db, selectedYear, cat, activeProfileId, direction);
 
       const pillPeriod = rangeFilter
         ? makeRangeKey(rangeFilter.from, rangeFilter.to)
         : makeRangeKey(`${selectedYear}-01-01`, `${selectedYear}-12-31`);
       const [dbYears, categoryNames] = await Promise.all([
         getAvailableYears(db, activeProfileId),
-        getExpenseCategoryNames(db, activeProfileId, pillPeriod),
+        direction === 'INCOME'
+          ? getIncomeCategoryNames(db, activeProfileId, pillPeriod)
+          : getExpenseCategoryNames(db, activeProfileId, pillPeriod),
       ]);
       if (dbYears && dbYears.length > 0) {
         setAvailableYears(keepIfEqual(dbYears));
@@ -274,7 +292,7 @@ export default function TrendsScreen() {
 
       const [trendWithBudget, currentGoal, coverageRes, bounds, otherYearTotals] = await Promise.all([
         fetchTrend(selectedCategory),
-        getCategoryGoal(db, selectedCategory, activeProfileId),
+        direction === 'INCOME' ? Promise.resolve(0) : getCategoryGoal(db, selectedCategory, activeProfileId),
         rangeFilter
           ? Promise.resolve<YearCoverageStatus>({ status: 'EMPTY' })
           : getYearCoverageStatus(db, selectedYear, activeProfileId),
@@ -285,7 +303,8 @@ export default function TrendsScreen() {
               db,
               (dbYears ?? []).filter((yr) => yr !== selectedYear),
               selectedCategory,
-              activeProfileId
+              activeProfileId,
+              direction
             ),
       ]);
 
@@ -330,7 +349,7 @@ export default function TrendsScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [db, selectedYear, rangeFilter, isDailyMode, selectedCategory, activeProfileId]);
+  }, [db, selectedYear, rangeFilter, isDailyMode, selectedCategory, activeProfileId, direction]);
 
   const isDense = rawTrendData.length > 12;
 
@@ -496,6 +515,26 @@ export default function TrendsScreen() {
     activeScrubVal.current = null;
   };
 
+  const handleSelectDirection = (next: TrendDirection) => {
+    if (next === direction) return;
+    Haptics.selectionAsync();
+    setDirection(next);
+    // The categories of the other side are a different list.
+    handleSelectCategory('All');
+  };
+
+  // The items behind a point of the chart, with their fixed / flexible split.
+  const loadMonthItems = async (period: string) => {
+    const [items, fixedSummaryData] = await Promise.all([
+      getTransactionsByMonthAndCategory(db, period, selectedCategory, activeProfileId, direction),
+      isIncome
+        ? getIncomeFixedVsFlexibleSummary(db, period, activeProfileId)
+        : getFixedVsFlexibleSummary(db, period, activeProfileId),
+    ]);
+    setModalTransactions(items || []);
+    setModalFixedSummary(fixedSummaryData);
+  };
+
   const handleSaveInlineBudget = async () => {
     if (!db) return;
     const parsed = parseNumber(inlineInputVal);
@@ -526,22 +565,7 @@ export default function TrendsScreen() {
     setListModalVisible(true);
     try {
       setLoadingModalTrx(true);
-      const period = periodForMonth(monthKey);
-
-      const items = await getTransactionsByMonthAndCategory(
-        db,
-        period,
-        selectedCategory,
-        activeProfileId
-      );
-      setModalTransactions(items || []);
-
-      const fixedSummaryData = await getFixedVsFlexibleSummary(
-        db,
-        period,
-        activeProfileId
-      );
-      setModalFixedSummary(fixedSummaryData);
+      await loadMonthItems(periodForMonth(monthKey));
     } catch (err) {
       console.error('Failed to query month transactions:', err);
     } finally {
@@ -590,22 +614,7 @@ export default function TrendsScreen() {
     setCurrentFixedState(newState);
 
     if (selectedMonthForModal) {
-      const period = periodForMonth(selectedMonthForModal);
-
-      const updated = await getTransactionsByMonthAndCategory(
-        db,
-        period,
-        selectedCategory,
-        activeProfileId
-      );
-      setModalTransactions(updated || []);
-
-      const updatedSummary = await getFixedVsFlexibleSummary(
-        db,
-        period,
-        activeProfileId
-      );
-      setModalFixedSummary(updatedSummary);
+      await loadMonthItems(periodForMonth(selectedMonthForModal));
     }
     await loadAnalyticsData();
   };
@@ -618,10 +627,7 @@ export default function TrendsScreen() {
     setFixedAuto(explanation);
 
     if (selectedMonthForModal) {
-      const period = periodForMonth(selectedMonthForModal);
-      const items = await getTransactionsByMonthAndCategory(db, period, selectedCategory, activeProfileId);
-      setModalTransactions(items || []);
-      setModalFixedSummary(await getFixedVsFlexibleSummary(db, period, activeProfileId));
+      await loadMonthItems(periodForMonth(selectedMonthForModal));
     }
     await loadAnalyticsData();
   };
@@ -668,8 +674,11 @@ export default function TrendsScreen() {
         }))
         .filter((row) => row.previous > 0)
     : [];
-  const comparisonColor = (diff: number): string =>
-    diff > 0 ? '#FF3B30' : diff < 0 ? '#34C759' : colors.textSecondary;
+  // More than the other year is bad news for spending and good news for income.
+  const comparisonColor = (diff: number): string => {
+    if (diff === 0) return colors.textSecondary;
+    return diff > 0 === isIncome ? INCOME_COLOR : OUTGOING_COLOR;
+  };
   const goalInScale = showBudgetLine && categoryBudget <= dataPeak * 1.5;
   const niceScale = getNiceScale(Math.max(dataPeak, goalInScale ? categoryBudget : 0));
   const yAxisLabelWidthPx = 44;
@@ -680,7 +689,7 @@ export default function TrendsScreen() {
     chartData.length > 1
       ? Math.max((plotWidth - initialPad - endPad) / (chartData.length - 1), 2)
       : 24;
-  const requestSignature = `${activeProfileId}|${selectedCategory}|${selectedYear}|${
+  const requestSignature = `${activeProfileId}|${direction}|${selectedCategory}|${selectedYear}|${
     rangeFilter ? makeRangeKey(rangeFilter.from, rangeFilter.to) : ''
   }`;
   const chartReady = loadedSignature === requestSignature;
@@ -712,9 +721,36 @@ export default function TrendsScreen() {
       >
         {/* Header Bar with Active Profile Pill & Settings */}
         <View style={styles.headerRow}>
-          <SelectableText style={[styles.headerTitle, { color: colors.text }]}>{t('tabs.trends')}</SelectableText>
+          <SelectableText style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1} maxFontSizeMultiplier={1.4}>{t('tabs.trends')}</SelectableText>
 
           <HeaderActions />
+        </View>
+
+        <View style={[styles.directionSwitch, { backgroundColor: colors.track }]} accessibilityRole="tablist">
+          {DIRECTIONS.map(({ key, label }) => {
+            const active = direction === key;
+            return (
+              <TouchableOpacity
+                key={key}
+                activeOpacity={0.8}
+                style={[styles.directionBtn, active && [styles.directionBtnActive, { backgroundColor: colors.raised }]]}
+                onPress={() => handleSelectDirection(key)}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: active }}
+              >
+                <Text
+                  style={[
+                    styles.directionText,
+                    { color: colors.textSecondary },
+                    active && [styles.directionTextActive, { color: colors.text }],
+                  ]}
+                  numberOfLines={1}
+                >
+                  {t(label)}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         <MonthStepper
@@ -736,14 +772,15 @@ export default function TrendsScreen() {
               styles.chipPill,
               styles.pinnedPill,
               { backgroundColor: colors.card, borderColor: colors.border },
-              selectedCategory === 'All' && { backgroundColor: colors.accent, borderColor: colors.accent },
+              selectedCategory === 'All' && { backgroundColor: allColor, borderColor: allColor },
             ]}
             onPress={() => handleSelectCategory('All')}
+            accessibilityRole="button"
           >
             <View
               style={[
                 styles.miniDot,
-                { backgroundColor: selectedCategory === 'All' ? '#FFF' : colors.accent },
+                { backgroundColor: selectedCategory === 'All' ? '#FFF' : allColor },
               ]}
             />
             <Text
@@ -783,6 +820,8 @@ export default function TrendsScreen() {
                       isActive && { backgroundColor: color, borderColor: color },
                     ]}
                     onPress={() => handleSelectCategory(cat)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: isActive }}
                   >
                     <View style={[styles.miniDot, { backgroundColor: isActive ? '#FFF' : color }]} />
                     <Text
@@ -807,8 +846,8 @@ export default function TrendsScreen() {
               <SelectableText style={[styles.heroLabel, { color: colors.textSecondary }]}>
                 {selectedCategory === 'All'
                   ? rangeFilter
-                    ? t('trends.totalSpending')
-                    : t('trends.totalSpendingYear', { year: selectedYear })
+                    ? t(isIncome ? 'trends.totalIncome' : 'trends.totalSpending')
+                    : t(isIncome ? 'trends.totalIncomeYear' : 'trends.totalSpendingYear', { year: selectedYear })
                   : rangeFilter
                   ? t('trends.totalCategory', { category: categoryName(selectedCategory) })
                   : t('trends.totalCategoryYear', { year: selectedYear, category: categoryName(selectedCategory) })}
@@ -858,7 +897,9 @@ export default function TrendsScreen() {
         <View style={[styles.chartCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.chartHeaderRow}>
             <SelectableText style={[styles.chartTitle, { color: colors.text }]}>
-              {rangeFilter ? t('list.expense') : t('trends.expensesYear', { year: selectedYear })}
+              {rangeFilter
+                ? t(isIncome ? 'trends.income' : 'list.expense')
+                : t(isIncome ? 'trends.incomeYear' : 'trends.expensesYear', { year: selectedYear })}
             </SelectableText>
             <TouchableOpacity
               activeOpacity={0.6}
@@ -868,6 +909,7 @@ export default function TrendsScreen() {
                   setSelectedAmount(null);
                 }
               }}
+              accessibilityRole="button"
             >
               <Text style={[styles.chartHintText, { color: colors.textSecondary }]}>
                 {selectedMonthKey
@@ -951,7 +993,7 @@ export default function TrendsScreen() {
           ) : (
             <View style={styles.chartWrapper} onTouchStart={blockTabSwipe} onTouchEnd={handleScrubDrop}>
               <LineChart
-                key={`${selectedCategory}-${categoryBudget}-${selectedYear}-${rangeFilter ? makeRangeKey(rangeFilter.from, rangeFilter.to) : ''}-${niceScale.max}-${compareYears.join(',')}`}
+                key={`${direction}-${selectedCategory}-${categoryBudget}-${selectedYear}-${rangeFilter ? makeRangeKey(rangeFilter.from, rangeFilter.to) : ''}-${niceScale.max}-${compareYears.join(',')}`}
                 data={chartData}
                 {...(compareSeries[0]
                   ? {
@@ -1099,10 +1141,13 @@ export default function TrendsScreen() {
                   ]}
                   activeOpacity={0.8}
                   onPress={() => handleOpenMonthDetails(selectedMonthKey)}
+                  accessibilityRole="button"
                 >
                   <View style={styles.gridCardHeader}>
                     <Text style={[styles.gridCardTitle, { color: colors.textSecondary }]} numberOfLines={1}>
-                      {t('trends.spent', { label: formatShortPoint(selectedMonthKey, format) })}
+                      {t(isIncome ? 'trends.received' : 'trends.spent', {
+                        label: formatShortPoint(selectedMonthKey, format),
+                      })}
                     </Text>
                     <Ionicons name="chevron-forward" size={14} color={colors.accent} />
                   </View>
@@ -1112,6 +1157,8 @@ export default function TrendsScreen() {
                   <Text style={[styles.gridCardSubtext, { color: colors.accent }]}>{t('trends.inspect')}</Text>
                 </TouchableOpacity>
 
+                {/* Budgets are spending limits: no goal card for income. */}
+                {!isIncome && (
                 <TouchableOpacity
                   style={[
                     styles.gridCard,
@@ -1129,6 +1176,7 @@ export default function TrendsScreen() {
                       handleRemoveInlineBudget
                     );
                   }}
+                  accessibilityRole="button"
                 >
                   <View style={styles.gridCardHeader}>
                     <Text style={[styles.gridCardTitle, { color: colors.textSecondary }]} numberOfLines={1}>
@@ -1160,6 +1208,7 @@ export default function TrendsScreen() {
                       <TouchableOpacity
                         style={[styles.inlineSaveBtn, { backgroundColor: colors.accent }]}
                         onPress={handleSaveInlineBudget}
+                        accessibilityRole="button"
                       >
                         <Text style={styles.inlineSaveText}>{t('common.save')}</Text>
                       </TouchableOpacity>
@@ -1175,6 +1224,7 @@ export default function TrendsScreen() {
                     </>
                   )}
                 </TouchableOpacity>
+                )}
               </View>
 
               <TouchableOpacity
@@ -1185,6 +1235,7 @@ export default function TrendsScreen() {
                   activeScrubKey.current = null;
                   activeScrubVal.current = null;
                 }}
+                accessibilityRole="button"
               >
                 <Ionicons name="close-circle-outline" size={14} color={colors.textSecondary} />
                 <Text style={[styles.dismissBtnText, { color: colors.textSecondary }]}>
@@ -1197,14 +1248,18 @@ export default function TrendsScreen() {
       </ScrollView>
 
       {/* Period Picker Modal Sheet */}
-      <Modal visible={yearPickerVisible} transparent animationType="slide">
+      <Modal visible={yearPickerVisible} transparent animationType="slide" onRequestClose={() => setYearPickerVisible(false)}>
         <TouchableOpacity
           style={styles.modalOverlay}
           activeOpacity={1}
+          accessible={false}
           onPress={() => setYearPickerVisible(false)}
         >
-          <TouchableWithoutFeedback>
-            <View style={[styles.sheetContainer, { backgroundColor: colors.card }]}>
+          <TouchableWithoutFeedback accessible={false}>
+            <View
+              style={[styles.sheetContainer, { backgroundColor: colors.card }]}
+              onAccessibilityEscape={() => setYearPickerVisible(false)}
+            >
               <View style={styles.sheetHeader}>
                 <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
                 <SelectableText style={[styles.sheetTitle, { color: colors.text }]}>{t('period.select')}</SelectableText>
@@ -1220,6 +1275,7 @@ export default function TrendsScreen() {
                     ],
                   ]}
                   onPress={handleOpenRangePicker}
+                  accessibilityRole="button"
                 >
                   <View style={styles.sheetItemLeft}>
                     <Ionicons name="calendar-outline" size={18} color={colors.accent} />
@@ -1258,6 +1314,8 @@ export default function TrendsScreen() {
                         ],
                       ]}
                       onPress={() => handlePickYear(yr)}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: isSelected }}
                     >
                       <Text
                         style={[
@@ -1291,7 +1349,7 @@ export default function TrendsScreen() {
       {/* Modals */}
       <TransactionListModal
         visible={listModalVisible}
-        listType="EXPENSE"
+        listType={isIncome ? 'INCOME' : 'EXPENSE'}
         selectedMonth={selectedMonthForModal}
         monthNames={modalMonthNames}
         transactions={modalTransactions}
@@ -1307,7 +1365,9 @@ export default function TrendsScreen() {
         fixedState={currentFixedState}
         autoIsFixed={fixedAuto.autoIsFixed}
         autoReason={fixedAuto.reason}
-        parentTitle={selectedCategory === 'All' ? t('list.expense') : categoryName(selectedCategory)}
+        parentTitle={
+          selectedCategory === 'All' ? t(isIncome ? 'trends.income' : 'list.expense') : categoryName(selectedCategory)
+        }
         onClose={handleCloseDetailModal}
         onDismiss={() => setSelectedTransaction(null)}
         onSelectFixedState={handleSelectFixedStateInDetail}
@@ -1327,6 +1387,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  directionSwitch: { flexDirection: 'row', borderRadius: 10, padding: 2, marginBottom: 12 },
+  directionBtn: { flex: 1, paddingVertical: 7, paddingHorizontal: 4, alignItems: 'center', borderRadius: 8 },
+  directionBtnActive: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.12,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  directionText: { fontSize: 13, fontWeight: '500' },
+  directionTextActive: { fontWeight: '700' },
   headerTitle: {
     fontSize: 24,
     fontWeight: '700',
@@ -1387,10 +1458,13 @@ const styles = StyleSheet.create({
   },
   heroHeader: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   heroLabel: {
+    flexShrink: 1,
     fontSize: 12,
     fontWeight: '600',
     textTransform: 'uppercase',

@@ -1,5 +1,3 @@
-import { ProBadge } from '@/components/pro/ProBadge';
-import { useI18n } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -11,16 +9,11 @@ interface DisclosureRowProps {
   subtitle: string;
   expanded: boolean;
   onToggle: () => void;
-  /** A Pro section without Pro: shown with a badge, and `onToggle` opens the paywall instead. */
-  locked?: boolean;
-  /** A Pro section that is open without Pro (the demo workspace): the badge next to the chevron. */
-  pro?: boolean;
 }
 
 /** A card-shaped row that shows or hides the cards rendered after it. */
-export function DisclosureRow({ title, subtitle, expanded, onToggle, locked = false, pro = false }: DisclosureRowProps) {
+export function DisclosureRow({ title, subtitle, expanded, onToggle }: DisclosureRowProps) {
   const { colors } = useTheme();
-  const { t } = useI18n();
 
   const toggle = () => {
     Haptics.selectionAsync().catch(() => {});
@@ -32,8 +25,8 @@ export function DisclosureRow({ title, subtitle, expanded, onToggle, locked = fa
       onPress={toggle}
       style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
       accessibilityRole="button"
-      accessibilityLabel={locked ? t('pro.gateA11y', { label: title }) : `${title}. ${subtitle}`}
-      accessibilityState={locked ? undefined : { expanded }}
+      accessibilityLabel={`${title}. ${subtitle}`}
+      accessibilityState={{ expanded }}
     >
       <View style={styles.body}>
         <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
@@ -41,14 +34,7 @@ export function DisclosureRow({ title, subtitle, expanded, onToggle, locked = fa
           {subtitle}
         </Text>
       </View>
-      {locked ? (
-        <ProBadge locked style={styles.badge} />
-      ) : (
-        <>
-          {pro && <ProBadge style={styles.badge} />}
-          <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textSecondary} />
-        </>
-      )}
+      <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textSecondary} />
     </Pressable>
   );
 }
@@ -65,7 +51,6 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   body: { flex: 1 },
-  badge: { alignSelf: 'center' },
   title: { fontSize: 15, fontWeight: '600' },
   subtitle: { fontSize: 12, marginTop: 2 },
 });

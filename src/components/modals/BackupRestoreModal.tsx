@@ -363,6 +363,7 @@ export function BackupRestoreModal({ visible, onClose, restoreOnly, onRestored }
       activeOpacity={0.7}
       onPress={onPress}
       disabled={disabled}
+      accessibilityRole="button"
     >
       <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
         <Ionicons name={icon} size={18} color={colors.accent} />
@@ -408,6 +409,7 @@ export function BackupRestoreModal({ visible, onClose, restoreOnly, onRestored }
         style={[styles.actionBtn, { backgroundColor: colors.track }, busy !== null && styles.rowDisabled]}
         onPress={resetStep}
         disabled={busy !== null}
+        accessibilityRole="button"
       >
         <Text style={[styles.actionText, { color: colors.text }]}>{t('common.cancel')}</Text>
       </TouchableOpacity>
@@ -415,6 +417,7 @@ export function BackupRestoreModal({ visible, onClose, restoreOnly, onRestored }
         style={[styles.actionBtn, { backgroundColor: colors.accent }, !enabled && busy === null && styles.rowDisabled]}
         onPress={onPress}
         disabled={busy !== null || !enabled}
+        accessibilityRole="button"
       >
         {busy === action ? (
           <ActivityIndicator size="small" color="#FFFFFF" />
@@ -558,9 +561,12 @@ export function BackupRestoreModal({ visible, onClose, restoreOnly, onRestored }
   return (
     <Modal visible={visible} transparent animationType="slide" onShow={handleShow} onRequestClose={handleRequestClose}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.overlay}>
-        <TouchableOpacity style={styles.dismissArea} activeOpacity={1} onPress={handleClose}>
-          <TouchableWithoutFeedback>
-            <View style={[styles.sheet, { backgroundColor: colors.card }]}>
+        <TouchableOpacity style={styles.dismissArea} activeOpacity={1} accessible={false} onPress={handleClose}>
+          <TouchableWithoutFeedback accessible={false}>
+            <View
+              style={[styles.sheet, { backgroundColor: colors.card }]}
+              onAccessibilityEscape={handleClose}
+            >
               {step === 'setPassword'
                 ? renderSetPassword()
                 : step === 'enterPassword'

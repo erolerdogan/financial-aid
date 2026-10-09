@@ -76,6 +76,7 @@ export default function DataPrivacyScreen() {
                 style={styles.rowItem}
                 activeOpacity={0.7}
                 onPress={() => router.push({ pathname: '/legal', params: { page: row.page } })}
+                accessibilityRole="button"
               >
                 <View style={styles.rowLeft}>
                   <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
@@ -88,7 +89,7 @@ export default function DataPrivacyScreen() {
               <View style={[styles.divider, { backgroundColor: colors.border }]} />
             </Fragment>
           ))}
-          <TouchableOpacity style={styles.rowItem} activeOpacity={0.7} onPress={() => router.push('/licenses')}>
+          <TouchableOpacity style={styles.rowItem} activeOpacity={0.7} onPress={() => router.push('/licenses')} accessibilityRole="button">
             <View style={styles.rowLeft}>
               <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
                 <Ionicons name="code-slash-outline" size={18} color={colors.accent} />

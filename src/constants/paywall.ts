@@ -54,9 +54,10 @@ export const BENEFIT_GROUPS: readonly BenefitGroup[] = [
       'paywall.benefit.budgets',
       'paywall.benefit.debts',
       'paywall.benefit.debtSimulator',
+      'paywall.benefit.health',
       'paywall.benefit.growth',
     ],
-    features: ['budgets', 'debts', 'debtSimulator', 'growth'],
+    features: ['budgets', 'debts', 'debtSimulator', 'health', 'growth'],
   },
   {
     key: 'household',

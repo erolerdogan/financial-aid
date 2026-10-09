@@ -163,13 +163,13 @@ export function DebtDetailModal({ visible, debt, onClose, onEdit, readOnly = fal
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <View style={[styles.header, { borderBottomColor: colors.border }]}>
-            <TouchableOpacity onPress={onClose} hitSlop={8}>
+            <TouchableOpacity onPress={onClose} hitSlop={8} accessibilityRole="button">
               <Text style={[styles.headerAction, { color: colors.accent }]}>{t('common.done')}</Text>
             </TouchableOpacity>
             <SelectableText style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>
               {debt.name}
             </SelectableText>
-            <TouchableOpacity onPress={onEdit} hitSlop={8} disabled={readOnly} style={readOnly && styles.hidden}>
+            <TouchableOpacity onPress={onEdit} hitSlop={8} disabled={readOnly} style={readOnly && styles.hidden} accessibilityRole="button">
               <Text style={[styles.headerAction, styles.bold, { color: colors.accent }]}>{t('common.edit')}</Text>
             </TouchableOpacity>
           </View>
@@ -266,6 +266,7 @@ export function DebtDetailModal({ visible, debt, onClose, onEdit, readOnly = fal
                   activeOpacity={0.85}
                   style={[styles.addBtn, { backgroundColor: colors.accent }]}
                   onPress={handleAddPayment}
+                  accessibilityRole="button"
                 >
                   <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" />
                   <Text style={styles.addBtnText}>{t('debt.detail.record')}</Text>
@@ -328,7 +329,13 @@ export function DebtDetailModal({ visible, debt, onClose, onEdit, readOnly = fal
                       </View>
                     </View>
                     {!readOnly && (
-                      <TouchableOpacity onPress={() => handleRemovePayment(payment)} hitSlop={10} style={styles.removeBtn}>
+                      <TouchableOpacity
+                        onPress={() => handleRemovePayment(payment)}
+                        hitSlop={12}
+                        style={styles.removeBtn}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('a11y.remove', { name: payment.date })}
+                      >
                         <Ionicons name="close-circle-outline" size={18} color={colors.textSecondary} />
                       </TouchableOpacity>
                     )}

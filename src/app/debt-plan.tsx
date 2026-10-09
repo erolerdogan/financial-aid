@@ -266,7 +266,7 @@ export default function DebtPlanScreen() {
         >
           <Ionicons name="chevron-back" size={20} color={colors.text} />
         </TouchableOpacity>
-        <SelectableText style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>
+        <SelectableText style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1} maxFontSizeMultiplier={1.4}>
           {t('debt.plan.title')}
         </SelectableText>
       </View>

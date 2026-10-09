@@ -27,9 +27,12 @@ export function BenchmarkGroupSheet({ category, selected, household, onSelect, o
 
   return (
     <Modal visible={category !== null} transparent animationType="slide" onRequestClose={onClose}>
-      <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
-        <TouchableWithoutFeedback>
-          <View style={[styles.sheet, { backgroundColor: colors.card }]}>
+      <TouchableOpacity style={styles.overlay} activeOpacity={1} accessible={false} onPress={onClose}>
+        <TouchableWithoutFeedback accessible={false}>
+          <View
+            style={[styles.sheet, { backgroundColor: colors.card }]}
+            onAccessibilityEscape={onClose}
+          >
             <View style={[styles.handle, { backgroundColor: colors.border }]} />
             <SelectableText style={[styles.title, { color: colors.text }]}>{t('health.groupSheet.title')}</SelectableText>
             <SelectableText style={[styles.subtitle, { color: colors.textSecondary }]}>

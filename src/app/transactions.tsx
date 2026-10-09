@@ -50,6 +50,7 @@ interface DaySection {
 }
 
 const NO_COVERAGE = { status: 'EMPTY' as const, label: '' };
+const keyExtractor = (item: Transaction): string => String(item.id);
 const EMPTY_NAMES: Record<string, string> = {};
 const NO_MONTHS: string[] = [];
 
@@ -338,15 +339,18 @@ export default function TransactionsScreen() {
     fetchFirstPage();
   };
 
-  const handleSelectTransaction = async (trx: Transaction) => {
-    Haptics.selectionAsync().catch(() => {});
-    setSelectedTransaction(trx);
-    if (db) {
-      const explanation = await getTransactionFixedExplanation(db, trx, activeProfileId);
-      setCurrentFixedState(explanation.state);
-      setFixedAuto(explanation);
-    }
-  };
+  const handleSelectTransaction = useCallback(
+    async (trx: Transaction) => {
+      Haptics.selectionAsync().catch(() => {});
+      setSelectedTransaction(trx);
+      if (db) {
+        const explanation = await getTransactionFixedExplanation(db, trx, activeProfileId);
+        setCurrentFixedState(explanation.state);
+        setFixedAuto(explanation);
+      }
+    },
+    [db, activeProfileId]
+  );
 
   const handleSelectFixedState = async (newState: FixedOverrideState) => {
     if (!db || !selectedTransaction) return;
@@ -375,24 +379,18 @@ export default function TransactionsScreen() {
     await fetchFirstPage(true);
   };
 
-  const renderItem = ({
-    item,
-    index,
-    section,
-  }: {
-    item: Transaction;
-    index: number;
-    section: DaySection;
-  }) => {
-    return (
+  // Stable, so the rows already on screen are not rendered again while typing in the search field.
+  const renderItem = useCallback(
+    ({ item, index, section }: { item: Transaction; index: number; section: DaySection }) => (
       <TransactionRow
         transaction={item}
         isFirst={index === 0}
         isLast={index === section.data.length - 1}
         onPress={handleSelectTransaction}
       />
-    );
-  };
+    ),
+    [handleSelectTransaction]
+  );
 
   return (
     <ScreenContainer>
@@ -408,7 +406,7 @@ export default function TransactionsScreen() {
           >
             <Ionicons name="chevron-back" size={20} color={colors.text} />
           </TouchableOpacity>
-          <SelectableText style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>
+          <SelectableText style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1} maxFontSizeMultiplier={1.4}>
             {t('tabs.transactions')}
           </SelectableText>
         </View>
@@ -438,7 +436,12 @@ export default function TransactionsScreen() {
             clearButtonMode="while-editing"
           />
           {Platform.OS === 'android' && searchInput.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchInput('')} hitSlop={8}>
+            <TouchableOpacity
+              onPress={() => setSearchInput('')}
+              hitSlop={14}
+              accessibilityRole="button"
+              accessibilityLabel={t('a11y.clearSearch')}
+            >
               <Ionicons name="close-circle" size={16} color={colors.textSecondary} />
             </TouchableOpacity>
           )}
@@ -463,7 +466,7 @@ export default function TransactionsScreen() {
         <SectionList
           ref={listRef}
           sections={sections}
-          keyExtractor={(item) => String(item.id)}
+          keyExtractor={keyExtractor}
           renderItem={renderItem}
           renderSectionHeader={({ section }) => (
             <View style={[styles.sectionHeader, { backgroundColor: colors.background }]}>
@@ -482,6 +485,7 @@ export default function TransactionsScreen() {
                   Haptics.selectionAsync().catch(() => {});
                   router.push('/review');
                 }}
+                accessibilityRole="button"
               >
                 <Ionicons name="pricetags-outline" size={18} color={colors.accent} />
                 <Text style={[styles.reviewRowText, { color: colors.text }]}>
@@ -529,10 +533,14 @@ export default function TransactionsScreen() {
         <TouchableOpacity
           style={styles.modalOverlay}
           activeOpacity={1}
+          accessible={false}
           onPress={() => setPickerVisible(false)}
         >
-          <TouchableWithoutFeedback>
-            <View style={[styles.sheetContainer, { backgroundColor: colors.card }]}>
+          <TouchableWithoutFeedback accessible={false}>
+            <View
+              style={[styles.sheetContainer, { backgroundColor: colors.card }]}
+              onAccessibilityEscape={() => setPickerVisible(false)}
+            >
               <View style={styles.sheetHeader}>
                 <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
                 <SelectableText style={[styles.sheetTitle, { color: colors.text }]}>{t('transactions.filterByDate')}</SelectableText>
@@ -546,6 +554,7 @@ export default function TransactionsScreen() {
                     filter.kind === 'ALL' && [styles.sheetItemActive, { backgroundColor: colors.tintBackground }],
                   ]}
                   onPress={handlePickAll}
+                  accessibilityRole="button"
                 >
                   <View style={styles.sheetItemLeft}>
                     <Ionicons name="list" size={18} color={colors.accent} />
@@ -571,6 +580,7 @@ export default function TransactionsScreen() {
                     filter.kind === 'RANGE' && [styles.sheetItemActive, { backgroundColor: colors.tintBackground }],
                   ]}
                   onPress={handleOpenRange}
+                  accessibilityRole="button"
                 >
                   <View style={styles.sheetItemLeft}>
                     <Ionicons name="calendar-outline" size={18} color={colors.accent} />
@@ -602,6 +612,8 @@ export default function TransactionsScreen() {
                         isSelected && [styles.sheetItemActive, { backgroundColor: colors.tintBackground }],
                       ]}
                       onPress={() => handlePickMonth(m)}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: isSelected }}
                     >
                       <Text
                         style={[

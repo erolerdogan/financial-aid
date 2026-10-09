@@ -203,12 +203,17 @@ export function TransactionDetailModal({
 
           {/* Top Bar Navigation */}
           <View style={styles.navRow}>
-            <TouchableOpacity style={styles.backBtn} onPress={() => handleDismissAnimation(onClose)}>
+            <TouchableOpacity style={styles.backBtn} onPress={() => handleDismissAnimation(onClose)} accessibilityRole="button">
               <Ionicons name="chevron-back" size={20} color={colors.accent} />
               <Text style={[styles.backBtnText, { color: colors.accent }]}>{parentTitle ?? t('common.back')}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => handleDismissAnimation(handleDismissAction)}>
+            <TouchableOpacity
+              onPress={() => handleDismissAnimation(handleDismissAction)}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.close')}
+            >
               <Ionicons name="close-circle" size={24} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
@@ -297,6 +302,7 @@ export function TransactionDetailModal({
                 ]}
                 onPress={() => onSelectFixedState('FIXED')}
                 disabled={readOnly}
+                accessibilityRole="button"
               >
                 <Text style={[styles.optionText, { color: colors.textSecondary }, effectiveState === 'FIXED' && { color: '#5856D6', fontWeight: '700' }]}>
                   {t('fixed.fixed')}
@@ -310,6 +316,7 @@ export function TransactionDetailModal({
                 ]}
                 onPress={() => onSelectFixedState('FLEXIBLE')}
                 disabled={readOnly}
+                accessibilityRole="button"
               >
                 <Text style={[styles.optionText, { color: colors.textSecondary }, effectiveState === 'FLEXIBLE' && { color: '#FF9500', fontWeight: '700' }]}>
                   {t('fixed.flexible')}
@@ -322,7 +329,7 @@ export function TransactionDetailModal({
                 {autoReasonText ? `${t('detail.autoDetected')} · ${autoReasonText}` : t('detail.autoDetected')}
               </SelectableText>
             ) : (
-              <TouchableOpacity onPress={() => onSelectFixedState('AUTO')} hitSlop={8} disabled={readOnly}>
+              <TouchableOpacity onPress={() => onSelectFixedState('AUTO')} hitSlop={8} disabled={readOnly} accessibilityRole="button">
                 <Text style={[styles.autoHint, { color: colors.textSecondary }]}>
                   {t('detail.setByYou')} · <Text style={{ color: colors.accent }}>{t('detail.resetAuto')}</Text>
                 </Text>

@@ -187,6 +187,7 @@ export function TransactionListModal({
         style={[styles.trxRow, { borderBottomColor: colors.border }]}
         activeOpacity={0.7}
         onPress={() => onSelectTransaction(trx)}
+        accessibilityRole="button"
       >
         <View style={styles.trxLeft}>
           <View
@@ -329,7 +330,13 @@ export function TransactionListModal({
                         autoCorrect={false}
                       />
                       {searchQuery.length > 0 && (
-                        <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearBtn}>
+                        <TouchableOpacity
+                          onPress={() => setSearchQuery('')}
+                          style={styles.clearBtn}
+                          hitSlop={14}
+                          accessibilityRole="button"
+                          accessibilityLabel={t('a11y.clearSearch')}
+                        >
                           <Ionicons name="close-circle" size={16} color={colors.textSecondary} />
                         </TouchableOpacity>
                       )}
@@ -343,6 +350,8 @@ export function TransactionListModal({
                           filterMode === 'ALL' && [styles.segmentBtnActive, { backgroundColor: colors.raised }],
                         ]}
                         onPress={() => setFilterMode('ALL')}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: filterMode === 'ALL' }}
                       >
                         <Text
                           style={[
@@ -361,6 +370,8 @@ export function TransactionListModal({
                           filterMode === 'FIXED' && [styles.segmentBtnActive, { backgroundColor: colors.raised }],
                         ]}
                         onPress={() => setFilterMode('FIXED')}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: filterMode === 'FIXED' }}
                       >
                         <Text
                           style={[
@@ -379,6 +390,8 @@ export function TransactionListModal({
                           filterMode === 'FLEXIBLE' && [styles.segmentBtnActive, { backgroundColor: colors.raised }],
                         ]}
                         onPress={() => setFilterMode('FLEXIBLE')}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: filterMode === 'FLEXIBLE' }}
                       >
                         <Text
                           style={[
@@ -424,6 +437,7 @@ export function TransactionListModal({
             <TouchableOpacity
               style={[styles.closeBtn, { backgroundColor: colors.surface }]}
               onPress={handleDismiss}
+              accessibilityRole="button"
             >
               <Text style={[styles.closeBtnText, { color: colors.accent }]}>{t('common.close')}</Text>
             </TouchableOpacity>

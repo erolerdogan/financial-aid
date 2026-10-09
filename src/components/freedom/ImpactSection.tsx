@@ -1,4 +1,3 @@
-import { ProBadge } from '@/components/pro/ProBadge';
 import { SelectableText } from '@/components/SelectableText';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -17,8 +16,6 @@ const MODES: { key: ValueMode; label: TranslationKey }[] = [
 interface ImpactSectionProps {
   mode: ValueMode;
   onModeChange: (mode: ValueMode) => void;
-  /** Today's prices need Pro: the segment shows a badge, and picking it is left to the caller. */
-  realLocked?: boolean;
   inflationPct: number;
   /** Final balances in the selected mode. */
   fee: FeeImpact;
@@ -28,12 +25,11 @@ interface ImpactSectionProps {
   stale?: boolean;
 }
 
-const percent = (value: number): string => `${Number((value * 100).toFixed(2))}%`;
+export const percent =(value: number): string => `${Number((value * 100).toFixed(2))}%`;
 
 export function ImpactSection({
   mode,
   onModeChange,
-  realLocked = false,
   inflationPct,
   fee,
   feePct,
@@ -90,7 +86,6 @@ export function ImpactSection({
               >
                 {t(item.label)}
               </Text>
-              {realLocked && item.key === 'REAL' && <ProBadge locked />}
             </TouchableOpacity>
           );
         })}

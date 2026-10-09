@@ -101,6 +101,7 @@ export default function CategoriesScreen() {
                 style={styles.rowItem}
                 activeOpacity={0.7}
                 onPress={() => openEdit(category)}
+                accessibilityRole="button"
               >
                 <View style={styles.rowLeft}>
                   <View style={[styles.colorDot, { backgroundColor: category.color }]} />
@@ -130,12 +131,14 @@ export default function CategoriesScreen() {
       <View
         style={[styles.headerRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}
       >
-        <SelectableText style={[styles.headerTitle, { color: colors.text }]}>{t('settings.categories')}</SelectableText>
+        <SelectableText style={[styles.headerTitle, { color: colors.text }]} maxFontSizeMultiplier={1.4}>{t('settings.categories')}</SelectableText>
         <View style={styles.headerRight}>
           <TouchableOpacity
             style={[styles.headerBtn, { backgroundColor: colors.accent }]}
             onPress={openCreate}
             activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={t('categoryForm.new')}
           >
             <Ionicons name="add" size={20} color="#FFFFFF" />
           </TouchableOpacity>
@@ -143,6 +146,8 @@ export default function CategoriesScreen() {
             style={[styles.headerBtn, { backgroundColor: colors.background }]}
             onPress={() => router.back()}
             activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.close')}
           >
             <Ionicons name="close" size={20} color={colors.text} />
           </TouchableOpacity>
@@ -185,7 +190,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  headerTitle: { fontSize: 22, fontWeight: '700', letterSpacing: -0.4 },
+  headerTitle: { fontSize: 22, fontWeight: '700', letterSpacing: -0.4, flexShrink: 1 },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   headerBtn: {
     width: 34,

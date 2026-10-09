@@ -3,20 +3,22 @@ import { PasscodeModal, type PasscodeModalMode } from '@/components/modals/Passc
 import { ReadOnlySheetHost } from '@/components/pro/ReadOnlySheet';
 import { ProfileSwitcherModal } from '@/components/ProfileSwitcherModal';
 import { SelectableText } from '@/components/SelectableText';
+import { ThemeSwatches } from '@/components/ThemeSwatches';
 import { faqTranslate } from '@/content/faq';
+import { PRO_TESTING_ENABLED } from '@/constants/buildConfig';
 import { useEntitlement } from '@/contexts/EntitlementContext';
 import { ImportSummaryHost } from '@/contexts/ImportResultContext';
 import { useI18n } from '@/contexts/LanguageContext';
 import { usePasscode } from '@/contexts/PasscodeContext';
 import { CURRENCY_SYMBOLS, useProfile } from '@/contexts/ProfileContext';
-import { THEMES, useTheme } from '@/contexts/ThemeContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { clearAllData } from '@/db/database';
 import { LANGUAGES, LanguageCode } from '@/i18n';
 import { usePaywall } from '@/hooks/usePaywall';
 import { useProfileAccess } from '@/hooks/useProfileAccess';
 import { useStatementImporter } from '@/hooks/useStatementImporter';
 import { restore } from '@/services/purchases';
-import { isThemeLocked } from '@/utils/entitlement';
+import { getStoreLinks } from '@/utils/storeLinks';
 import {
   cancelCurrentMonthReminders,
   requestAndScheduleImportReminders
@@ -24,14 +26,15 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import * as Haptics from 'expo-haptics';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Switch,
@@ -46,12 +49,12 @@ const AVAILABLE_CURRENCIES = ['EUR', 'USD', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF'] a
 
 export default function SettingsScreen() {
   const { activeProfile, updateCurrency, refreshProfiles, isDemoMode } = useProfile();
-  const { isDark, toggleTheme, colors, themeName, setThemeName } = useTheme();
+  const { isDark, toggleTheme, colors } = useTheme();
   const { enabled: passcodeEnabled } = usePasscode();
   const { t, language, storedLanguage, setLanguage } = useI18n();
   const router = useRouter();
   const db = useSQLiteContext();
-  const { isPro, source, setDevOverride, refresh: refreshEntitlement } = useEntitlement();
+  const { source, setDevOverride, refresh: refreshEntitlement } = useEntitlement();
   const { openPaywall } = usePaywall();
   const { guardWrite } = useProfileAccess();
 
@@ -66,6 +69,11 @@ export default function SettingsScreen() {
 
   const { importStatement, importing } = useStatementImporter();
   const appVersion = Constants.expoConfig?.version;
+  const storeLinks = getStoreLinks(Platform.OS);
+
+  const openLink = (url: string) => {
+    Linking.openURL(url).catch((error) => console.warn('Could not open link:', error));
+  };
 
   const activeCurrencyCode = activeProfile?.currency || 'EUR';
   const activeCurrencySymbol = CURRENCY_SYMBOLS[activeCurrencyCode] || '€';
@@ -172,10 +180,12 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]} edges={['top']}>
       <View style={[styles.headerRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <SelectableText style={[styles.headerTitle, { color: colors.text }]}>{t('settings.title')}</SelectableText>
+        <SelectableText style={[styles.headerTitle, { color: colors.text }]} maxFontSizeMultiplier={1.4}>{t('settings.title')}</SelectableText>
         <TouchableOpacity
           style={[styles.closeBtn, { backgroundColor: colors.background }]}
           onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.close')}
         >
           <Ionicons name="close" size={20} color={colors.text} />
         </TouchableOpacity>
@@ -190,6 +200,7 @@ export default function SettingsScreen() {
             activeOpacity={0.7}
             onPress={() => setProfileModalVisible(true)}
             disabled={isDemoMode}
+            accessibilityRole="button"
           >
             <View style={styles.rowLeft}>
               <View
@@ -226,6 +237,7 @@ export default function SettingsScreen() {
             activeOpacity={0.7}
             onPress={importStatement}
             disabled={importing || loading || isDemoMode}
+            accessibilityRole="button"
           >
             <View style={styles.rowLeft}>
               <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
@@ -247,6 +259,7 @@ export default function SettingsScreen() {
             activeOpacity={0.7}
             onPress={() => router.push('/export-guide')}
             disabled={importing || loading}
+            accessibilityRole="button"
           >
             <View style={styles.rowLeft}>
               <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
@@ -264,6 +277,7 @@ export default function SettingsScreen() {
             activeOpacity={0.7}
             onPress={() => setBackupModalVisible(true)}
             disabled={importing || loading || isDemoMode}
+            accessibilityRole="button"
           >
             <View style={styles.rowLeft}>
               <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
@@ -281,6 +295,7 @@ export default function SettingsScreen() {
             activeOpacity={0.7}
             onPress={handleResetDatabase}
             disabled={importing || loading || isDemoMode}
+            accessibilityRole="button"
           >
             <View style={styles.rowLeft}>
               <View style={[styles.iconCircle, { backgroundColor: '#FFE5E5' }]}>
@@ -314,7 +329,7 @@ export default function SettingsScreen() {
 
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
-          <TouchableOpacity style={styles.rowItem} activeOpacity={0.7} onPress={() => openPaywall()}>
+          <TouchableOpacity style={styles.rowItem} activeOpacity={0.7} onPress={() => openPaywall()} accessibilityRole="button">
             <View style={styles.rowLeft}>
               <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
                 <Ionicons name="star-outline" size={18} color={colors.accent} />
@@ -326,7 +341,7 @@ export default function SettingsScreen() {
 
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
-          <TouchableOpacity style={styles.rowItem} activeOpacity={0.7} onPress={handleRestorePurchases}>
+          <TouchableOpacity style={styles.rowItem} activeOpacity={0.7} onPress={handleRestorePurchases} accessibilityRole="button">
             <View style={styles.rowLeft}>
               <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
                 <Ionicons name="refresh-outline" size={18} color={colors.accent} />
@@ -336,7 +351,7 @@ export default function SettingsScreen() {
             <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
           </TouchableOpacity>
 
-          {__DEV__ && (
+          {PRO_TESTING_ENABLED && (
             <>
               <View style={[styles.divider, { backgroundColor: colors.border }]} />
               <View style={styles.rowItem}>
@@ -366,6 +381,7 @@ export default function SettingsScreen() {
             style={styles.rowItem}
             activeOpacity={0.7}
             onPress={() => guardWrite(() => setCurrencyModalVisible(true))}
+            accessibilityRole="button"
           >
             <View style={styles.rowLeft}>
               <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
@@ -393,6 +409,7 @@ export default function SettingsScreen() {
             style={styles.rowItem}
             activeOpacity={0.7}
             onPress={() => setLanguageModalVisible(true)}
+            accessibilityRole="button"
           >
             <View style={styles.rowLeft}>
               <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
@@ -418,6 +435,7 @@ export default function SettingsScreen() {
             style={styles.rowItem}
             activeOpacity={0.7}
             onPress={() => router.push('/categories')}
+            accessibilityRole="button"
           >
             <View style={styles.rowLeft}>
               <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
@@ -434,6 +452,7 @@ export default function SettingsScreen() {
             style={styles.rowItem}
             activeOpacity={0.7}
             onPress={() => router.push('/goals')}
+            accessibilityRole="button"
           >
             <View style={styles.rowLeft}>
               <View style={[styles.iconCircle, { backgroundColor: '#EAF8E6' }]}>
@@ -476,6 +495,7 @@ export default function SettingsScreen() {
                 style={styles.rowItem}
                 activeOpacity={0.7}
                 onPress={() => openPasscodeModal('change')}
+                accessibilityRole="button"
               >
                 <View style={styles.rowLeft}>
                   <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
@@ -518,61 +538,7 @@ export default function SettingsScreen() {
         {/* APPEARANCE SECTION */}
         <SelectableText style={[styles.sectionHeader, { color: colors.textSecondary }]}>{t('settings.appearance')}</SelectableText>
         <View style={[styles.cardGroup, { backgroundColor: colors.card }]}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.themeRow}
-          >
-            {THEMES.map((theme) => {
-              const selected = theme.name === themeName;
-              const preview = isDark ? theme.dark : theme.light;
-              // A Pro theme that is still active stays; it is only locked once another one is picked.
-              const locked = !selected && isThemeLocked(isPro, theme.name);
-              return (
-                <TouchableOpacity
-                  key={theme.name}
-                  style={styles.themeOption}
-                  activeOpacity={0.8}
-                  accessibilityRole="button"
-                  accessibilityLabel={
-                    locked
-                      ? t('pro.gateA11y', { label: t('settings.themeLabel', { name: theme.label }) })
-                      : t('settings.themeLabel', { name: theme.label })
-                  }
-                  accessibilityState={{ selected }}
-                  onPress={() => {
-                    if (locked) {
-                      openPaywall('themes');
-                      return;
-                    }
-                    Haptics.selectionAsync();
-                    setThemeName(theme.name);
-                  }}
-                >
-                  <View style={[styles.themeRing, { borderColor: selected ? colors.accent : 'transparent' }]}>
-                    <LinearGradient
-                      colors={preview.gradient}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={styles.themeSwatch}
-                    >
-                      {selected && <Ionicons name="checkmark" size={20} color={preview.onGradient} />}
-                      {locked && <Ionicons name="lock-closed" size={18} color={preview.onGradient} />}
-                    </LinearGradient>
-                  </View>
-                  <Text
-                    style={[
-                      styles.themeLabel,
-                      { color: selected ? colors.text : colors.textSecondary },
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {theme.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+          <ThemeSwatches />
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
           <View style={styles.rowItem}>
             <View style={styles.rowLeft}>
@@ -598,6 +564,7 @@ export default function SettingsScreen() {
             style={styles.rowItem}
             activeOpacity={0.7}
             onPress={() => router.push('/faq')}
+            accessibilityRole="button"
           >
             <View style={[styles.rowLeft, styles.rowLeftWide]}>
               <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
@@ -614,6 +581,7 @@ export default function SettingsScreen() {
             style={styles.rowItem}
             activeOpacity={0.7}
             onPress={() => router.push('/data-privacy')}
+            accessibilityRole="button"
           >
             <View style={[styles.rowLeft, styles.rowLeftWide]}>
               <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
@@ -625,11 +593,66 @@ export default function SettingsScreen() {
             </View>
             <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
           </TouchableOpacity>
+          {storeLinks && (
+            <>
+              <View style={[styles.divider, { backgroundColor: colors.border }]} />
+              <TouchableOpacity
+                style={styles.rowItem}
+                activeOpacity={0.7}
+                accessibilityRole="link"
+                onPress={() => openLink(storeLinks.rate)}
+              >
+                <View style={[styles.rowLeft, styles.rowLeftWide]}>
+                  <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
+                    <Ionicons name="star-outline" size={18} color={colors.accent} />
+                  </View>
+                  <Text style={[styles.rowTitle, styles.rowTitleWide, { color: colors.text }]}>
+                    {t('settings.rateApp')}
+                  </Text>
+                </View>
+                <Ionicons name="open-outline" size={16} color={colors.textSecondary} />
+              </TouchableOpacity>
+              <View style={[styles.divider, { backgroundColor: colors.border }]} />
+              <TouchableOpacity
+                style={styles.rowItem}
+                activeOpacity={0.7}
+                accessibilityRole="link"
+                onPress={() => openLink(storeLinks.review)}
+              >
+                <View style={[styles.rowLeft, styles.rowLeftWide]}>
+                  <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
+                    <Ionicons name="create-outline" size={18} color={colors.accent} />
+                  </View>
+                  <Text style={[styles.rowTitle, styles.rowTitleWide, { color: colors.text }]}>
+                    {t('settings.writeReview')}
+                  </Text>
+                </View>
+                <Ionicons name="open-outline" size={16} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </>
+          )}
+          {appVersion && (
+            <>
+              <View style={[styles.divider, { backgroundColor: colors.border }]} />
+              <View style={styles.rowItem}>
+                <View style={[styles.rowLeft, styles.rowLeftWide]}>
+                  <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
+                    <Ionicons name="information-circle-outline" size={18} color={colors.accent} />
+                  </View>
+                  <Text style={[styles.rowTitle, styles.rowTitleWide, { color: colors.text }]}>
+                    {t('settings.version')}
+                  </Text>
+                </View>
+                <SelectableText style={[styles.rowValue, { color: colors.textSecondary }]}>
+                  {appVersion}
+                </SelectableText>
+              </View>
+            </>
+          )}
         </View>
-        {appVersion && (
-          <SelectableText style={[styles.versionNote, { color: colors.textSecondary }]}>
-            {t('settings.version', { version: appVersion })}
-          </SelectableText>
+
+        {PRO_TESTING_ENABLED && (
+          <Text style={[styles.testBuildLabel, { color: colors.textSecondary }]}>{t('settings.testBuild')}</Text>
         )}
       </ScrollView>
 
@@ -654,14 +677,18 @@ export default function SettingsScreen() {
       />
 
       {/* Currency Picker Sheet Modal */}
-      <Modal visible={currencyModalVisible} transparent animationType="slide">
+      <Modal visible={currencyModalVisible} transparent animationType="slide" onRequestClose={() => setCurrencyModalVisible(false)}>
         <TouchableOpacity
           style={styles.modalOverlay}
           activeOpacity={1}
+          accessible={false}
           onPress={() => setCurrencyModalVisible(false)}
         >
-          <TouchableWithoutFeedback>
-            <View style={[styles.sheetContainer, { backgroundColor: colors.card }]}>
+          <TouchableWithoutFeedback accessible={false}>
+            <View
+              style={[styles.sheetContainer, { backgroundColor: colors.card }]}
+              onAccessibilityEscape={() => setCurrencyModalVisible(false)}
+            >
               <View style={styles.sheetHeader}>
                 <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
                 <SelectableText style={[styles.sheetTitle, { color: colors.text }]}>{t('settings.selectCurrency')}</SelectableText>
@@ -678,6 +705,8 @@ export default function SettingsScreen() {
                         isSelected && { backgroundColor: colors.tintBackground },
                       ]}
                       onPress={() => handleSelectCurrency(code)}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: isSelected }}
                     >
                       <Text
                         style={[
@@ -699,14 +728,18 @@ export default function SettingsScreen() {
       </Modal>
 
       {/* Language Picker Sheet Modal */}
-      <Modal visible={languageModalVisible} transparent animationType="slide">
+      <Modal visible={languageModalVisible} transparent animationType="slide" onRequestClose={() => setLanguageModalVisible(false)}>
         <TouchableOpacity
           style={styles.modalOverlay}
           activeOpacity={1}
+          accessible={false}
           onPress={() => setLanguageModalVisible(false)}
         >
-          <TouchableWithoutFeedback>
-            <View style={[styles.sheetContainer, { backgroundColor: colors.card }]}>
+          <TouchableWithoutFeedback accessible={false}>
+            <View
+              style={[styles.sheetContainer, { backgroundColor: colors.card }]}
+              onAccessibilityEscape={() => setLanguageModalVisible(false)}
+            >
               <View style={styles.sheetHeader}>
                 <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
                 <SelectableText style={[styles.sheetTitle, { color: colors.text }]}>{t('settings.selectLanguage')}</SelectableText>
@@ -758,7 +791,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  headerTitle: { fontSize: 20, fontWeight: '700' },
+  headerTitle: { fontSize: 20, fontWeight: '700', flexShrink: 1 },
   closeBtn: {
     width: 32,
     height: 32,
@@ -792,9 +825,9 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   rowDisabled: { opacity: 0.4 },
+  testBuildLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.5, textAlign: 'center', marginTop: 16 },
   sectionNote: { fontSize: 12, lineHeight: 16, marginTop: 8, marginHorizontal: 4 },
-  versionNote: { fontSize: 12, lineHeight: 16, marginTop: 16, textAlign: 'center' },
-  rowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  rowLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1, marginRight: 12 },
   // For a title long enough to wrap in some languages.
   rowLeftWide: { flex: 1, marginRight: 12 },
   rowTitleWide: { flexShrink: 1 },
@@ -814,21 +847,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   avatarText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
-  rowTitle: { fontSize: 15, fontWeight: '600' },
+  rowTitle: { fontSize: 15, fontWeight: '600', flexShrink: 1 },
   rowSub: { fontSize: 11, marginTop: 1 },
   actionBadgeText: { fontSize: 12, fontWeight: '600' },
+  rowValue: { fontSize: 15 },
   divider: { height: StyleSheet.hairlineWidth },
-  themeRow: { gap: 14, paddingVertical: 16 },
-  themeOption: { alignItems: 'center', width: 72 },
-  themeRing: { padding: 3, borderRadius: 30, borderWidth: 2 },
-  themeSwatch: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  themeLabel: { fontSize: 11, fontWeight: '600', marginTop: 6 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   sheetContainer: {
     borderTopLeftRadius: 24,

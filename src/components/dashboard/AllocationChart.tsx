@@ -91,7 +91,7 @@ export function AllocationChart({
           >
             <Ionicons name={CHART_OPTIONS[allocationChart].icon} size={15} color={colors.accent} />
           </TouchableOpacity>
-          <TouchableOpacity activeOpacity={0.7} onPress={onOpenBudgets} hitSlop={8}>
+          <TouchableOpacity activeOpacity={0.7} onPress={onOpenBudgets} hitSlop={8} accessibilityRole="button">
             <Text style={[styles.resetFilterText, { color: colors.accent }]}>{t('settings.budgets')}</Text>
           </TouchableOpacity>
         </View>
@@ -166,6 +166,8 @@ export function AllocationChart({
                 ]}
                 activeOpacity={0.7}
                 onPress={() => onCategoryPress(item.category)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isSelected }}
               >
                 <View style={styles.legendTop}>
                   <View style={styles.legendLeft}>
@@ -239,6 +241,7 @@ export function AllocationChart({
                         ]}
                         activeOpacity={0.7}
                         onPress={() => onSelectTransaction(trx)}
+                        accessibilityRole="button"
                       >
                         <View style={styles.trxLeft}>
                           <Text style={[styles.trxDesc, { color: colors.text }]} numberOfLines={1}>
@@ -265,6 +268,7 @@ export function AllocationChart({
             style={styles.expandLegendBtn}
             activeOpacity={0.7}
             onPress={() => setShowAllCategories(true)}
+            accessibilityRole="button"
           >
             <Text style={[styles.expandLegendText, { color: colors.accent }]}>
               {t('home.viewAllCategories', { count: categoryData.length })}
@@ -278,6 +282,7 @@ export function AllocationChart({
             style={styles.expandLegendBtn}
             activeOpacity={0.7}
             onPress={() => setShowAllCategories(false)}
+            accessibilityRole="button"
           >
             <Text style={[styles.expandLegendText, { color: colors.accent }]}>{t('home.showLess')}</Text>
             <Ionicons name="chevron-up" size={14} color={colors.accent} />

@@ -18,7 +18,7 @@ export const tr: FaqCopy = {
     'Ekstreyi bankanızın uygulamasından veya web sitesinden CSV ya da Excel dosyası olarak indirin. {settings} → {guide} bölümü, her bankanın kendi yardım sayfalarından alınan adımları ve diğer bankalar için genel adımları gösterir.',
   'faq.start.demo.q': 'Uygulamayı kendi verilerim olmadan deneyebilir miyim?',
   'faq.start.demo.a':
-    'Evet. Karşılama ekranında {demo} seçeneği vardır: üç aylık örnek işlem ve iki örnek borç içeren ayrı bir profil. İçe aktarma, yedekleme, sıfırlama, profil değiştirme ve içe aktarma hatırlatıcıları orada kapalıdır. Demodan şu düğmeyle çıkılır: {exitDemo}.',
+    'Evet. Karşılama ekranında {demo} seçeneği vardır: üç aylık örnek işlem ve iki örnek borç içeren ayrı bir profil. İçe aktarma, yedekleme, sıfırlama, profil değiştirme ve içe aktarma hatırlatıcıları orada kapalıdır. Gelecek Büyüme planı orada değiştirilemez. Demodan şu düğmeyle çıkılır: {exitDemo}.',
 
   'faq.import.title': 'Ekstre içe aktarma',
   'faq.import.files.q': 'Hangi dosyaları içe aktarabilirim?',

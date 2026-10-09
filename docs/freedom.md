@@ -16,13 +16,15 @@ Plan tab (Debts | Health | Future Growth) with a compound-growth investment proj
 
 ## Free and Pro
 
-- Free: basic inputs, "More options", the result cards and the chart.
-- Pro ([subscription.md](subscription.md)): the outlook (`growthScenarios`) and the goal (`growthGoals`) are wrapped in `ProGate`; "Details" (`growthDetails`) is a locked `DisclosureRow` that opens the paywall; today's prices (`growthRealPrices`) keeps `real` false, so every amount stays in future prices.
-- On a read-only profile the inputs take no focus (`editable()` in `FreedomScreen`) and `applyDraft` saves nothing.
+- The whole feature is Pro (`futureGrowth`, [subscription.md](subscription.md)).
+- Without Pro the full screen is shown read-only (`locked`), never the explainer: the saved plan, or `DEFAULT_FREEDOM_PLAN` as an example when the profile has none (the note then reads `pro.locked.examplePlan`; "Renew" only fits a saved plan). The first-visit intro is skipped; "How it works" still opens it.
+- Read-only means: the note on top, inputs take no focus (`editable()`), `applyDraft` saves nothing, and a tap on an input opens the paywall. Details and the prices switch still work: they only change the view.
+- On a read-only profile the same wrapper shows the read-only sheet instead.
+- In the Demo Workspace (`isDemoMode`) the plan cannot be changed either: `editable()` grays the inputs out (opacity 0.4, no touches), `applyDraft` saves nothing and a note on top (`freedom.demoNote`) says why. No sheet and no paywall there. Details and the prices switch still work.
 
 ## Layout
 
-Layered, top to bottom: basic inputs → outlook (`ScenarioSelector`) → `ResultCards` → `GrowthChart` → `GoalSection` → "More options" → "Details".
+Layered, top to bottom: basic inputs → `CashComparison` → `ResultCards` → outlook (`ScenarioSelector`) → `GrowthChart` → `GoalSection` → "More options" → "Details".
 
 - `DisclosureRow` is a card-shaped toggle; the cards it reveals are rendered after it by `FreedomScreen` (`optionsOpen`, `detailsOpen`; local state, collapsed by default).
 - More options is forced open while one of `ADVANCED_FIELD_KEYS` has an error, so an invalid field never blocks saving unseen.
@@ -50,6 +52,15 @@ Layered, top to bottom: basic inputs → outlook (`ScenarioSelector`) → `Resul
 - `ScenarioSelector` sits under the basic inputs. A tap goes through `handleChange('returnPct', ...)` and changes nothing else.
 - The selected segment is derived from the return field text (`matchScenario`), so a custom return selects none.
 - The comparison row is `compareScenarios(lastValid)`: `projectGrowth` per scenario with only `returnPct` swapped (the fee still applies).
+
+## Cash vs. invested (`CashComparison`)
+
+- Always visible, between the basic inputs and the result card. No input and nothing saved, so it is not wrapped in `editable()`.
+- `cashComparison(input)` in `src/utils/freedom.ts`: `invested` is the plan's final balance, `cash` is the same payments with 0% return and 0% fee (cash has no fund fee), `gain` is the difference.
+- A fee above the return makes `gain` negative; the row then reads "Investing costs" with a positive amount.
+- In Real mode `FreedomScreen` deflates all three with `toReal`, like the fee figures.
+- The note is shown only when inflation is above 0. Future prices: what the cash buys in today's money (`cashToday`). Today's prices: the cash row is already deflated, so the note only names the inflation.
+- Overlap, on purpose: `cash` equals "You pay in" on the result card and `gain` equals its "growth adds". The note is what this block adds.
 
 ## Persistence
 

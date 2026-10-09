@@ -93,12 +93,12 @@ export default function FaqScreen() {
         ))}
 
         <View style={[styles.cardGroup, styles.linkGroup, { backgroundColor: colors.card }]}>
-          <TouchableOpacity style={styles.linkRow} activeOpacity={0.7} onPress={() => router.push('/export-guide')}>
+          <TouchableOpacity style={styles.linkRow} activeOpacity={0.7} onPress={() => router.push('/export-guide')} accessibilityRole="button">
             <Text style={[styles.linkText, { color: colors.accent }]}>{t('guide.settingsRow')}</Text>
             <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
           </TouchableOpacity>
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
-          <TouchableOpacity style={styles.linkRow} activeOpacity={0.7} onPress={() => router.push('/data-privacy')}>
+          <TouchableOpacity style={styles.linkRow} activeOpacity={0.7} onPress={() => router.push('/data-privacy')} accessibilityRole="button">
             <Text style={[styles.linkText, { color: colors.accent }]}>{t('settings.dataPrivacy')}</Text>
             <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
           </TouchableOpacity>

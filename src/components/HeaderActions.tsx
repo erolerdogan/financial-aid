@@ -40,9 +40,10 @@ export function HeaderActions({ children, showSearch = true }: HeaderActionsProp
         onPress={() => setProfileModalVisible(true)}
         activeOpacity={0.7}
         disabled={isDemoMode}
+        accessibilityRole="button"
       >
         <View style={[styles.miniAvatar, { backgroundColor: activeProfile?.avatarColor || '#007AFF' }]}>
-          <Text style={styles.miniAvatarText}>{activeProfile?.name?.substring(0, 1) || 'P'}</Text>
+          <Text style={styles.miniAvatarText} allowFontScaling={false}>{activeProfile?.name?.substring(0, 1) || 'P'}</Text>
         </View>
         <Text style={[styles.profilePillText, { color: colors.text }]} numberOfLines={1}>
           {activeProfile?.name || t('profile.defaultName')}
@@ -59,6 +60,7 @@ export function HeaderActions({ children, showSearch = true }: HeaderActionsProp
             router.push({ pathname: '/transactions', params: { focusSearch: '1' } });
           }}
           accessibilityLabel={t('header.search')}
+          accessibilityRole="button"
         >
           <Ionicons name="search" size={18} color={colors.text} />
         </TouchableOpacity>
@@ -75,11 +77,12 @@ export function HeaderActions({ children, showSearch = true }: HeaderActionsProp
           bellRef.current.measureInWindow((x, y, width, height) => openInbox({ x, y, width, height }));
         }}
         accessibilityLabel={inboxLabel}
+        accessibilityRole="button"
       >
         <Ionicons name="notifications-outline" size={18} color={colors.text} />
         {count > 0 ? (
           <View style={[styles.badge, { borderColor: colors.background }]}>
-            <Text style={styles.badgeText}>{count > 9 ? '9+' : count}</Text>
+            <Text style={styles.badgeText} allowFontScaling={false}>{count > 9 ? '9+' : count}</Text>
           </View>
         ) : hasQuietItems ? (
           <View style={[styles.dot, { backgroundColor: colors.accent, borderColor: colors.background }]} />
@@ -91,6 +94,7 @@ export function HeaderActions({ children, showSearch = true }: HeaderActionsProp
         activeOpacity={0.8}
         onPress={() => router.push('/settings')}
         accessibilityLabel={t('header.settings')}
+        accessibilityRole="button"
       >
         <Ionicons name="settings-outline" size={18} color={colors.text} />
       </TouchableOpacity>

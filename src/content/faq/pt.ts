@@ -18,7 +18,7 @@ export const pt: FaqCopy = {
     'Baixe-o no app ou no site do seu banco como arquivo CSV ou Excel. {settings} → {guide} mostra os passos de cada banco, tirados das páginas de ajuda do próprio banco, e passos gerais para qualquer outro banco.',
   'faq.start.demo.q': 'Posso experimentar o app sem os meus dados?',
   'faq.start.demo.a':
-    'Sim. A tela de boas-vindas oferece {demo}: um perfil separado com três meses de transações de exemplo e duas dívidas de exemplo. Ali ficam desativados a importação, o backup, a redefinição, a troca de perfil e os lembretes de importação. Para sair, use {exitDemo}.',
+    'Sim. A tela de boas-vindas oferece {demo}: um perfil separado com três meses de transações de exemplo e duas dívidas de exemplo. Ali ficam desativados a importação, o backup, a redefinição, a troca de perfil e os lembretes de importação. O plano de Crescimento futuro não pode ser alterado ali. Para sair, use {exitDemo}.',
 
   'faq.import.title': 'Importar extratos',
   'faq.import.files.q': 'Quais arquivos posso importar?',

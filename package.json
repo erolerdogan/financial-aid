@@ -59,6 +59,7 @@
     "lint": "expo lint",
     "test": "node ./scripts/run-tests.js",
     "site": "npx tsx scripts/build-site.ts",
+    "perf": "npx tsx --require ./scripts/perf-native-stub.js scripts/perf-db.ts",
     "icons": "node ./scripts/build-icons.js",
     "pdfhost": "node ./scripts/build-pdf-host.js",
     "licenses": "node ./scripts/build-licenses.js"

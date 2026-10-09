@@ -1,24 +1,28 @@
 import { FEATURES, type FeatureFlag, type LimitKey } from '@/constants/features';
 import type { ThemeName } from '@/contexts/ThemeContext';
 
-/** Where the current tier comes from. `dev` is the developer switch in Settings. */
+/** Where the current tier comes from. `dev` is the Pro testing switch in Settings. */
 export type EntitlementSource = 'free' | 'pro' | 'dev';
 
-/** `app_meta` key of the developer switch. */
+/** `app_meta` key of the Pro testing switch. */
 export const PRO_DEV_OVERRIDE_KEY = 'pro_dev_override';
 /** `app_meta` key: how many imports stored at least one row. It survives "Reset". */
 export const PRO_OFFER_IMPORTS_KEY = 'pro_offer_imports';
 /** `app_meta` key: set once the one-time Pro offer has been shown. It survives "Reset". */
 export const PRO_OFFER_SHOWN_KEY = 'pro_offer_shown';
-/** The one-time offer opens after this many successful imports. */
-export const PRO_OFFER_AFTER_IMPORTS = 2;
+/**
+ * The one-time offer opens after this many successful imports. One: the first summary is the moment the
+ * user sees their own money in the app, and statements are monthly, so a second import may be weeks away.
+ */
+export const PRO_OFFER_AFTER_IMPORTS = 1;
 
 /**
- * The stored developer switch counts in a development build only: `app_meta` travels inside
- * backups, so a release build must not become Pro by restoring one.
+ * The stored testing switch counts only where testing is enabled (`PRO_TESTING_ENABLED`: a development
+ * build, or a release build made with `EXPO_PUBLIC_PRO_TESTING=1`). `app_meta` travels inside backups and
+ * stays on the device across an update, so a production build must not become Pro from a leftover value.
  */
-export const resolveSource = (devOverride: string | null, isDev: boolean): EntitlementSource =>
-  isDev && devOverride === '1' ? 'dev' : 'free';
+export const resolveSource = (devOverride: string | null, testingEnabled: boolean): EntitlementSource =>
+  testingEnabled && devOverride === '1' ? 'dev' : 'free';
 
 export const isProSource = (source: EntitlementSource): boolean => source !== 'free';
 
@@ -55,7 +59,7 @@ export const isProfileReadOnly = (
 export const isThemeLocked = (isPro: boolean, name: ThemeName): boolean =>
   !can(isPro, 'allThemes') && !FEATURES.freeThemes.includes(name);
 
-/** The paywall is offered once, unasked, after the user has imported a few times. */
+/** The paywall is offered once, unasked, after the user has imported. */
 export const shouldOfferPro = (state: {
   isPro: boolean;
   isDemo: boolean;

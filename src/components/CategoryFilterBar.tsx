@@ -44,6 +44,8 @@ export function CategoryFilterBar({ categories, selected, onSelect }: CategoryFi
               { backgroundColor: colors.field, borderColor: colors.border },
               isActive && { backgroundColor: tint, borderColor: tint },
             ]}
+            accessibilityRole="button"
+            accessibilityState={{ selected: isActive }}
           >
             <View style={[styles.dot, { backgroundColor: isActive ? '#FFFFFF' : tint }]} />
             <Text style={[styles.chipText, { color: isActive ? '#FFFFFF' : colors.text }]}>

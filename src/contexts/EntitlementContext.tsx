@@ -1,3 +1,4 @@
+import { PRO_TESTING_ENABLED } from '@/constants/buildConfig';
 import type { FeatureFlag, LimitKey } from '@/constants/features';
 import { useProfile } from '@/contexts/ProfileContext';
 import { setAppMeta } from '@/db/database';
@@ -7,6 +8,7 @@ import {
   isProSource,
   limit as limitFor,
   PRO_DEV_OVERRIDE_KEY,
+  PRO_OFFER_SHOWN_KEY,
   resolveSource,
 } from '@/utils/entitlement';
 import { useSQLiteContext } from 'expo-sqlite';
@@ -26,7 +28,7 @@ interface EntitlementContextType {
   limit: (key: LimitKey) => number;
   /** The tier itself, without the demo exception. */
   source: EntitlementSource;
-  /** Development builds only. */
+  /** Development and Pro testing builds only (`PRO_TESTING_ENABLED`). */
   setDevOverride: (enabled: boolean) => void;
   /** Reads the tier again, after the purchase service changed it. */
   refresh: () => void;
@@ -52,6 +54,8 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
   const { isDemoMode } = useProfile();
 
   const readOverride = useCallback((): string | null => {
+    // Any other build does not even read the key: a value left by a test build or a restored backup stays unused.
+    if (!PRO_TESTING_ENABLED) return null;
     try {
       return (
         db.getFirstSync<{ value: string }>(`SELECT value FROM app_meta WHERE key = ?;`, [PRO_DEV_OVERRIDE_KEY])
@@ -66,14 +70,21 @@ export function EntitlementProvider({ children }: { children: React.ReactNode })
   const [devOverride, setDevOverrideState] = useState<string | null>(readOverride);
   const [readOnlyNotice, setReadOnlyNotice] = useState<ReadOnlyNotice | null>(null);
 
-  const source = resolveSource(devOverride, __DEV__);
+  const source = resolveSource(devOverride, PRO_TESTING_ENABLED);
   const isPro = isProSource(source) || isDemoMode;
 
   const setDevOverride = useCallback(
     (enabled: boolean) => {
+      if (!PRO_TESTING_ENABLED) return;
       const value = enabled ? '1' : '0';
       setDevOverrideState(value);
       setAppMeta(db, PRO_DEV_OVERRIDE_KEY, value).catch((err) => console.warn('Entitlement save warning:', err));
+      // Back to Free: the one-time offer can be tested again.
+      if (!enabled) {
+        db.runAsync(`DELETE FROM app_meta WHERE key = ?;`, [PRO_OFFER_SHOWN_KEY]).catch((err) =>
+          console.warn('Offer reset warning:', err)
+        );
+      }
     },
     [db]
   );

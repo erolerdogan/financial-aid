@@ -94,10 +94,12 @@ export default function GoalsScreen() {
   return (
     <ScreenContainer showDemoBanner={false}>
       <View style={[styles.headerRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <SelectableText style={[styles.headerTitle, { color: colors.text }]}>{t('settings.budgets')}</SelectableText>
+        <SelectableText style={[styles.headerTitle, { color: colors.text }]} maxFontSizeMultiplier={1.4}>{t('settings.budgets')}</SelectableText>
         <TouchableOpacity
           style={[styles.closeBtn, { backgroundColor: colors.surface }]}
           onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.close')}
         >
           <Ionicons name="close" size={20} color={colors.text} />
         </TouchableOpacity>
@@ -136,6 +138,7 @@ export default function GoalsScreen() {
                     () => handleRemoveGoal(item.category)
                   )
                 }
+                accessibilityRole="button"
               >
                 <View style={styles.goalCardHeader}>
                   <View style={styles.goalLeft}>
@@ -179,7 +182,7 @@ export default function GoalsScreen() {
       </ScrollView>
 
       {/* Edit Goal Modal with KeyboardAvoidingView */}
-      <Modal visible={modalVisible} transparent animationType="slide">
+      <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={() => setModalVisible(false)}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.modalOverlay}
@@ -187,10 +190,14 @@ export default function GoalsScreen() {
           <TouchableOpacity
             style={{ flex: 1, justifyContent: 'flex-end' }}
             activeOpacity={1}
+            accessible={false}
             onPress={() => setModalVisible(false)}
           >
-            <TouchableWithoutFeedback>
-              <View style={[styles.sheetContainer, { backgroundColor: colors.card }]}>
+            <TouchableWithoutFeedback accessible={false}>
+              <View
+                style={[styles.sheetContainer, { backgroundColor: colors.card }]}
+                onAccessibilityEscape={() => setModalVisible(false)}
+              >
                 <View style={styles.sheetHeader}>
                   <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
                   <SelectableText style={[styles.sheetTitle, { color: colors.text }]}>
@@ -217,12 +224,14 @@ export default function GoalsScreen() {
                   <TouchableOpacity
                     style={[styles.modalCancelBtn, { backgroundColor: colors.track }]}
                     onPress={() => setModalVisible(false)}
+                    accessibilityRole="button"
                   >
                     <Text style={[styles.modalCancelText, { color: colors.text }]}>{t('common.cancel')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.modalSaveBtn, { backgroundColor: colors.accent }]}
                     onPress={handleSaveGoal}
+                    accessibilityRole="button"
                   >
                     <Text style={styles.modalSaveText}>{t('budgets.save')}</Text>
                   </TouchableOpacity>
@@ -247,7 +256,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  headerTitle: { fontSize: 20, fontWeight: '700' },
+  headerTitle: { fontSize: 20, fontWeight: '700', flexShrink: 1 },
   closeBtn: {
     width: 32,
     height: 32,
@@ -272,10 +281,12 @@ const styles = StyleSheet.create({
   },
   goalCardHeader: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  goalLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
+  goalLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flexGrow: 1, flexShrink: 1, minWidth: '45%' },
   dot: { width: 10, height: 10, borderRadius: 5 },
   categoryNameWrap: { flexShrink: 1 },
   categoryName: { fontSize: 15, fontWeight: '600' },

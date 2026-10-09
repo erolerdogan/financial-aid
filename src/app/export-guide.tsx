@@ -80,7 +80,7 @@ export default function ExportGuideScreen() {
             <Text style={[styles.backText, { color: colors.accent }]}>{t('guide.allBanks')}</Text>
           </TouchableOpacity>
         ) : (
-          <SelectableText style={[styles.headerTitle, { color: colors.text }]}>{t('guide.title')}</SelectableText>
+          <SelectableText style={[styles.headerTitle, { color: colors.text }]} maxFontSizeMultiplier={1.4}>{t('guide.title')}</SelectableText>
         )}
         <TouchableOpacity
           style={[styles.closeBtn, { backgroundColor: colors.background }]}
@@ -162,6 +162,7 @@ export default function ExportGuideScreen() {
               onPress={importStatement}
               disabled={importing || importDisabled}
               activeOpacity={0.85}
+              accessibilityRole="button"
             >
               {importing ? (
                 <ActivityIndicator size="small" color="#FFF" />
@@ -255,7 +256,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  headerTitle: { fontSize: 20, fontWeight: '700' },
+  headerTitle: { fontSize: 20, fontWeight: '700', flexShrink: 1 },
   backBtn: { flexDirection: 'row', alignItems: 'center', gap: 2, minHeight: 32, marginLeft: -6 },
   backText: { fontSize: 16, fontWeight: '600' },
   closeBtn: {

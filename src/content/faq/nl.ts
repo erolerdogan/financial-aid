@@ -18,7 +18,7 @@ export const nl: FaqCopy = {
     'Download het in de app of op de website van je bank als CSV- of Excel-bestand. {settings} → {guide} toont de stappen per bank, overgenomen van de hulppagina’s van de bank zelf, en algemene stappen voor elke andere bank.',
   'faq.start.demo.q': 'Kan ik de app proberen zonder mijn eigen gegevens?',
   'faq.start.demo.a':
-    'Ja. Op het welkomstscherm staat {demo}: een apart profiel met drie maanden aan voorbeeldtransacties en twee voorbeeldschulden. Importeren, back-up, resetten, van profiel wisselen en importherinneringen staan daar uit. Je verlaat de demo met {exitDemo}.',
+    'Ja. Op het welkomstscherm staat {demo}: een apart profiel met drie maanden aan voorbeeldtransacties en twee voorbeeldschulden. Importeren, back-up, resetten, van profiel wisselen en importherinneringen staan daar uit. Het plan onder Toekomstige groei kan daar niet worden gewijzigd. Je verlaat de demo met {exitDemo}.',
 
   'faq.import.title': 'Afschriften importeren',
   'faq.import.files.q': 'Welke bestanden kan ik importeren?',
