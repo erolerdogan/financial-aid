@@ -37,6 +37,7 @@ export function FreedomCard() {
       return () => {
         active = false;
       };
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- dataVersion is listed on purpose: reload when stored data changes
     }, [db, profileId, dataVersion])
   );
 

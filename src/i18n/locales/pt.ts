@@ -112,6 +112,15 @@ export const pt: Translations = {
   'settings.switchCurrencyMessage':
     'Converter todos os valores e trocar o símbolo de {from} ({symbol}) para {to}?',
   'settings.switchCurrencyConfirm': 'Converter e trocar símbolo',
+  'settings.searchCurrency': 'Buscar moeda',
+  'settings.noCurrencyFound': 'Nenhuma moeda encontrada',
+  'settings.switchCurrencyRate': '1 {from} = {rate} {to} (câmbio de {date})',
+  'settings.ratesUnavailableTitle': 'Sem taxa de câmbio',
+  'settings.ratesUnavailableMessage':
+    'Não foi possível carregar a taxa de câmbio de hoje, então a moeda não foi trocada. Verifique sua conexão com a internet e tente novamente.',
+  'settings.convertFailedMessage':
+    'Não foi possível converter os valores, então nada foi alterado.',
+  'settings.ratesCredit': 'Rates By Exchange Rate API',
   'settings.resetTitle': 'Redefinir todos os dados e perfis',
   'settings.resetMessage':
     'Tem certeza de que deseja excluir todos os perfis, transações e ajustes? O app voltará totalmente ao estado inicial.',
@@ -136,13 +145,6 @@ export const pt: Translations = {
   'licenses.title': 'Licenças de código aberto',
   'licenses.intro': 'O Financial Aid usa estes pacotes de código aberto. Toque em um para ler a licença.',
   'licenses.packageMeta': 'Versão {version} · {license}',
-  'currency.EUR': 'Euro (€)',
-  'currency.USD': 'Dólar americano ($)',
-  'currency.GBP': 'Libra esterlina (£)',
-  'currency.JPY': 'Iene japonês (¥)',
-  'currency.CAD': 'Dólar canadense (CA$)',
-  'currency.AUD': 'Dólar australiano (A$)',
-  'currency.CHF': 'Franco suíço (CHF)',
 
   'notifications.channel': 'Lembretes de importação',
   'notifications.title': 'Hora de importar transações 📊',
@@ -306,6 +308,17 @@ export const pt: Translations = {
   'review.categoriseAs': 'Categorizar como {category}',
   'review.choose': 'Escolha uma categoria',
   'review.suggested': 'Sugerida',
+  'quickAdd.button': 'Adicionar sem categoria ({count})',
+  'quickAdd.title': 'Adicionar a {category}',
+  'quickAdd.other': 'Outras transações',
+  'quickAdd.selectAll': 'Selecionar tudo',
+  'quickAdd.deselectAll': 'Limpar seleção',
+  'quickAdd.remember': 'Lembrar estes comerciantes',
+  'quickAdd.rememberNote_one': 'As próximas transações de {count} comerciante totalmente selecionado irão para esta categoria.',
+  'quickAdd.rememberNote_other': 'As próximas transações de {count} comerciantes totalmente selecionados irão para esta categoria.',
+  'quickAdd.rememberHelp': 'Aplica-se aos comerciantes com todas as transações selecionadas.',
+  'quickAdd.confirm_one': 'Adicionar {count} transação',
+  'quickAdd.confirm_other': 'Adicionar {count} transações',
   'suggest.like': 'como {merchant}',
   'suggest.learned': 'você já escolheu isso antes',
   'suggest.mentions': 'menciona “{keyword}”',
@@ -539,6 +552,19 @@ export const pt: Translations = {
   'debt.form.noneContain': 'Nenhuma transação contém {keywords}.',
   'debt.form.notCounted': 'Não contados: {hints}.',
   'debt.form.delete': 'Excluir dívida',
+  'debt.form.pickFromTransactions': 'Escolher entre as transações',
+  'debt.pick.title': 'Escolher um pagamento',
+  'debt.pick.help':
+    'Toque em um pagamento. Todos os pagamentos ao mesmo credor são selecionados junto; toque em um selecionado para deixá-lo de fora.',
+  'debt.pick.search': 'Buscar transações',
+  'debt.pick.empty':
+    'Nenhuma despesa para escolher. Importe um extrato primeiro, ou os pagamentos já estão vinculados a uma dívida.',
+  'debt.pick.noResults': 'Nenhuma transação encontrada',
+  'debt.pick.noKeywordTitle': 'Não é possível vincular',
+  'debt.pick.noKeyword':
+    'Esta transação não tem um nome que o app consiga buscar. Adicione o pagamento à mão pela dívida.',
+  'debt.pick.use_one': 'Usar {count} pagamento',
+  'debt.pick.use_other': 'Usar {count} pagamentos',
 
   'freedom.inTodaysMoney': 'Em dinheiro de hoje.',
   'freedom.keyboardDone': 'Concluir, ocultar teclado',
@@ -1122,6 +1148,9 @@ export const pt: Translations = {
   'health.intro.step3Title': 'Faixas típicas por categoria',
   'health.intro.step3Text':
     'Cada categoria aparece ao lado de uma faixa típica que se adapta à sua casa. Verde é dentro da faixa, amarelo um pouco fora, vermelho bem fora. Segure uma categoria para aceitar o seu próprio nível.',
+  'health.intro.householdTitle': 'O que a sua casa muda',
+  'health.intro.householdText':
+    'Adultos e crianças movem as faixas típicas, não a pontuação. Cada criança sobe em {child} pontos percentuais o limite superior de Mercado e de Creche e crianças; com um só adulto, a faixa de Mercado fica {single} pontos mais baixa. Aluguel e casa própria usam a mesma faixa de Moradia. A renda e a reserva de emergência que você informa mudam a pontuação.',
   'health.intro.step4Title': 'Uma coisa para ajustar',
   'health.intro.step4Text': 'A pontuação sempre vem com a única mudança que somaria mais pontos.',
   'health.intro.step5Title': 'Alertas após uma importação',

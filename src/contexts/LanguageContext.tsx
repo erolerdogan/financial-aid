@@ -12,6 +12,7 @@ import {
   translate,
 } from '@/i18n';
 import { categoryLabel, formatMessages } from '@/i18n/categories';
+import { currencyLabel } from '@/i18n/currencyNames';
 import { Formatters, createFormatters } from '@/i18n/format';
 import { refreshImportReminderText } from '@/utils/notifications';
 import { useLocales } from 'expo-localization';
@@ -28,6 +29,8 @@ interface LanguageContextType {
   format: Formatters;
   /** Display name of a category (built-in names translated). */
   categoryName: (name: string) => string;
+  /** Name of a currency for its code, e.g. "Japanese Yen". */
+  currencyName: (code: string) => string;
   /** One line for messages built outside React (fixed-cost reasons, suggestions). */
   describe: (messages: readonly Message[]) => string;
 }
@@ -41,6 +44,7 @@ const LanguageContext = createContext<LanguageContextType>({
   t: defaultT,
   format: createFormatters('en-US'),
   categoryName: (name) => categoryLabel(name, defaultT),
+  currencyName: (code) => currencyLabel(code, DEFAULT_LANGUAGE),
   describe: (messages) => formatMessages(messages, defaultT),
 });
 
@@ -90,6 +94,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
       t,
       format: createFormatters(tag),
       categoryName: (name) => categoryLabel(name, t),
+      currencyName: (code) => currencyLabel(code, language),
       describe: (messages) => formatMessages(messages, t, tag),
     };
   }, [language, tag, storedLanguage, setLanguage]);

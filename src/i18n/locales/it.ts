@@ -112,6 +112,15 @@ export const it: Translations = {
   'settings.switchCurrencyMessage':
     'Convertire tutti gli importi e cambiare il simbolo da {from} ({symbol}) a {to}?',
   'settings.switchCurrencyConfirm': 'Converti e cambia simbolo',
+  'settings.searchCurrency': 'Cerca valuta',
+  'settings.noCurrencyFound': 'Nessuna valuta trovata',
+  'settings.switchCurrencyRate': '1 {from} = {rate} {to} (cambio del {date})',
+  'settings.ratesUnavailableTitle': 'Nessun tasso di cambio',
+  'settings.ratesUnavailableMessage':
+    'Non è stato possibile caricare il tasso di cambio di oggi, quindi la valuta non è stata cambiata. Controlla la connessione a internet e riprova.',
+  'settings.convertFailedMessage':
+    'Non è stato possibile convertire gli importi, quindi non è stato modificato nulla.',
+  'settings.ratesCredit': 'Rates By Exchange Rate API',
   'settings.resetTitle': 'Azzera tutti i dati e i profili',
   'settings.resetMessage':
     'Vuoi davvero eliminare tutti i profili, i movimenti e le impostazioni? L’app tornerà completamente allo stato iniziale.',
@@ -136,13 +145,6 @@ export const it: Translations = {
   'licenses.title': 'Licenze open source',
   'licenses.intro': 'Financial Aid usa questi pacchetti open source. Tocca un pacchetto per leggerne la licenza.',
   'licenses.packageMeta': 'Versione {version} · {license}',
-  'currency.EUR': 'Euro (€)',
-  'currency.USD': 'Dollaro statunitense ($)',
-  'currency.GBP': 'Sterlina britannica (£)',
-  'currency.JPY': 'Yen giapponese (¥)',
-  'currency.CAD': 'Dollaro canadese (CA$)',
-  'currency.AUD': 'Dollaro australiano (A$)',
-  'currency.CHF': 'Franco svizzero (CHF)',
 
   'notifications.channel': 'Promemoria di importazione',
   'notifications.title': 'È ora di importare i movimenti 📊',
@@ -306,6 +308,17 @@ export const it: Translations = {
   'review.categoriseAs': 'Classifica come {category}',
   'review.choose': 'Scegli una categoria',
   'review.suggested': 'Suggerita',
+  'quickAdd.button': 'Aggiungi senza categoria ({count})',
+  'quickAdd.title': 'Aggiungi a {category}',
+  'quickAdd.other': 'Altri movimenti',
+  'quickAdd.selectAll': 'Seleziona tutto',
+  'quickAdd.deselectAll': 'Deseleziona tutto',
+  'quickAdd.remember': 'Ricorda questi esercenti',
+  'quickAdd.rememberNote_one': 'I prossimi movimenti di {count} esercente selezionato per intero andranno in questa categoria.',
+  'quickAdd.rememberNote_other': 'I prossimi movimenti di {count} esercenti selezionati per intero andranno in questa categoria.',
+  'quickAdd.rememberHelp': 'Vale per gli esercenti con tutti i movimenti selezionati.',
+  'quickAdd.confirm_one': 'Aggiungi {count} movimento',
+  'quickAdd.confirm_other': 'Aggiungi {count} movimenti',
   'suggest.like': 'come {merchant}',
   'suggest.learned': 'l’hai già scelta in passato',
   'suggest.mentions': 'contiene “{keyword}”',
@@ -539,6 +552,19 @@ export const it: Translations = {
   'debt.form.noneContain': 'Nessun movimento contiene {keywords}.',
   'debt.form.notCounted': 'Non conteggiati: {hints}.',
   'debt.form.delete': 'Elimina debito',
+  'debt.form.pickFromTransactions': 'Scegli dai movimenti',
+  'debt.pick.title': 'Scegli un pagamento',
+  'debt.pick.help':
+    'Tocca un pagamento. Tutti i pagamenti allo stesso finanziatore vengono selezionati insieme; tocca uno selezionato per escluderlo.',
+  'debt.pick.search': 'Cerca movimenti',
+  'debt.pick.empty':
+    'Nessuna spesa tra cui scegliere. Importa prima un estratto conto, oppure i pagamenti sono già collegati a un debito.',
+  'debt.pick.noResults': 'Nessun movimento trovato',
+  'debt.pick.noKeywordTitle': 'Impossibile collegare',
+  'debt.pick.noKeyword':
+    'Questo movimento non ha un nome che l’app possa cercare. Aggiungi il pagamento a mano dal debito.',
+  'debt.pick.use_one': 'Usa {count} pagamento',
+  'debt.pick.use_other': 'Usa {count} pagamenti',
 
   'freedom.inTodaysMoney': 'In denaro di oggi.',
   'freedom.keyboardDone': 'Fine, nascondi tastiera',
@@ -1127,6 +1153,9 @@ export const it: Translations = {
   'health.intro.step3Title': 'Intervalli tipici per categoria',
   'health.intro.step3Text':
     'Ogni categoria è confrontata con un intervallo tipico che si adatta alla tua famiglia. Verde è nella norma, giallo poco fuori, rosso ben fuori. Tieni premuta una categoria per accettare il tuo livello.',
+  'health.intro.householdTitle': 'Cosa cambia con la tua famiglia',
+  'health.intro.householdText':
+    'Adulti e bambini spostano gli intervalli tipici, non il punteggio. Ogni bambino alza di {child} punti percentuali il limite superiore di Spesa e di Infanzia e bambini; con un solo adulto, l\'intervallo di Spesa è più basso di {single} punti. Affitto e proprietà condividono lo stesso intervallo di Casa. Il reddito e il cuscinetto di risparmio che inserisci, invece, cambiano il punteggio.',
   'health.intro.step4Title': 'Una cosa da sistemare',
   'health.intro.step4Text': 'Il punteggio arriva sempre con il singolo cambiamento che aggiungerebbe più punti.',
   'health.intro.step5Title': 'Avvisi dopo un\'importazione',

@@ -87,8 +87,8 @@ export const DEFAULT_HOUSEHOLD: Household = {
   safetySavings: null,
 };
 
-const CHILD_POINTS = 2;
-const SINGLE_ADULT_POINTS = 2;
+export const CHILD_POINTS = 2;
+export const SINGLE_ADULT_POINTS = 2;
 
 export type BenchmarkRanges = Record<BenchmarkGroupId, BenchmarkRange | null>;
 

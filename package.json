@@ -62,7 +62,8 @@
     "perf": "npx tsx --require ./scripts/perf-native-stub.js scripts/perf-db.ts",
     "icons": "node ./scripts/build-icons.js",
     "pdfhost": "node ./scripts/build-pdf-host.js",
-    "licenses": "node ./scripts/build-licenses.js"
+    "licenses": "node ./scripts/build-licenses.js",
+    "currencies": "npx tsx scripts/build-currencies.ts"
   },
   "private": true
 }

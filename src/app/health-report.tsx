@@ -57,7 +57,7 @@ export default function HealthReportScreen() {
   const db = useSQLiteContext();
   const { colors } = useTheme();
   const { t, format, categoryName } = useI18n();
-  const { activeProfile, dataVersion, currencySymbol } = useProfile();
+  const { activeProfile, dataVersion, currencySymbol, currencyDecimals } = useProfile();
   const profileId = activeProfile?.id ?? 1;
   const params = useLocalSearchParams<{ month?: string }>();
 
@@ -90,6 +90,7 @@ export default function HealthReportScreen() {
       return () => {
         active = false;
       };
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- dataVersion is listed on purpose: reload when stored data changes
     }, [db, profileId, pickedMonth, dataVersion])
   );
 
@@ -221,7 +222,7 @@ export default function HealthReportScreen() {
         {
           heading: t('report.alerts'),
           rows: (report?.alerts ?? []).map((alert) => [
-            alertText(alert.message, t, format, currencySymbol),
+            alertText(alert.message, t, format, currencySymbol, currencyDecimals),
             t(`health.alertStatus.${alert.status}`),
           ]),
           empty: t('report.alerts.none'),
@@ -423,7 +424,7 @@ export default function HealthReportScreen() {
                 report.alerts.map((alert) => (
                   <View key={alert.id} style={[styles.tableRow, { borderTopColor: colors.border }]}>
                     <SelectableText style={[styles.alertText, { color: colors.text }]}>
-                      {alertText(alert.message, t, format, currencySymbol)}
+                      {alertText(alert.message, t, format, currencySymbol, currencyDecimals)}
                     </SelectableText>
                     <SelectableText style={[styles.sub, { color: colors.textSecondary }]}>
                       {t(`health.alertStatus.${alert.status}`)}

@@ -101,6 +101,15 @@ check(
 );
 check('an unchanged row carries no previous key', read(['2026-01-05;SHOP;-45,00'], 'Date;Description;Amount')[0].previousKeys === undefined);
 
+// Currency decimals
+const dinar = (cell: string) =>
+  parseCSVContent(['Date;Description;Amount', `2026-01-05;SHOP;${cell}`].join('\n'), [], undefined, 3).transactions[0]?.amount;
+check('three digits after a comma are decimals in a 3-decimal currency', dinar('-1,234') === -1.234, String(dinar('-1,234')));
+check('three digits after a dot are decimals in a 3-decimal currency', dinar('-12.345') === -12.345, String(dinar('-12.345')));
+check('both separators still read as thousands and decimals', dinar('-1.234,567') === -1234.567, String(dinar('-1.234,567')));
+check('a 2-decimal currency keeps reading three digits as thousands', read(['2026-01-05;SHOP;-1,234'], 'Date;Description;Amount')[0].amount === -1234);
+check('a 0-decimal currency reads amounts as before', parseCSVContent('Date;Description;Amount\n2026-01-05;SHOP;-45,50', [], undefined, 0).transactions[0].amount === -45.5);
+
 if (failures > 0) {
   console.log(`\n${failures} check(s) failed`);
   process.exit(1);

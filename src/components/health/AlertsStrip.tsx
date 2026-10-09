@@ -29,7 +29,7 @@ export function AlertsStrip() {
   const db = useSQLiteContext();
   const { colors } = useTheme();
   const { t, format } = useI18n();
-  const { activeProfile, dataVersion, currencySymbol } = useProfile();
+  const { activeProfile, dataVersion, currencySymbol, currencyDecimals } = useProfile();
   const profileId = activeProfile?.id ?? 1;
 
   const { items, refreshInbox } = useInbox();
@@ -54,6 +54,7 @@ export function AlertsStrip() {
   useFocusEffect(
     useCallback(() => {
       load();
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- dataVersion is listed on purpose: reload when stored data changes
     }, [load, dataVersion, inboxAlerts])
   );
 
@@ -99,7 +100,7 @@ export function AlertsStrip() {
                   {t(`health.alertType.${alert.type}`)}
                 </SelectableText>
                 <SelectableText style={[styles.message, { color: colors.text }]}>
-                  {alertText(alert.message, t, format, currencySymbol)}
+                  {alertText(alert.message, t, format, currencySymbol, currencyDecimals)}
                 </SelectableText>
               </View>
             </View>

@@ -52,7 +52,7 @@ function coveredPeriod(statements: PdfStatement[]): { dateFrom: string | null; d
 
 export function useStatementImporter(options?: UseStatementImporterOptions) {
   const db = useSQLiteContext();
-  const { activeProfile, refreshProfiles, switchProfile, currencySymbol, isDemoMode } = useProfile();
+  const { activeProfile, refreshProfiles, switchProfile, currencySymbol, currencyDecimals, isDemoMode } = useProfile();
   const { showImportResult, setImportProgress } = useImportResult();
   const { t, format } = useI18n();
   const { can } = useEntitlement();
@@ -87,7 +87,7 @@ export function useStatementImporter(options?: UseStatementImporterOptions) {
   };
 
   const failureText = (failure: ImportFailure): string => {
-    const message = importFailureMessage(failure, (value) => format.money(value, currencySymbol, 2));
+    const message = importFailureMessage(failure, (value) => format.money(value, currencySymbol, currencyDecimals));
     return t(message.key, message.params);
   };
 
@@ -133,7 +133,10 @@ export function useStatementImporter(options?: UseStatementImporterOptions) {
       for (const [index, file] of files.entries()) {
         if (!single) setImportProgress({ current: index + 1, total: files.length });
         try {
-          const read = await readStatementFile(file.uri, file.name, customRules, learned, { allowPdf });
+          const read = await readStatementFile(file.uri, file.name, customRules, learned, {
+            allowPdf,
+            decimals: currencyDecimals,
+          });
           if (read.kind === 'pdf') {
             pdfStatements.push(read.statement);
           } else if (read.parsed.transactions.length === 0) {

@@ -53,6 +53,7 @@ Removing an old item makes the next one editable.
 | Read-only profile: import | `useStatementImporter` (`importStatement`, `importSharedFile`) | Read-only sheet |
 | Read-only profile: category and fixed / flexible | `TransactionDetailModal` (Home, Trends, Transactions, Health) | Controls off, inline note |
 | Read-only profile: review | `review.tsx` | Read-only sheet |
+| Read-only profile: quick add | `useQuickCategorise` (Home, Health, Trends, Categories) | The "Add uncategorised" button is not shown |
 | Read-only profile: categories and rules | `categories.tsx` (create, edit) | Read-only sheet |
 | Read-only profile: budgets | `goals.tsx`, Trends inline budget (through `useBudgetGate`) | Read-only sheet |
 | Read-only profile: debts | `(tabs)/debts.tsx`, `DebtDetailModal`, `InboxHost` | Read-only sheet; the detail sheet has no Edit, no payment form, no remove buttons. Delete stays |
@@ -98,6 +99,8 @@ Not gated yet (placeholder flags): Health score history (`healthFull`) and the r
   - iOS: `npx expo run:ios --configuration Release`
   - Android: `npx expo run:android --variant release`
 - Pass the flag on the command line. Do not put `EXPO_PUBLIC_PRO_TESTING=1` in `.env`: Expo CLI loads that file for every build, a production one included. `eas.json` sets no `env`, so an EAS build is a normal build unless the variable is added to a profile.
+- `metro.config.js` puts the flag into Metro's `cacheVersion`. Metro caches each transformed file and its cache key does not include the inlined value, so without this a build reused `buildConfig.ts` from the previous build: the flag did nothing after a normal build, and a normal build after a test build kept the switch. Keep that line as long as the flag exists; a new build-time `EXPO_PUBLIC_` flag needs the same.
+- The flag must be in the environment of the command that bundles. A build started from the Xcode or Android Studio window does not see a variable set in a terminal.
 - Check before shipping: Settings shows no "TEST BUILD" label.
 - The purchase stub still follows `__DEV__`: in a test release build "Buy" answers "coming soon", and Pro is turned on with the switch.
 

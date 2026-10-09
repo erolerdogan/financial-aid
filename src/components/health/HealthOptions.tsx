@@ -62,6 +62,7 @@ export function HealthOptions({ household, onEditHousehold, onRangesReset }: Hea
   useFocusEffect(
     useCallback(() => {
       load();
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- dataVersion is listed on purpose: reload when stored data changes
     }, [load, dataVersion])
   );
 

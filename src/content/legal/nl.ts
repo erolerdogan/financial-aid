@@ -14,7 +14,7 @@ export const nl: LegalCopy = {
     'De afschriften die je importeert en de categorieën, budgetten, schulden, plannen en instellingen die je aanmaakt, worden bewaard in een database op je toestel. De app heeft geen accounts en geen server die deze gegevens ontvangt.',
   'privacy.s2Title': 'Gegevens die de app verzamelt',
   'privacy.s2Text':
-    'Geen. De app bevat geen analytics, geen advertenties en geen tracking, en doet geen netwerkverzoeken met je gegevens.',
+    'Geen. De app bevat geen analytics, geen advertenties en geen tracking, en doet geen netwerkverzoeken met je gegevens. Het enige verzoek dat de app doet: als je de valuta van een profiel wijzigt, downloadt hij de wisselkoersen van de dag bij exchangerate-api.com. Dit verzoek bevat geen gegevens van jou en zegt niet welke valuta’s je gebruikt; zoals bij elk internetverzoek ziet die dienst je IP-adres.',
   'privacy.s3Title': 'Bestanden die je importeert, opslaat en deelt',
   'privacy.s3Text':
     'Afschriften worden op het toestel gelezen. Back-ups, geëxporteerde transacties en pdf-rapporten worden op het toestel gemaakt en alleen opgeslagen of gedeeld waar jij dat kiest. Bewaar je ze in een clouddienst, dan geldt het privacybeleid van die dienst.',
@@ -83,7 +83,7 @@ export const nl: LegalCopy = {
     'Aflosdata, rente en geschatte rentepercentages van schulden worden berekend uit wat je invoert en uit de betalingen die je importeert. De cijfers van je kredietverstrekker zijn leidend.',
   'disclaimer.s5Title': 'Valuta',
   'disclaimer.s5Text':
-    'Als je de valuta wijzigt, rekent de app je bedragen om met vaste wisselkoersen die in de app zijn ingebouwd. Dat zijn geen actuele koersen en ze kunnen afwijken van de werkelijke.',
+    'Als je de valuta wijzigt, rekent de app je bedragen om met wisselkoersen die hij die dag bij een openbare koersdienst downloadt. Het zijn indicatieve koersen die kunnen afwijken van de koers van je bank, en omgerekende bedragen worden afgerond.',
   'disclaimer.s6Title': 'Je eigen beslissingen',
   'disclaimer.s6Text': 'Jij bepaalt wat je met je geld doet en je bent zelf verantwoordelijk voor die beslissingen.',
 };

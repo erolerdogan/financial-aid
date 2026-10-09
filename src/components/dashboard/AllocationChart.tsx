@@ -1,3 +1,4 @@
+import { QuickAddButton } from '@/components/QuickAddButton';
 import { SelectableText } from '@/components/SelectableText';
 import { getCategoryColor } from '@/constants/colors';
 import { useI18n } from '@/contexts/LanguageContext';
@@ -32,6 +33,9 @@ interface AllocationChartProps {
   onCategoryPress: (categoryName: string) => void;
   onSelectTransaction: (trx: Transaction) => void;
   onOpenBudgets: () => void;
+  /** Uncategorised transactions the expanded category can take; 0 hides the quick add button. */
+  uncategorisedCount?: number;
+  onAddUncategorised?: (categoryName: string) => void;
 }
 
 export function AllocationChart({
@@ -43,9 +47,11 @@ export function AllocationChart({
   onCategoryPress,
   onSelectTransaction,
   onOpenBudgets,
+  uncategorisedCount = 0,
+  onAddUncategorised,
 }: AllocationChartProps) {
   const { colors, allocationChart, setAllocationChart } = useTheme();
-  const { currencySymbol } = useProfile();
+  const { currencySymbol, currencyDecimals } = useProfile();
   const { t, format, categoryName } = useI18n();
   const [showAllCategories, setShowAllCategories] = useState(false);
 
@@ -60,7 +66,12 @@ export function AllocationChart({
   const center = radius + strokeWidth;
   const circumference = 2 * Math.PI * radius;
 
-  let accumulatedPercentage = 0;
+  const slicePercent = (item: (typeof displayedCategories)[number]) =>
+    totalSpending > 0 ? (item.totalAmount / totalSpending) * 100 : 0;
+  // Where each slice starts on the ring: the share of the slices before it.
+  const sliceStarts = displayedCategories.map((_, index) =>
+    displayedCategories.slice(0, index).reduce((sum, item) => sum + slicePercent(item), 0)
+  );
 
   const handleNextChart = () => {
     Haptics.selectionAsync().catch(() => {});
@@ -116,10 +127,9 @@ export function AllocationChart({
           <Svg width={center * 2} height={center * 2}>
             <G rotation="-90" origin={`${center}, ${center}`}>
               {displayedCategories.map((item, index) => {
-                const percentage = totalSpending > 0 ? (item.totalAmount / totalSpending) * 100 : 0;
+                const percentage = slicePercent(item);
                 const strokeDasharray = `${(circumference * percentage) / 100} ${circumference}`;
-                const strokeDashoffset = -((circumference * accumulatedPercentage) / 100);
-                accumulatedPercentage += percentage;
+                const strokeDashoffset = -((circumference * sliceStarts[index]) / 100);
 
                 const isSelected = expandedCategory === item.category;
                 const isDimmed = expandedCategory !== null && !isSelected;
@@ -222,6 +232,13 @@ export function AllocationChart({
 
               {isSelected && (
                 <View style={[styles.inlineTrxContainer, { borderColor: colors.border }]}>
+                  {uncategorisedCount > 0 && onAddUncategorised && (
+                    <QuickAddButton
+                      count={uncategorisedCount}
+                      onPress={() => onAddUncategorised(item.category)}
+                      style={styles.quickAdd}
+                    />
+                  )}
                   {loadingTransactions ? (
                     <ActivityIndicator size="small" color={colors.accent} style={styles.inlineLoader} />
                   ) : expandedTransactions.length === 0 ? (
@@ -251,8 +268,8 @@ export function AllocationChart({
                         </View>
                         <Text style={[styles.trxAmount, { color: trx.amount < 0 ? colors.text : '#34C759' }]}>
                           {trx.amount < 0
-                            ? `-${format.money(Math.abs(trx.amount), currencySymbol, 2)}`
-                            : `+${format.money(trx.amount, currencySymbol, 2)}`}
+                            ? `-${format.money(Math.abs(trx.amount), currencySymbol, currencyDecimals)}`
+                            : `+${format.money(trx.amount, currencySymbol, currencyDecimals)}`}
                         </Text>
                       </TouchableOpacity>
                     ))
@@ -409,6 +426,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   inlineLoader: { paddingVertical: 10 },
+  quickAdd: { marginVertical: 8 },
   trxRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

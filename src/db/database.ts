@@ -9,6 +9,7 @@ import { CATEGORY_COLORS, setCustomCategoryColors } from '@/constants/colors';
 import type { Message } from '@/i18n';
 import type { HealthDebt, HealthDebtPayment, HealthTransaction } from '@/utils/budgetHealth';
 import { DebtMatchStrength, evaluateDebtKeyword, projectDebtPayoff } from '@/utils/debt';
+import type { PickerRow } from '@/utils/debtPicker';
 import { buildDebtSuggestions, type DebtSuggestion } from '@/utils/debtSuggestion';
 import {
   buildMerchantProfiles,
@@ -20,6 +21,7 @@ import {
   scoreFixed,
 } from '@/utils/fixedCost';
 import { DEFAULT_DEBT_PLAN, sanitizeDebtPlan, type DebtPlan } from '@/utils/debtSimulator';
+import { convertAmount } from '@/utils/exchangeRates';
 import { type FreedomInput, type GoalType } from '@/utils/freedom';
 import type { AlertStatus, AlertType, HealthAlert } from '@/utils/healthAlerts';
 import {
@@ -293,63 +295,63 @@ export async function initDatabase(db: SQLiteDatabase): Promise<void> {
 
   try {
     await db.runAsync(`ALTER TABLE categories ADD COLUMN benchmark_group TEXT;`);
-  } catch (e) {}
+  } catch {}
 
   try {
     await db.runAsync(`ALTER TABLE freedom_plans ADD COLUMN goal_type TEXT NOT NULL DEFAULT 'BALANCE';`);
-  } catch (e) {}
+  } catch {}
 
   try {
     await db.runAsync(`ALTER TABLE freedom_plans ADD COLUMN goal_balance REAL NOT NULL DEFAULT 0;`);
-  } catch (e) {}
+  } catch {}
 
   try {
     await db.runAsync(`ALTER TABLE freedom_plans ADD COLUMN goal_income REAL NOT NULL DEFAULT 0;`);
-  } catch (e) {}
+  } catch {}
 
   try {
     await db.runAsync(`ALTER TABLE profiles ADD COLUMN currency TEXT NOT NULL DEFAULT 'EUR';`);
-  } catch (e) {}
+  } catch {}
 
   try {
     await db.runAsync(`ALTER TABLE transactions ADD COLUMN profileId INTEGER NOT NULL DEFAULT 1;`);
-  } catch (e) {}
+  } catch {}
 
   try {
     await db.runAsync(`ALTER TABLE transactions ADD COLUMN is_fixed INTEGER;`);
-  } catch (e) {}
+  } catch {}
 
   try {
     await db.runAsync(`ALTER TABLE category_rules ADD COLUMN profileId INTEGER NOT NULL DEFAULT 1;`);
-  } catch (e) {}
+  } catch {}
 
   try {
     await db.runAsync(`ALTER TABLE category_goals ADD COLUMN profileId INTEGER NOT NULL DEFAULT 1;`);
-  } catch (e) {}
+  } catch {}
 
   try {
     await db.runAsync(`ALTER TABLE fixed_cost_rules ADD COLUMN profileId INTEGER NOT NULL DEFAULT 1;`);
-  } catch (e) {}
+  } catch {}
 
   try {
     await db.runAsync(`ALTER TABLE fixed_cost_rules ADD COLUMN overrideState TEXT NOT NULL DEFAULT 'FIXED';`);
-  } catch (e) {}
+  } catch {}
 
   try {
     await db.runAsync(`ALTER TABLE debt_payments ADD COLUMN keyword TEXT;`);
-  } catch (e) {}
+  } catch {}
 
   try {
     await db.runAsync(`ALTER TABLE debts ADD COLUMN termMonths INTEGER;`);
-  } catch (e) {}
+  } catch {}
 
   try {
     await db.runAsync(`ALTER TABLE transactions ADD COLUMN counterpartyIban TEXT;`);
-  } catch (e) {}
+  } catch {}
 
   try {
     await db.runAsync(`ALTER TABLE transactions ADD COLUMN txType TEXT;`);
-  } catch (e) {}
+  } catch {}
 
   const existingProfiles = await db.getAllAsync<{ id: number }>(`SELECT id FROM profiles;`);
   if (existingProfiles.length === 0) {
@@ -437,6 +439,44 @@ export async function updateProfileCurrency(
   currency: string
 ): Promise<void> {
   await db.runAsync(`UPDATE profiles SET currency = ? WHERE id = ?;`, [currency, id]);
+}
+
+/** How stored amounts follow a currency switch: multiplied by `factor`, rounded to the new currency's `decimals`. */
+export interface CurrencyConversion {
+  factor: number;
+  decimals: number;
+}
+
+/**
+ * Gives a profile another currency. With a `conversion` every amount the user stored follows:
+ * transactions, budgets, debts with their payments and payoff plan, and the household amounts
+ * (Future Growth plans stay as typed). All or nothing: when a step fails, the profile keeps its
+ * currency and its amounts. Two rows of one day with the same text can round to the same amount,
+ * which the dedup index refuses; that is such a failure.
+ */
+export async function switchProfileCurrency(
+  db: SQLiteDatabase,
+  profileId: number,
+  currency: string,
+  conversion: CurrencyConversion | null
+): Promise<void> {
+  await db.withTransactionAsync(async () => {
+    if (conversion) {
+      const { factor, decimals } = conversion;
+      await db.runAsync(`UPDATE transactions SET amount = ROUND(amount * ?, ?) WHERE profileId = ?;`, [
+        factor,
+        decimals,
+        profileId,
+      ]);
+      await db.runAsync(
+        `UPDATE category_goals SET monthly_limit = ROUND(monthly_limit * ?, ?) WHERE profileId = ?;`,
+        [factor, decimals, profileId]
+      );
+      await convertDebtAmounts(db, profileId, conversion);
+      await convertHouseholdAmounts(db, profileId, conversion);
+    }
+    await updateProfileCurrency(db, profileId, currency);
+  });
 }
 
 export async function deleteProfile(
@@ -1766,6 +1806,56 @@ export async function categoriseMerchantGroup(
   });
 }
 
+/** Every uncategorised transaction of a profile, newest first, for the quick add sheet. */
+export async function getUncategorisedTransactions(
+  db: SQLiteDatabase,
+  profileId: number
+): Promise<Transaction[]> {
+  return db.getAllAsync<Transaction>(
+    `SELECT * FROM transactions WHERE profileId = ? AND category = ? ORDER BY date DESC, id DESC;`,
+    [profileId, UNCATEGORISED]
+  );
+}
+
+const QUICK_CATEGORISE_CHUNK = 500;
+
+/**
+ * Moves the picked transactions to a category and saves a rule for each keyword in `ruleKeywords`
+ * (the merchants picked completely). Returns how many rows changed.
+ */
+export async function quickCategorise(
+  db: SQLiteDatabase,
+  ids: number[],
+  ruleKeywords: string[],
+  category: string,
+  profileId: number
+): Promise<number> {
+  let changed = 0;
+
+  await db.withTransactionAsync(async () => {
+    for (const keyword of ruleKeywords) {
+      await db.runAsync(
+        `INSERT INTO category_rules (profileId, keyword, category)
+         VALUES (?, ?, ?)
+         ON CONFLICT(keyword, profileId) DO UPDATE SET category = excluded.category;`,
+        [profileId, keyword, category]
+      );
+    }
+
+    for (let i = 0; i < ids.length; i += QUICK_CATEGORISE_CHUNK) {
+      const chunk = ids.slice(i, i + QUICK_CATEGORISE_CHUNK);
+      const result = await db.runAsync(
+        `UPDATE transactions SET category = ?, userOverridden = 1
+         WHERE profileId = ? AND id IN (${chunk.map(() => '?').join(', ')});`,
+        [category, profileId, ...chunk]
+      );
+      changed += result.changes;
+    }
+  });
+
+  return changed;
+}
+
 // ---------------------------------------------------------------------------
 // Category management
 // ---------------------------------------------------------------------------
@@ -2580,22 +2670,22 @@ export async function getDebtSummaries(
   return summaries.sort((a, b) => Number(a.isPaidOff) - Number(b.isPaidOff) || a.id - b.id);
 }
 
-export async function convertDebtAmounts(
+async function convertDebtAmounts(
   db: SQLiteDatabase,
   profileId: number,
-  factor: number
+  { factor, decimals }: CurrencyConversion
 ): Promise<void> {
   await db.runAsync(
     `UPDATE debts
-     SET originalAmount = ROUND(originalAmount * ?, 2), paymentAmount = ROUND(paymentAmount * ?, 2)
+     SET originalAmount = ROUND(originalAmount * ?, ?), paymentAmount = ROUND(paymentAmount * ?, ?)
      WHERE profileId = ?;`,
-    [factor, factor, profileId]
+    [factor, decimals, factor, decimals, profileId]
   );
   await db.runAsync(
     `UPDATE debt_payments
-     SET amount = ROUND(amount * ?, 2), principal = ROUND(principal * ?, 2), interest = ROUND(interest * ?, 2)
+     SET amount = ROUND(amount * ?, ?), principal = ROUND(principal * ?, ?), interest = ROUND(interest * ?, ?)
      WHERE profileId = ?;`,
-    [factor, factor, factor, profileId]
+    [factor, decimals, factor, decimals, factor, decimals, profileId]
   );
 
   // The payoff plan is typed next to the debts, so its amounts follow them.
@@ -2603,8 +2693,8 @@ export async function convertDebtAmounts(
   if (plan) {
     await saveDebtPlan(db, profileId, {
       ...plan,
-      extraMonthly: roundMoney(plan.extraMonthly * factor),
-      lumpSums: plan.lumpSums.map((lump) => ({ ...lump, amount: roundMoney(lump.amount * factor) })),
+      extraMonthly: convertAmount(plan.extraMonthly, factor, decimals),
+      lumpSums: plan.lumpSums.map((lump) => ({ ...lump, amount: convertAmount(lump.amount, factor, decimals) })),
     });
   }
 }
@@ -2683,6 +2773,19 @@ export async function getDebtSuggestions(db: SQLiteDatabase, profileId: number):
     [...rules.map((r) => r.keyword), ...unmatchedDebts.map((d) => d.name)],
     dismissed,
     latest?.date ?? null
+  );
+}
+
+/** Expenses no debt has claimed yet, newest first: what the debt form offers to pick payments from. */
+export async function getUnlinkedExpenses(db: SQLiteDatabase, profileId: number): Promise<PickerRow[]> {
+  return await db.getAllAsync<PickerRow>(
+    `SELECT t.id AS id, substr(t.date, 1, 10) AS date, t.amount AS amount, t.merchant AS merchant,
+            t.rawDescription AS rawDescription
+     FROM transactions t
+     LEFT JOIN debt_payments p ON p.transactionId = t.id
+     WHERE t.profileId = ? AND t.amount < 0 AND p.id IS NULL
+     ORDER BY t.date DESC, t.id DESC;`,
+    [profileId]
   );
 }
 
@@ -2861,12 +2964,16 @@ export async function saveHousehold(db: SQLiteDatabase, profileId: number, house
 }
 
 /** Currency switch: the two amounts typed by the user follow the transactions. */
-export async function convertHouseholdAmounts(db: SQLiteDatabase, profileId: number, factor: number): Promise<void> {
+async function convertHouseholdAmounts(
+  db: SQLiteDatabase,
+  profileId: number,
+  { factor, decimals }: CurrencyConversion
+): Promise<void> {
   await db.runAsync(
     `UPDATE household_profile
-     SET net_income_override = ROUND(net_income_override * ?, 2), safety_savings = ROUND(safety_savings * ?, 2)
+     SET net_income_override = ROUND(net_income_override * ?, ?), safety_savings = ROUND(safety_savings * ?, ?)
      WHERE profile_id = ?;`,
-    [factor, factor, profileId]
+    [factor, decimals, factor, decimals, profileId]
   );
 }
 

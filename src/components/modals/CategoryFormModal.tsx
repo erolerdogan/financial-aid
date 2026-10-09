@@ -1,3 +1,4 @@
+import { QuickAddButton } from '@/components/QuickAddButton';
 import { SelectableText } from '@/components/SelectableText';
 import { CATEGORY_COLOR_PALETTE } from '@/constants/colors';
 import { useI18n } from '@/contexts/LanguageContext';
@@ -42,6 +43,9 @@ interface CategoryFormModalProps {
   allCategories: CategoryInfo[];
   onClose: () => void;
   onChanged: () => void;
+  /** Uncategorised transactions this category can take; 0 hides the quick add button. */
+  uncategorisedCount?: number;
+  onAddUncategorised?: (category: CategoryInfo) => void;
 }
 
 const DEFAULT_REASSIGN = UNCATEGORISED;
@@ -52,6 +56,8 @@ export function CategoryFormModal({
   allCategories,
   onClose,
   onChanged,
+  uncategorisedCount = 0,
+  onAddUncategorised,
 }: CategoryFormModalProps) {
   const db = useSQLiteContext();
   const { colors } = useTheme();
@@ -71,30 +77,34 @@ export function CategoryFormModal({
   const isCreate = category === null;
   const isBuiltIn = category?.isBuiltIn === 1;
 
-  useEffect(() => {
-    if (!visible) return;
-
-    setDeleting(false);
-    setSaving(false);
-    setKeywordInput('');
-
-    if (category) {
-      setName(category.name);
-      setColor(category.color);
-      setKeywords([]);
-      setOriginalRules([]);
-      getCategoryKeywords(db, profileId, category.name)
-        .then((rules) => {
-          setOriginalRules(rules);
-          setKeywords(rules.map((r) => r.keyword.toUpperCase()));
-        })
-        .catch((error) => console.error('Failed to load keywords:', error));
-    } else {
-      setName('');
-      setColor(CATEGORY_COLOR_PALETTE[0]);
+  // Opening the form, or another category while it is open, starts it from that category.
+  const [shown, setShown] = useState({ visible: false, category, profileId });
+  if (shown.visible !== visible || shown.category !== category || shown.profileId !== profileId) {
+    setShown({ visible, category, profileId });
+    if (visible) {
+      setDeleting(false);
+      setSaving(false);
+      setKeywordInput('');
+      setName(category?.name ?? '');
+      setColor(category?.color ?? CATEGORY_COLOR_PALETTE[0]);
       setKeywords([]);
       setOriginalRules([]);
     }
+  }
+
+  useEffect(() => {
+    if (!visible || !category) return;
+    let active = true;
+    getCategoryKeywords(db, profileId, category.name)
+      .then((rules) => {
+        if (!active) return;
+        setOriginalRules(rules);
+        setKeywords(rules.map((r) => r.keyword.toUpperCase()));
+      })
+      .catch((error) => console.error('Failed to load keywords:', error));
+    return () => {
+      active = false;
+    };
   }, [visible, category, db, profileId]);
 
   const reassignOptions = allCategories
@@ -358,6 +368,14 @@ export function CategoryFormModal({
           </SelectableText>
         )}
 
+        {category && uncategorisedCount > 0 && onAddUncategorised && (
+          <QuickAddButton
+            count={uncategorisedCount}
+            onPress={() => onAddUncategorised(category)}
+            style={styles.quickAdd}
+          />
+        )}
+
         <SelectableText style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t('categoryForm.color')}</SelectableText>
         <View style={styles.swatchGrid}>
           {CATEGORY_COLOR_PALETTE.map((swatch, index) => {
@@ -520,6 +538,7 @@ const styles = StyleSheet.create({
   input: { flex: 1, fontSize: 16, paddingVertical: 0 },
   footnote: { fontSize: 12, lineHeight: 17, marginTop: 8 },
   footnoteTop: { marginTop: 0, marginBottom: 10 },
+  quickAdd: { marginTop: 16 },
   helperText: { fontSize: 14, lineHeight: 20, marginBottom: 16 },
   swatchGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   swatchRing: {

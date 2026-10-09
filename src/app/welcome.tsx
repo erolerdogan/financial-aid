@@ -5,7 +5,8 @@ import { ProfileSetup } from '@/components/profile/ProfileSetup';
 import { SelectableText } from '@/components/SelectableText';
 import { WelcomeIntro } from '@/components/welcome/WelcomeIntro';
 import { useI18n } from '@/contexts/LanguageContext';
-import { CURRENCY_SYMBOLS, useProfile } from '@/contexts/ProfileContext';
+import { CURRENCY_CODES } from '@/constants/currencies';
+import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { getAppMeta, getHousehold, saveHousehold, setAppMeta } from '@/db/database';
 import { useStatementImporter } from '@/hooks/useStatementImporter';
@@ -133,7 +134,7 @@ export default function WelcomeScreen() {
       try {
         await editProfile(profile.id, answers.name, answers.color);
         // Nothing is stored yet, so there are no amounts to convert.
-        await updateCurrency(answers.currency, false);
+        await updateCurrency(answers.currency, null);
         await saveHousehold(db, profile.id, buildHousehold(answers));
       } catch (error) {
         console.error('Failed to save the profile setup:', error);
@@ -208,7 +209,7 @@ export default function WelcomeScreen() {
               appSteps
               initialName={(activeProfile ?? profiles[0])?.name || t('profile.defaultName')}
               initialColor={(activeProfile ?? profiles[0])?.avatarColor || AVATAR_COLORS[0]}
-              initialCurrency={defaultCurrency(deviceLocales[0]?.currencyCode, Object.keys(CURRENCY_SYMBOLS))}
+              initialCurrency={defaultCurrency(deviceLocales[0]?.currencyCode, CURRENCY_CODES)}
               submitLabel={t('common.continue')}
               extraSteps={1}
               paused={stage === 'import'}

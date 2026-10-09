@@ -154,9 +154,12 @@ export default function TransactionsScreen() {
       ? format.range(filter.from, filter.to)
       : t('transactions.all');
 
-  useEffect(() => {
+  // Another profile has other categories: the filter starts again.
+  const [categoryProfileId, setCategoryProfileId] = useState(activeProfileId);
+  if (categoryProfileId !== activeProfileId) {
+    setCategoryProfileId(activeProfileId);
     setSelectedCategory('All');
-  }, [activeProfileId]);
+  }
 
   useEffect(() => {
     if (focusSearchOnMount) router.setParams({ focusSearch: undefined });
@@ -269,6 +272,7 @@ export default function TransactionsScreen() {
       return () => {
         active = false;
       };
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- dataVersion is listed on purpose: reload when stored data changes
     }, [db, activeProfileId, dataVersion, dateFrom, dateTo])
   );
 
@@ -276,6 +280,7 @@ export default function TransactionsScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchFirstPage();
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- dataVersion is listed on purpose: reload when stored data changes
     }, [fetchFirstPage, dataVersion])
   );
 

@@ -14,7 +14,7 @@ export const de: LegalCopy = {
     'Die Kontoauszüge, die du importierst, und die Kategorien, Budgets, Schulden, Pläne und Einstellungen, die du anlegst, werden in einer Datenbank auf deinem Gerät gespeichert. Die App hat keine Konten und keinen Server, der diese Daten erhält.',
   'privacy.s2Title': 'Daten, die die App erhebt',
   'privacy.s2Text':
-    'Keine. Die App enthält keine Analyse, keine Werbung und kein Tracking und stellt keine Netzwerkanfragen mit deinen Daten.',
+    'Keine. Die App enthält keine Analyse, keine Werbung und kein Tracking und stellt keine Netzwerkanfragen mit deinen Daten. Die einzige Anfrage, die die App stellt: Wenn du die Währung eines Profils wechselst, lädt sie die Wechselkurse des Tages von exchangerate-api.com herunter. Diese Anfrage enthält keine deiner Daten und verrät nicht, welche Währungen du verwendest; wie bei jeder Internetanfrage sieht dieser Dienst deine IP-Adresse.',
   'privacy.s3Title': 'Dateien, die du importierst, speicherst und teilst',
   'privacy.s3Text':
     'Kontoauszüge werden auf dem Gerät gelesen. Backups, exportierte Transaktionen und PDF-Berichte werden auf dem Gerät erstellt und nur dort gespeichert oder geteilt, wo du es wählst. Wenn du sie in einem Cloud-Dienst ablegst, gilt die Datenschutzerklärung dieses Dienstes.',
@@ -84,7 +84,7 @@ export const de: LegalCopy = {
     'Tilgungstermine, Zinsen und geschätzte Zinssätze für Schulden werden aus deinen Eingaben und den importierten Zahlungen berechnet. Maßgeblich sind die Zahlen deines Kreditgebers.',
   'disclaimer.s5Title': 'Währungen',
   'disclaimer.s5Text':
-    'Wenn du die Währung wechselst, rechnet die App deine Beträge mit festen Wechselkursen um, die in der App hinterlegt sind. Das sind keine aktuellen Kurse; sie können von den tatsächlichen abweichen.',
+    'Wenn du die Währung wechselst, rechnet die App deine Beträge mit Wechselkursen um, die sie an diesem Tag von einem öffentlichen Kursdienst herunterlädt. Das sind Richtkurse; sie können vom Kurs deiner Bank abweichen, und umgerechnete Beträge werden gerundet.',
   'disclaimer.s6Title': 'Deine Entscheidungen',
   'disclaimer.s6Text':
     'Du entscheidest, was du mit deinem Geld machst, und du bist für diese Entscheidungen verantwortlich.',

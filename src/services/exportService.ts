@@ -4,7 +4,7 @@ import { saveFile } from '@/services/fileSaver';
 import { buildExportRows, fileNamePart, type ExportLabels } from '@/utils/exportRows';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import Papa from 'papaparse';
-import XLSX from 'xlsx';
+import * as XLSX from 'xlsx';
 
 export type ExportFormat = 'csv' | 'xlsx';
 

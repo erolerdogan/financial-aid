@@ -14,7 +14,7 @@ export const en = {
     'The statements you import and the categories, budgets, debts, plans and settings you create are stored in a database on your device. The app has no accounts and no server that receives this data.',
   'privacy.s2Title': 'Data the app collects',
   'privacy.s2Text':
-    'None. The app contains no analytics, no advertising and no tracking, and it makes no network requests with your data.',
+    'None. The app contains no analytics, no advertising and no tracking, and it makes no network requests with your data. The only request the app makes: when you change the currency of a profile, it downloads the exchange rates of the day from exchangerate-api.com. This request contains none of your data and does not say which currencies you use; as with any internet request, that service sees your IP address.',
   'privacy.s3Title': 'Files you import, save and share',
   'privacy.s3Text':
     'Statement files are read on the device. Backups, exported transactions and PDF reports are created on the device and saved or shared only where you choose. If you keep them in a cloud service, the privacy policy of that service applies.',
@@ -81,7 +81,7 @@ export const en = {
     'Payoff dates, interest and estimated rates for debts are calculated from what you enter and from the payments you import. The figures from your lender are the ones that count.',
   'disclaimer.s5Title': 'Currencies',
   'disclaimer.s5Text':
-    'When you change the currency, the app converts your amounts with fixed exchange rates that are built into the app. They are not live rates and can differ from the real ones.',
+    'When you change the currency, the app converts your amounts with exchange rates it downloads that day from a public rate service. They are indicative rates and can differ from the rate of your bank, and converted amounts are rounded.',
   'disclaimer.s6Title': 'Your decisions',
   'disclaimer.s6Text': 'You decide what to do with your money, and you are responsible for those decisions.',
 };

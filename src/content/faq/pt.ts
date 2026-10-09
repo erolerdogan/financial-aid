@@ -49,7 +49,7 @@ export const pt: FaqCopy = {
     'Abra a transação e toque na categoria. A sua escolha é lembrada e não é sobrescrita depois. Depois de corrigir um estabelecimento pelo menos duas vezes, quase sempre do mesmo jeito, as novas transações dele seguem a sua escolha.',
   'faq.categories.review.q': 'O que faço com as transações sem categoria?',
   'faq.categories.review.a':
-    'A tela {transactions} mostra no topo quantas são. A lista de revisão as agrupa por estabelecimento, das maiores para as menores, e sugere uma categoria quando consegue. Escolher uma categoria uma vez vale para todas as transações daquele estabelecimento e para as próximas importações.',
+    'A tela {transactions} mostra no topo quantas são. A lista de revisão as agrupa por estabelecimento, das maiores para as menores, e sugere uma categoria quando consegue. Escolher uma categoria uma vez vale para todas as transações daquele estabelecimento e para as próximas importações. Você também pode abrir uma categoria em {home}, {health}, {trends} ou {categories} e adicionar ali transações sem categoria: marque várias de uma vez; um estabelecimento selecionado por inteiro é lembrado nas próximas importações.',
   'faq.categories.fixed.q': 'O que são gastos fixos e flexíveis?',
   'faq.categories.fixed.a':
     'Gastos fixos são contas que se repetem, como aluguel, contas de consumo e assinaturas; o restante é flexível. O app os detecta pelo comportamento do estabelecimento: um ritmo regular, valores estáveis e débitos automáticos. No detalhe de uma transação, você pode marcar o estabelecimento como {fixed} ou {flexible}, ou voltar atrás com {resetAuto}.',
@@ -68,7 +68,7 @@ export const pt: FaqCopy = {
     'A média dos três últimos meses completos de receitas nos seus extratos, ou o valor que você mesmo digita. Enquanto não houver um mês com receitas, nenhuma pontuação é exibida. Um empréstimo recebido ou outro pagamento pontual de valor alto não conta como receita.',
   'faq.plan.debts.q': 'Como o app encontra os pagamentos das minhas dívidas?',
   'faq.plan.debts.a':
-    'Cada dívida tem palavras-chave. Depois de cada importação, uma transação é vinculada quando uma palavra-chave corresponde a uma palavra inteira e o valor fica perto do pagamento mensal. Os casos que quase correspondem aparecem como possíveis correspondências para adicionar à mão, e um pagamento vinculado pode ser desvinculado.',
+    'Cada dívida tem palavras-chave. Depois de cada importação, uma transação é vinculada quando uma palavra-chave corresponde a uma palavra inteira e o valor fica perto do pagamento mensal. Os casos que quase correspondem aparecem como possíveis correspondências para adicionar à mão, e um pagamento vinculado pode ser desvinculado. No formulário da dívida você também pode escolher um pagamento entre as suas transações: todos os pagamentos ao mesmo credor são selecionados junto, e a palavra-chave é adicionada para você.',
   'faq.plan.growth.q': 'O que {growth} mostra?',
   'faq.plan.growth.a':
     'Como um valor inicial e um aporte mensal poderiam crescer ao longo dos anos. Os três cenários usam um retorno anual de 5%, 7% e 9%; você também pode informar o seu próprio retorno, a taxa e a inflação. O resultado é uma projeção, não uma promessa.',
@@ -99,10 +99,10 @@ export const pt: FaqCopy = {
     'Controles separados em um só app, por exemplo pessoal, negócio e casa. Cada perfil tem as próprias transações, categorias, regras, orçamentos e dívidas, além de nome, cor e moeda próprios. Um extrato é importado para o perfil que está ativo.',
   'faq.profiles.currency.q': 'O que acontece quando mudo a moeda?',
   'faq.profiles.currency.a':
-    'Os valores já guardados no perfil são convertidos com taxas fixas embutidas no app, não com as taxas de câmbio do momento, então o resultado é aproximado.',
+    'O app baixa a taxa de câmbio do dia, mostra a taxa e, depois da sua confirmação, converte os valores já guardados no perfil (transações, orçamentos, dívidas e valores da casa). Os planos de Crescimento futuro não são convertidos. A solicitação não contém nenhum dos seus dados. Trocar a moeda exige conexão com a internet. Os valores convertidos são arredondados, então o resultado é aproximado.',
   'faq.profiles.languages.q': 'Quais moedas e idiomas estão disponíveis?',
   'faq.profiles.languages.a':
-    'Moedas: EUR, USD, GBP, JPY, CHF, CAD e AUD. Idiomas: inglês, holandês, alemão, turco, espanhol, francês, italiano, português e russo.',
+    'Moedas: mais de 150, entre elas EUR, USD, GBP, JPY, CHF, CAD e AUD. Idiomas: inglês, holandês, alemão, turco, espanhol, francês, italiano, português e russo.',
   'faq.profiles.notifications.q': 'Quando o app envia notificações?',
   'faq.profiles.notifications.a':
     'Lembretes de importação nos dias 15 e 28 de cada mês, cancelados quando você importa um extrato, e os alertas de {health} que você ativou. Todos são agendados no seu aparelho. Os lembretes são desativados em {settings} → {reminders}.',

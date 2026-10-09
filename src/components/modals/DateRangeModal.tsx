@@ -12,7 +12,7 @@ import {
 } from '@/utils/calendarNav';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 
 interface DateRangeModalProps {
@@ -58,15 +58,24 @@ export function DateRangeModal({
   const [cursor, setCursor] = useState<Date>(new Date());
   const [view, setView] = useState<CalendarView>('days');
 
-  useEffect(() => {
-    if (!visible) return;
-    setView('days');
-    setStart(initialFrom);
-    setEnd(initialTo);
-    const anchor = initialFrom ?? maxDate ?? toKey(new Date());
-    const parsed = parseKey(anchor);
-    setCursor(new Date(parsed.getFullYear(), parsed.getMonth(), 1));
-  }, [visible, initialFrom, initialTo, maxDate]);
+  // Opening the calendar, or a new range while it is open, starts it from that range.
+  const [shown, setShown] = useState({ visible: false, initialFrom, initialTo, maxDate });
+  if (
+    shown.visible !== visible ||
+    shown.initialFrom !== initialFrom ||
+    shown.initialTo !== initialTo ||
+    shown.maxDate !== maxDate
+  ) {
+    setShown({ visible, initialFrom, initialTo, maxDate });
+    if (visible) {
+      setView('days');
+      setStart(initialFrom);
+      setEnd(initialTo);
+      const anchor = initialFrom ?? maxDate ?? toKey(new Date());
+      const parsed = parseKey(anchor);
+      setCursor(new Date(parsed.getFullYear(), parsed.getMonth(), 1));
+    }
+  }
 
   const cells = useMemo<(string | null)[]>(() => {
     const year = cursor.getFullYear();

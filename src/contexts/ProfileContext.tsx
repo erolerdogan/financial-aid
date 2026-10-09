@@ -1,32 +1,14 @@
+import { currencyInfo, DEFAULT_CURRENCY } from '@/constants/currencies';
 import {
-  clearAllData, convertDebtAmounts, convertHouseholdAmounts, createProfile, deleteProfile,
+  clearAllData, createProfile, deleteProfile,
   getProfiles,
   Profile,
-  syncCategoryColors, updateProfileCurrency
+  switchProfileCurrency,
+  syncCategoryColors
 } from '@/db/database';
 import { seedExpandedDemoData } from '@/db/demoSeeder';
 import { useSQLiteContext } from 'expo-sqlite';
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
-
-export const CURRENCY_SYMBOLS: Record<string, string> = {
-  EUR: '€',
-  USD: '$',
-  GBP: '£',
-  JPY: '¥',
-  CAD: 'CA$',
-  AUD: 'A$',
-  CHF: 'CHF ',
-};
-
-export const DEFAULT_EXCHANGE_RATES: Record<string, number> = {
-  EUR: 1.0,
-  USD: 1.08,
-  GBP: 0.85,
-  JPY: 160.0,
-  CAD: 1.48,
-  AUD: 1.62,
-  CHF: 0.95,
-};
 
 interface ProfileContextType {
   activeProfile: Profile | null;
@@ -36,11 +18,17 @@ interface ProfileContextType {
   loadingProfiles: boolean;
   dataVersion: number;
   currencySymbol: string;
+  /** Digits after the decimal separator in the profile currency: what a screen that shows cents asks `format.money` for. */
+  currencyDecimals: number;
   setIsDemoMode: (isDemo: boolean) => Promise<void>;
   switchProfile: (profile: Profile) => Promise<void>;
   addNewProfile: (name: string, color?: string, currency?: string) => Promise<Profile | null>;
   editProfile: (id: number, name: string, color: string) => Promise<void>;
-  updateCurrency: (currencyCode: string, convertAmounts?: boolean) => Promise<void>;
+  /**
+   * Gives the active profile another currency. `factor` (from `conversionFactor`) converts the stored
+   * amounts; `null` leaves them as they are. Throws when the conversion fails; nothing has changed then.
+   */
+  updateCurrency: (currencyCode: string, factor: number | null) => Promise<void>;
   refreshProfiles: () => Promise<void>;
   reloadAfterRestore: () => Promise<void>;
   checkDataState: (profileId?: number) => Promise<boolean>;
@@ -53,7 +41,8 @@ const ProfileContext = createContext<ProfileContextType>({
   hasData: false,
   loadingProfiles: true,
   dataVersion: 0,
-  currencySymbol: '€',
+  currencySymbol: currencyInfo(DEFAULT_CURRENCY).symbol,
+  currencyDecimals: currencyInfo(DEFAULT_CURRENCY).decimals,
   setIsDemoMode: async () => {},
   switchProfile: async () => {},
   addNewProfile: async () => null,
@@ -78,7 +67,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
   const hasInitializedRef = useRef(false);
 
-  const currencySymbol = CURRENCY_SYMBOLS[activeProfile?.currency || 'EUR'] || '€';
+  const { symbol: currencySymbol, decimals: currencyDecimals } = currencyInfo(activeProfile?.currency);
 
   const checkDataState = async (targetProfileId?: number): Promise<boolean> => {
     if (!db) return false;
@@ -184,6 +173,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     return () => {
       isMounted = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once per database; refreshProfiles is new on every render
   }, [db]);
 
   const setDemoModeWithCleanup = async (isDemo: boolean): Promise<void> => {
@@ -267,39 +257,25 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const updateCurrency = async (newCurrencyCode: string, convertAmounts: boolean = true): Promise<void> => {
+  const updateCurrency = async (newCurrencyCode: string, factor: number | null): Promise<void> => {
     if (!db || !activeProfile) return;
 
-    const currentCurrencyCode = activeProfile.currency || 'EUR';
+    const currentCurrencyCode = activeProfile.currency || DEFAULT_CURRENCY;
     if (currentCurrencyCode === newCurrencyCode) return;
 
-    try {
-      if (convertAmounts) {
-        const currentRate = DEFAULT_EXCHANGE_RATES[currentCurrencyCode] || 1.0;
-        const newRate = DEFAULT_EXCHANGE_RATES[newCurrencyCode] || 1.0;
-        const conversionFactor = newRate / currentRate;
+    await switchProfileCurrency(
+      db,
+      activeProfile.id,
+      newCurrencyCode,
+      factor === null ? null : { factor, decimals: currencyInfo(newCurrencyCode).decimals }
+    );
 
-        await db.runAsync(
-          `UPDATE transactions 
-           SET amount = ROUND(amount * ?, 2) 
-           WHERE profileId = ?;`,
-          [conversionFactor, activeProfile.id]
-        );
-        await convertDebtAmounts(db, activeProfile.id, conversionFactor);
-        await convertHouseholdAmounts(db, activeProfile.id, conversionFactor);
-      }
+    setActiveProfile((prev) => (prev ? { ...prev, currency: newCurrencyCode } : null));
+    setProfiles((prev) =>
+      prev.map((p) => (p.id === activeProfile.id ? { ...p, currency: newCurrencyCode } : p))
+    );
 
-      await updateProfileCurrency(db, activeProfile.id, newCurrencyCode);
-
-      setActiveProfile((prev) => (prev ? { ...prev, currency: newCurrencyCode } : null));
-      setProfiles((prev) =>
-        prev.map((p) => (p.id === activeProfile.id ? { ...p, currency: newCurrencyCode } : p))
-      );
-
-      setDataVersion((prev) => prev + 1);
-    } catch (error) {
-      console.error('Error updating currency:', error);
-    }
+    setDataVersion((prev) => prev + 1);
   };
 
   return (
@@ -312,6 +288,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         loadingProfiles,
         dataVersion,
         currencySymbol,
+        currencyDecimals,
         setIsDemoMode: setDemoModeWithCleanup,
         switchProfile,
         addNewProfile,

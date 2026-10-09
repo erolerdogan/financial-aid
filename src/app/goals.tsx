@@ -65,6 +65,7 @@ export default function GoalsScreen() {
   useFocusEffect(
     useCallback(() => {
       loadGoals();
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- dataVersion is listed on purpose: reload when stored data changes
     }, [loadGoals, dataVersion])
   );
 

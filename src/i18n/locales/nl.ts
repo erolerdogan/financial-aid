@@ -112,6 +112,15 @@ export const nl: Translations = {
   'settings.switchCurrencyMessage':
     'Alle transactiebedragen omrekenen en het symbool wijzigen van {from} ({symbol}) naar {to}?',
   'settings.switchCurrencyConfirm': 'Omrekenen en symbool wijzigen',
+  'settings.searchCurrency': 'Valuta zoeken',
+  'settings.noCurrencyFound': 'Geen valuta gevonden',
+  'settings.switchCurrencyRate': '1 {from} = {rate} {to} (koers van {date})',
+  'settings.ratesUnavailableTitle': 'Geen wisselkoers',
+  'settings.ratesUnavailableMessage':
+    'De wisselkoers van vandaag kon niet worden geladen, dus de valuta is niet gewijzigd. Controleer je internetverbinding en probeer het opnieuw.',
+  'settings.convertFailedMessage':
+    'De bedragen konden niet worden omgerekend, dus er is niets gewijzigd.',
+  'settings.ratesCredit': 'Rates By Exchange Rate API',
   'settings.resetTitle': 'Alle gegevens en profielen wissen',
   'settings.resetMessage':
     'Weet je zeker dat je alle profielen, transacties en instellingen wilt verwijderen? De app wordt volledig teruggezet.',
@@ -137,13 +146,6 @@ export const nl: Translations = {
   'licenses.intro':
     'Financial Aid is gebouwd met deze opensourcepakketten. Tik op een pakket om de licentie te lezen.',
   'licenses.packageMeta': 'Versie {version} · {license}',
-  'currency.EUR': 'Euro (€)',
-  'currency.USD': 'Amerikaanse dollar ($)',
-  'currency.GBP': 'Brits pond (£)',
-  'currency.JPY': 'Japanse yen (¥)',
-  'currency.CAD': 'Canadese dollar (CA$)',
-  'currency.AUD': 'Australische dollar (A$)',
-  'currency.CHF': 'Zwitserse frank (CHF)',
 
   'notifications.channel': 'Importherinneringen',
   'notifications.title': 'Tijd om transacties te importeren 📊',
@@ -306,6 +308,17 @@ export const nl: Translations = {
   'review.categoriseAs': 'Indelen als {category}',
   'review.choose': 'Kies een categorie',
   'review.suggested': 'Suggestie',
+  'quickAdd.button': 'Zonder categorie toevoegen ({count})',
+  'quickAdd.title': 'Toevoegen aan {category}',
+  'quickAdd.other': 'Overige transacties',
+  'quickAdd.selectAll': 'Alles selecteren',
+  'quickAdd.deselectAll': 'Selectie wissen',
+  'quickAdd.remember': 'Deze winkels onthouden',
+  'quickAdd.rememberNote_one': 'Toekomstige transacties van {count} volledig geselecteerde winkel komen in deze categorie.',
+  'quickAdd.rememberNote_other': 'Toekomstige transacties van {count} volledig geselecteerde winkels komen in deze categorie.',
+  'quickAdd.rememberHelp': 'Geldt voor winkels waarvan alle transacties zijn geselecteerd.',
+  'quickAdd.confirm_one': '{count} transactie toevoegen',
+  'quickAdd.confirm_other': '{count} transacties toevoegen',
   'suggest.like': 'zoals {merchant}',
   'suggest.learned': 'eerder door jou gekozen',
   'suggest.mentions': 'bevat "{keyword}"',
@@ -539,6 +552,19 @@ export const nl: Translations = {
   'debt.form.noneContain': 'Geen transacties bevatten {keywords}.',
   'debt.form.notCounted': 'Niet meegeteld: {hints}.',
   'debt.form.delete': 'Schuld verwijderen',
+  'debt.form.pickFromTransactions': 'Kies uit transacties',
+  'debt.pick.title': 'Kies een betaling',
+  'debt.pick.help':
+    'Tik op één betaling. Alle betalingen aan dezelfde geldverstrekker worden mee geselecteerd; tik op een geselecteerde om die weg te laten.',
+  'debt.pick.search': 'Zoek transacties',
+  'debt.pick.empty':
+    'Geen uitgaven om uit te kiezen. Importeer eerst een afschrift, of de betalingen zijn al aan een schuld gekoppeld.',
+  'debt.pick.noResults': 'Geen transacties gevonden',
+  'debt.pick.noKeywordTitle': 'Kan deze niet koppelen',
+  'debt.pick.noKeyword':
+    'Deze transactie heeft geen naam waarop de app kan zoeken. Voeg de betaling met de hand toe bij de schuld.',
+  'debt.pick.use_one': 'Gebruik {count} betaling',
+  'debt.pick.use_other': 'Gebruik {count} betalingen',
 
   'freedom.inTodaysMoney': 'In het geld van vandaag.',
   'freedom.keyboardDone': 'Klaar, toetsenbord verbergen',
@@ -1118,6 +1144,9 @@ export const nl: Translations = {
   'health.intro.step3Title': 'Gebruikelijke bereiken per categorie',
   'health.intro.step3Text':
     'Elke categorie staat naast een gebruikelijk bereik dat zich aanpast aan je huishouden. Groen is binnen bereik, geel iets erbuiten, rood ruim erbuiten. Houd een categorie ingedrukt om je eigen niveau te accepteren.',
+  'health.intro.householdTitle': 'Wat je huishouden verandert',
+  'health.intro.householdText':
+    'Volwassenen en kinderen verschuiven de gebruikelijke bereiken, niet de score. Elk kind verhoogt de bovengrens van Boodschappen en van Kinderopvang & kinderen met {child} procentpunten; met één volwassene ligt het bereik voor Boodschappen {single} procentpunten lager. Huur en koop delen hetzelfde bereik voor Wonen. Het inkomen en de buffer die je invult, veranderen de score wel.',
   'health.intro.step4Title': 'Eén ding om aan te pakken',
   'health.intro.step4Text': 'Bij de score staat altijd de ene verandering die de meeste punten oplevert.',
   'health.intro.step5Title': 'Meldingen na een import',

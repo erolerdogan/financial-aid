@@ -1,7 +1,9 @@
 import { CategoryFormModal } from '@/components/modals/CategoryFormModal';
+import { QuickCategoriseSheet } from '@/components/modals/QuickCategoriseSheet';
 import { ReadOnlySheetHost } from '@/components/pro/ReadOnlySheet';
 import { SelectableText } from '@/components/SelectableText';
 import { useProfileAccess } from '@/hooks/useProfileAccess';
+import { useQuickCategorise } from '@/hooks/useQuickCategorise';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -35,21 +37,25 @@ export default function CategoriesScreen() {
   const [formVisible, setFormVisible] = useState(false);
   const [editing, setEditing] = useState<CategoryInfo | null>(null);
 
-  const load = useCallback(async () => {
-    if (!db) return;
-    try {
-      const rows = await getCategoriesWithStats(db, profileId);
-      setCategories(rows);
-    } catch (error) {
-      console.error('Failed to load categories:', error);
-    } finally {
-      setLoading(false);
-    }
+  const load = useCallback((): Promise<void> => {
+    if (!db) return Promise.resolve();
+    return getCategoriesWithStats(db, profileId)
+      .then(setCategories)
+      .catch((error) => console.error('Failed to load categories:', error))
+      .finally(() => setLoading(false));
   }, [db, profileId]);
 
   useEffect(() => {
     load();
   }, [load, dataVersion]);
+
+  const quickAdd = useQuickCategorise({ onMoved: () => load() });
+
+  // The form makes way for the quick add sheet.
+  const handleAddUncategorised = (category: CategoryInfo) => {
+    setFormVisible(false);
+    setTimeout(() => quickAdd.open(category.name), 350);
+  };
 
   const customCategories = categories.filter((c) => c.isBuiltIn === 0);
   const builtInCategories = categories.filter((c) => c.isBuiltIn === 1);
@@ -174,7 +180,10 @@ export default function CategoriesScreen() {
         allCategories={categories}
         onClose={() => setFormVisible(false)}
         onChanged={load}
+        uncategorisedCount={quickAdd.canAdd(editing?.name) ? quickAdd.count : 0}
+        onAddUncategorised={handleAddUncategorised}
       />
+      <QuickCategoriseSheet {...quickAdd.sheetProps} />
       <ReadOnlySheetHost />
     </SafeAreaView>
   );

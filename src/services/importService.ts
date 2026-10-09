@@ -1,3 +1,4 @@
+import { currencyInfo } from '@/constants/currencies';
 import { CategoryRule, insertTransactions, syncDebtPayments, Transaction } from '@/db/database';
 import type { BankId } from '@/utils/bankFormats';
 import {
@@ -87,9 +88,10 @@ const EMPTY_SUMMARY: ImportResultSummary = {
   failedFiles: [],
 };
 
-export function generateTransactionHash(date: string, amount: number, rawDescription: string): string {
+/** `decimals` is what the profile currency has; up to 2 the key is what it has always been. */
+export function generateTransactionHash(date: string, amount: number, rawDescription: string, decimals = 2): string {
   const cleanDate = (date || '').split('T')[0].trim();
-  const cleanAmount = Math.abs(Number(amount)).toFixed(2);
+  const cleanAmount = Math.abs(Number(amount)).toFixed(Math.max(2, decimals));
   const sign = Number(amount) < 0 ? '-' : '+';
 
   const cleanDesc = (rawDescription || '')
@@ -166,7 +168,7 @@ export async function readStatementFile(
   fileName: string,
   customRules: CategoryRule[] = [],
   learned?: LearnedCategories,
-  options: { allowPdf?: boolean } = {}
+  options: { allowPdf?: boolean; decimals?: number } = {}
 ): Promise<StatementFile> {
   const cleanName = (fileName || '').toLowerCase();
 
@@ -201,12 +203,12 @@ export async function readStatementFile(
     const arrayBuffer = base64ToArrayBuffer(base64Data);
 
     if (isSpreadsheetFile(cleanName, head)) {
-      return { kind: 'table', parsed: parseExcelContent(arrayBuffer, customRules, learned) };
+      return { kind: 'table', parsed: parseExcelContent(arrayBuffer, customRules, learned, options.decimals) };
     }
     // Read as bytes: not every bank exports UTF-8.
     return {
       kind: 'table',
-      parsed: parseCSVContent(decodeStatementText(new Uint8Array(arrayBuffer)), customRules, learned),
+      parsed: parseCSVContent(decodeStatementText(new Uint8Array(arrayBuffer)), customRules, learned, options.decimals),
     };
   } finally {
     await FileSystem.deleteAsync(tempDestination, { idempotent: true });
@@ -267,9 +269,12 @@ export async function processBatchImport(
     counterpartyIban: string | null;
   }>(`SELECT date, amount, rawDescription, counterpartyIban FROM transactions WHERE profileId = ?;`, [profileId]);
 
+  const profile = await db.getFirstAsync<{ currency: string }>(`SELECT currency FROM profiles WHERE id = ?;`, [profileId]);
+  const { decimals } = currencyInfo(profile?.currency);
+
   const storedIndexByHash = new Map<string, number>();
   existingRows.forEach((r, index) => {
-    const hash = generateTransactionHash(r.date, r.amount, r.rawDescription);
+    const hash = generateTransactionHash(r.date, r.amount, r.rawDescription, decimals);
     if (!storedIndexByHash.has(hash)) storedIndexByHash.set(hash, index);
   });
   const existingHashSet = new Set<string>(storedIndexByHash.keys());
@@ -277,13 +282,13 @@ export async function processBatchImport(
   // Every text a stored copy of the row can have: today's, the legacy single cell, and what
   // earlier versions made of the bank's file.
   const hashesOf = (item: ImportTransactionPayload): string[] => {
-    const hashes = [generateTransactionHash(item.date, item.amount, item.rawDescription)];
+    const hashes = [generateTransactionHash(item.date, item.amount, item.rawDescription, decimals)];
     // Rows imported before name and memo columns were merged are stored under the legacy text.
     if (item.legacyRawDescription !== undefined && item.legacyRawDescription !== item.rawDescription) {
-      hashes.push(generateTransactionHash(item.date, item.amount, item.legacyRawDescription));
+      hashes.push(generateTransactionHash(item.date, item.amount, item.legacyRawDescription, decimals));
     }
     for (const key of item.previousKeys ?? []) {
-      hashes.push(generateTransactionHash(key.date, key.amount, key.rawDescription));
+      hashes.push(generateTransactionHash(key.date, key.amount, key.rawDescription, decimals));
     }
     return hashes;
   };

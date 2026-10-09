@@ -32,6 +32,14 @@
 - Suggestions: `suggestCategory` in `src/utils/categorySuggestion.ts`, in this order: learned → similar merchant by first significant word → name-only keyword in the text → monthly direct debit. `getUncategorisedGroups` attaches one to each group.
 - `CategorySuggestion.reason` is a `Message`, not a string (see [i18n.md](i18n.md)).
 
+## Quick add
+
+- `QuickCategoriseSheet` (`src/components/modals/`) adds uncategorised transactions to the category the user opened. It lists every uncategorised row of the profile (`getUncategorisedTransactions`, all time, not the viewed period), grouped per merchant with the groups of `getUncategorisedGroups`. Merchants the review suggestion points at this category for come first; nothing is preselected.
+- Entry points: the "Add uncategorised (N)" button (`QuickAddButton`) in the expanded category on Home, in the category sheet of Health and Trends (`TransactionListModal`), and in the edit form on the Categories screen. State and the button's condition are in `useQuickCategorise` (`canAdd`): not for Uncategorised, Income, "All", a read-only profile, or when nothing is uncategorised. Budgets and the Transactions filter chips have no button.
+- Writing: `quickCategorise` sets `category` and `userOverridden = 1` on the picked rows in one statement per 500 ids.
+- Rules: with "Remember these merchants" on (the default), a `category_rules` row is saved for each merchant whose uncategorised rows are **all** picked, with the keyword the Review screen uses (IBAN, else merchant keyword). A merchant picked in part is moved only. "All" is judged on every row of the merchant, also those a search hides (`ruleKeywordsFor` in `src/utils/quickCategorise.ts`). Rows with no usable keyword sit under "Other transactions" and never give a rule.
+- The saved rules show up as keywords of the category in the category form, where they can be removed.
+
 ## Fixed vs. flexible
 
 - Scoring in `src/utils/fixedCost.ts`: cadence, amount stability, day of month, category, keywords. Fixed at score >= 0.6. A `DIRECT_DEBIT` `txType` adds to the score.

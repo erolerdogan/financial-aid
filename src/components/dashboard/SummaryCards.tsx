@@ -23,7 +23,7 @@ export function SummaryCards({
   onPressCard,
 }: SummaryCardsProps) {
   const { colors } = useTheme();
-  const { currencySymbol } = useProfile();
+  const { currencySymbol, currencyDecimals } = useProfile();
   const { t, format } = useI18n();
 
   return (
@@ -37,7 +37,7 @@ export function SummaryCards({
         >
           <Text style={[styles.label, { color: colors.textSecondary }]}>{t('home.totalIncome')}</Text>
           <Text style={[styles.amount, { color: '#34C759' }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>
-            {format.money(summary.totalIncome, currencySymbol, 2)}
+            {format.money(summary.totalIncome, currencySymbol, currencyDecimals)}
           </Text>
         </TouchableOpacity>
 
@@ -49,7 +49,7 @@ export function SummaryCards({
         >
           <Text style={[styles.label, { color: colors.textSecondary }]}>{t('home.totalExpenses')}</Text>
           <Text style={[styles.amount, { color: '#FF3B30' }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>
-            {format.money(summary.totalExpenses, currencySymbol, 2)}
+            {format.money(summary.totalExpenses, currencySymbol, currencyDecimals)}
           </Text>
         </TouchableOpacity>
       </View>
@@ -62,7 +62,7 @@ export function SummaryCards({
             { color: summary.netSavings >= 0 ? '#34C759' : '#FF3B30' },
           ]}
         >
-          {format.money(summary.netSavings, currencySymbol, 2)}
+          {format.money(summary.netSavings, currencySymbol, currencyDecimals)}
         </SelectableText>
       </View>
     </View>

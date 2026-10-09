@@ -5,7 +5,6 @@ Status notes were checked against the code on 2026-10-07.
 ## Open
 
 - **Debts: credit cards, due-date reminders.** Not started. `DEBT_TYPE_OPTIONS` has no credit card type and no reminder is scheduled before a due date. The `missed_debt_payment` health alert reports a payment after it was missed, which is a different thing. The payoff simulator is done (`docs/debts.md`); still open there: a "debt-free first" option in Future Growth (TODO in `docs/freedom.md`), and FAQ, website and legal texts do not mention it.
-- **Live exchange rates** (optional network call only; no user data sent). Not started. A currency switch still uses the hardcoded `DEFAULT_EXCHANGE_RATES`.
 
 ## Partly done
 

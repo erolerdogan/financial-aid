@@ -3,6 +3,7 @@ import { HeaderActions } from '@/components/HeaderActions';
 import { DateRangeModal } from '@/components/modals/DateRangeModal';
 import { ProBadge } from '@/components/pro/ProBadge';
 import { ProGate } from '@/components/pro/ProGate';
+import { QuickCategoriseSheet } from '@/components/modals/QuickCategoriseSheet';
 import { TransactionDetailModal } from '@/components/modals/TransactionDetailModal';
 import { TransactionListModal } from '@/components/modals/TransactionListModal';
 import { ScreenContainer } from '@/components/ScreenContainer';
@@ -11,6 +12,7 @@ import { COMPARE_SERIES_COLORS, getCategoryColor } from '@/constants/colors';
 import { useEntitlement } from '@/contexts/EntitlementContext';
 import { usePeriod } from '@/contexts/PeriodContext';
 import { useBlockTabSwipe } from '@/contexts/TabSwipeContext';
+import { useQuickCategorise } from '@/hooks/useQuickCategorise';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import {
@@ -146,7 +148,7 @@ export default function TrendsScreen() {
   const { colors } = useTheme();
   const { t, format, categoryName } = useI18n();
   const { width: screenWidth } = useWindowDimensions();
-  const { activeProfile, currencySymbol, dataVersion } = useProfile();
+  const { activeProfile, currencySymbol, currencyDecimals, dataVersion } = useProfile();
   const activeProfileId = activeProfile?.id ?? 1;
   const { can, source } = useEntitlement();
   const { openPaywall } = usePaywall();
@@ -446,6 +448,7 @@ export default function TrendsScreen() {
       if (activeProfile?.id) {
         loadAnalyticsData();
       }
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- dataVersion is listed on purpose: reload when stored data changes
     }, [activeProfile?.id, dataVersion, loadAnalyticsData])
   );
   
@@ -563,6 +566,7 @@ export default function TrendsScreen() {
     if (!db) return;
     setSelectedMonthForModal(monthKey);
     setListModalVisible(true);
+    quickAdd.reloadCount();
     try {
       setLoadingModalTrx(true);
       await loadMonthItems(periodForMonth(monthKey));
@@ -630,6 +634,21 @@ export default function TrendsScreen() {
       await loadMonthItems(periodForMonth(selectedMonthForModal));
     }
     await loadAnalyticsData();
+  };
+
+  // The list sheet makes way for the quick add sheet and comes back when that closes.
+  const quickAdd = useQuickCategorise({
+    onMoved: async () => {
+      if (selectedMonthForModal) await loadMonthItems(periodForMonth(selectedMonthForModal));
+      await loadAnalyticsData();
+    },
+    onClosed: () => setTimeout(() => setListModalVisible(true), 250),
+  });
+
+  const handleAddUncategorised = () => {
+    const category = selectedCategory;
+    setListModalVisible(false);
+    setTimeout(() => quickAdd.open(category), 250);
   };
 
   const stepperKey = rangeFilter ? makeRangeKey(rangeFilter.from, rangeFilter.to) : selectedYear;
@@ -1152,7 +1171,7 @@ export default function TrendsScreen() {
                     <Ionicons name="chevron-forward" size={14} color={colors.accent} />
                   </View>
                   <Text style={[styles.gridCardHeroValue, { color: colors.text }]}>
-                    {format.money(selectedAmount, currencySymbol, { maximumFractionDigits: 2 })}
+                    {format.money(selectedAmount, currencySymbol, { maximumFractionDigits: currencyDecimals })}
                   </Text>
                   <Text style={[styles.gridCardSubtext, { color: colors.accent }]}>{t('trends.inspect')}</Text>
                 </TouchableOpacity>
@@ -1357,7 +1376,11 @@ export default function TrendsScreen() {
         loading={loadingModalTrx}
         onClose={() => setListModalVisible(false)}
         onSelectTransaction={handleSelectTransactionFromModal}
+        uncategorisedCount={!isIncome && quickAdd.canAdd(selectedCategory) ? quickAdd.count : 0}
+        onAddUncategorised={handleAddUncategorised}
       />
+
+      <QuickCategoriseSheet {...quickAdd.sheetProps} />
 
       <TransactionDetailModal
         visible={selectedTransaction !== null}

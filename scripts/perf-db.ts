@@ -335,6 +335,7 @@ async function main(): Promise<void> {
   await measure(perf, 'Other screens', 'Budgets', () => database.getCategoryGoalsWithProgress(db, latestMonth, profileId));
   await measure(perf, 'Other screens', 'Categories', () => database.getCategoriesWithStats(db, profileId));
   await measure(perf, 'Other screens', 'Review uncategorised', () => database.getUncategorisedGroups(db, profileId));
+  await measure(perf, 'Other screens', 'Quick add list', () => database.getUncategorisedTransactions(db, profileId));
 
   printResults();
 

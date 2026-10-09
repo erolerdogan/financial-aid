@@ -16,7 +16,7 @@ import { INCOME_CATEGORY, UNCATEGORISED } from '@/utils/parser';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSQLiteContext } from 'expo-sqlite';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Animated,
   Dimensions,
@@ -61,7 +61,7 @@ export function TransactionDetailModal({
   const handleDismissAction = onDismiss ?? onClose;
   const { colors, isDark } = useTheme();
   const { t, format, categoryName, describe } = useI18n();
-  const { currencySymbol, activeProfile } = useProfile();
+  const { currencySymbol, currencyDecimals, activeProfile } = useProfile();
   const db = useSQLiteContext();
   const profileId = activeProfile?.id ?? 1;
   // A profile beyond the free limit: the transaction is shown, its category and classification are fixed.
@@ -90,8 +90,8 @@ export function TransactionDetailModal({
     }
   };
 
-  const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
-  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const [translateY] = useState(() => new Animated.Value(SCREEN_HEIGHT));
+  const [overlayOpacity] = useState(() => new Animated.Value(0));
 
   const handleDismissAnimation = (callback: () => void) => {
     Animated.parallel([
@@ -111,7 +111,7 @@ export function TransactionDetailModal({
     });
   };
 
-  const panResponder = useRef(
+  const [panResponder] = useState(() =>
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_, gestureState) => gestureState.dy > 5,
@@ -133,7 +133,7 @@ export function TransactionDetailModal({
         }
       },
     })
-  ).current;
+  );
 
   useEffect(() => {
     if (visible) {
@@ -154,14 +154,14 @@ export function TransactionDetailModal({
         }),
       ]).start();
     }
-  }, [visible]);
+  }, [visible, translateY, overlayOpacity]);
 
   if (!transaction) return null;
 
   const isIncome = transaction.amount > 0;
   const isAuto = fixedState === 'AUTO';
   const effectiveState = isAuto ? (autoIsFixed ? 'FIXED' : 'FLEXIBLE') : fixedState;
-  const formattedAmount = `${isIncome ? '+' : '-'}${format.money(Math.abs(transaction.amount), currencySymbol, 2)}`;
+  const formattedAmount = `${isIncome ? '+' : '-'}${format.money(Math.abs(transaction.amount), currencySymbol, currencyDecimals)}`;
   const autoReasonText = autoReason ? describe(autoReason) : '';
   const pickerOptions =
     isIncome && !categoryNames.includes(INCOME_CATEGORY) ? [INCOME_CATEGORY, ...categoryNames] : categoryNames;

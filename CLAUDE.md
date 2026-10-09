@@ -12,11 +12,12 @@ React Native / Expo SDK 57, TypeScript, Expo Router, expo-sqlite. Local-first pe
 - `npm run site`: builds the website into `site-dist/`.
 - `npm run pdfhost`: rebuilds `assets/pdf/pdfhost.html` (pdf.js inlined, for PDF statement import) after changing the `pdfjs-dist` version or the page script.
 - `npm run licenses`: rebuilds `src/constants/licenses.ts` (Personal Data & Privacy → Open-Source Licenses) after adding, removing or upgrading a dependency.
+- `npm run currencies`: rebuilds `src/constants/currencies.ts` and `src/i18n/currencyNames.ts` from the currencies the exchange rate source offers (needs a connection).
 - `npm run icons`: regenerates the app icon PNGs and SVG sources from `scripts/build-icons.js` (macOS, needs Google Chrome); then rebuild natively.
 - `npx expo customize tsconfig.json`: after adding a route file, regenerates `.expo/types/router.d.ts` so `tsc` knows the new path.
 
 ## Hard rules
-- IMPORTANT: Local-first. All data lives in SQLite via `src/db/database.ts`. No network calls with user data, no analytics; notifications are local only.
+- IMPORTANT: Local-first. All data lives in SQLite via `src/db/database.ts`. No network calls with user data, no analytics; notifications are local only. The only `fetch` is the exchange rate request in `src/services/exchangeRates.ts`, which sends nothing about the user.
 - IMPORTANT: Multi-profile. Every query is scoped by `profileId` (see ProfileContext).
 - IMPORTANT: Schema changes go only in `initDatabase`, as `CREATE TABLE IF NOT EXISTS` plus a try/catch `ALTER TABLE`. Never run `execAsync` DDL from screens (causes "database is locked").
 - IMPORTANT: No user-facing string literals in components: text via `t()`, numbers and dates via `format`, both from `useI18n()` (never `tNow` in a component). A new key goes into `en.ts` and all eight other locale files.
@@ -26,7 +27,7 @@ React Native / Expo SDK 57, TypeScript, Expo Router, expo-sqlite. Local-first pe
 - Amount sign: expenses are negative, income positive.
 - Period queries take a "period key": `YYYY-MM` or a range key from `makeRangeKey(from, to)`.
 - Text built outside React is returned as a `Message` (`{ key, params }`), not a string.
-- Theme via `useTheme()`; never hardcode light / dark colors (tokens `surface`, `track`, `field`, `raised` instead of `isDark ? grey : grey`). Haptics via `expo-haptics`. Money with the profile currency symbol.
+- Theme via `useTheme()`; never hardcode light / dark colors (tokens `surface`, `track`, `field`, `raised` instead of `isDark ? grey : grey`). Haptics via `expo-haptics`. Money with the profile currency symbol; a screen that shows cents passes `currencyDecimals` from `useProfile()` to `format.money`, never a literal `2`.
 - Pure modules with `tsx` tests (`src/utils/*`, `src/constants/*`) must not import `src/db/database.ts`: it pulls in `expo-sqlite`. DB loaders go in `src/services/`.
 - Does not resolve under this tsconfig: importing Reanimated directly (use RN `Animated` / `PanResponder`) and `@noble/hashes` v2 (stay on v1).
 - Any area with its own horizontal gesture must block the tab swipe (`useBlockTabSwipe()` or `TabSwipeBlocker`).
@@ -49,7 +50,7 @@ React Native / Expo SDK 57, TypeScript, Expo Router, expo-sqlite. Local-first pe
 - Source in `src/` (`@/` alias → `src/`). Routes in `src/app`, tabs in `src/app/(tabs)`.
 - Schema and all queries: `src/db/database.ts` (debt math and payment linking at the bottom). Demo seed: `src/db/demoSeeder.ts`.
 - Import: `src/hooks/useStatementImporter.ts` (picker and share sheet) → `src/services/importService.ts` → `src/utils/parser.ts`. Bank layouts: `src/utils/bankFormats.ts`. PDF statements: `src/services/pdfText.ts` + `src/components/PdfTextHost.tsx` (text, hidden WebView) → `src/utils/pdfStatements/` (parsers, totals check, chain check).
-- Currency, demo mode, active profile: `src/contexts/ProfileContext.tsx`. Switching currency rewrites stored transaction, debt and household amounts with hardcoded `DEFAULT_EXCHANGE_RATES` (not `freedom_plans`).
+- Currency, demo mode, active profile: `src/contexts/ProfileContext.tsx`. Currency list (symbol, decimals): `src/constants/currencies.ts`, names: `src/i18n/currencyNames.ts`, both generated; picker: `src/components/CurrencyPickerSheet.tsx`. Rates: `src/services/exchangeRates.ts` (provider, cache in `app_meta`), pure part `src/utils/exchangeRates.ts`. Switching currency rewrites stored transaction, budget, debt and household amounts with the rate of the day (`switchProfileCurrency`; not `freedom_plans`); see `docs/navigation.md`, Currency.
 - Picked period: `PeriodContext`. Theme and Home chart type: `ThemeContext`. Language: `LanguageContext`, `src/i18n/`.
 - `app_meta`: key/value table (theme, language, last backup date, dismissals, intro flags). It survives "Reset" and is replaced by a restore.
 - Passcode lock: `src/contexts/PasscodeContext.tsx`, `src/components/passcode/`, pure logic `src/utils/passcode.ts`. Its hash is in a file (`src/services/passcodeStore.ts`), on purpose not in the database, so it stays out of backups; see `docs/navigation.md`.

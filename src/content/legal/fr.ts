@@ -14,7 +14,7 @@ export const fr: LegalCopy = {
     'Les relevés que vous importez ainsi que les catégories, budgets, dettes, plans et réglages que vous créez sont stockés dans une base de données sur votre appareil. L’application n’a ni comptes ni serveur qui reçoit ces données.',
   'privacy.s2Title': 'Données collectées par l’application',
   'privacy.s2Text':
-    'Aucune. L’application ne contient ni mesure d’audience, ni publicité, ni suivi, et n’effectue aucune requête réseau avec vos données.',
+    'Aucune. L’application ne contient ni mesure d’audience, ni publicité, ni suivi, et n’effectue aucune requête réseau avec vos données. La seule requête que fait l’application : lorsque vous changez la devise d’un profil, elle télécharge les taux de change du jour auprès d’exchangerate-api.com. Cette requête ne contient aucune de vos données et n’indique pas quelles devises vous utilisez ; comme pour toute requête internet, ce service voit votre adresse IP.',
   'privacy.s3Title': 'Fichiers que vous importez, enregistrez et partagez',
   'privacy.s3Text':
     'Les relevés sont lus sur l’appareil. Les sauvegardes, les transactions exportées et les rapports PDF sont créés sur l’appareil et ne sont enregistrés ou partagés que là où vous le choisissez. Si vous les conservez dans un service en ligne, la politique de confidentialité de ce service s’applique.',
@@ -85,7 +85,7 @@ export const fr: LegalCopy = {
     'Les dates de fin de remboursement, les intérêts et les taux estimés des dettes sont calculés à partir de ce que vous saisissez et des paiements que vous importez. Les chiffres de votre prêteur font foi.',
   'disclaimer.s5Title': 'Devises',
   'disclaimer.s5Text':
-    'Lorsque vous changez de devise, l’application convertit vos montants avec des taux de change fixes intégrés à l’application. Ce ne sont pas des taux en temps réel et ils peuvent différer des taux réels.',
+    'Lorsque vous changez de devise, l’application convertit vos montants avec les taux de change qu’elle télécharge ce jour-là auprès d’un service public de taux. Ce sont des taux indicatifs qui peuvent différer du taux de votre banque, et les montants convertis sont arrondis.',
   'disclaimer.s6Title': 'Vos décisions',
   'disclaimer.s6Text': 'Vous décidez de ce que vous faites de votre argent et vous êtes responsable de ces décisions.',
 };

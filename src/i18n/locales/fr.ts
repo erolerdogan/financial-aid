@@ -112,6 +112,15 @@ export const fr: Translations = {
   'settings.switchCurrencyMessage':
     'Convertir tous les montants et remplacer le symbole {from} ({symbol}) par {to} ?',
   'settings.switchCurrencyConfirm': 'Convertir et changer le symbole',
+  'settings.searchCurrency': 'Rechercher une devise',
+  'settings.noCurrencyFound': 'Aucune devise trouvée',
+  'settings.switchCurrencyRate': '1 {from} = {rate} {to} (taux du {date})',
+  'settings.ratesUnavailableTitle': 'Pas de taux de change',
+  'settings.ratesUnavailableMessage':
+    'Le taux de change du jour n’a pas pu être chargé, la devise n’a donc pas été changée. Vérifiez votre connexion internet et réessayez.',
+  'settings.convertFailedMessage':
+    'Les montants n’ont pas pu être convertis, rien n’a donc été modifié.',
+  'settings.ratesCredit': 'Rates By Exchange Rate API',
   'settings.resetTitle': 'Réinitialiser toutes les données et tous les profils',
   'settings.resetMessage':
     'Voulez-vous vraiment supprimer tous les profils, opérations et réglages ? L’app sera entièrement remise à zéro.',
@@ -136,13 +145,6 @@ export const fr: Translations = {
   'licenses.title': 'Licences open source',
   'licenses.intro': 'Financial Aid utilise ces paquets open source. Touchez-en un pour lire sa licence.',
   'licenses.packageMeta': 'Version {version} · {license}',
-  'currency.EUR': 'Euro (€)',
-  'currency.USD': 'Dollar américain ($)',
-  'currency.GBP': 'Livre sterling (£)',
-  'currency.JPY': 'Yen japonais (¥)',
-  'currency.CAD': 'Dollar canadien (CA$)',
-  'currency.AUD': 'Dollar australien (A$)',
-  'currency.CHF': 'Franc suisse (CHF)',
 
   'notifications.channel': 'Rappels d’import',
   'notifications.title': 'C’est le moment d’importer vos opérations 📊',
@@ -306,6 +308,17 @@ export const fr: Translations = {
   'review.categoriseAs': 'Classer dans {category}',
   'review.choose': 'Choisissez une catégorie',
   'review.suggested': 'Suggérée',
+  'quickAdd.button': 'Ajouter des opérations sans catégorie ({count})',
+  'quickAdd.title': 'Ajouter à {category}',
+  'quickAdd.other': 'Autres opérations',
+  'quickAdd.selectAll': 'Tout sélectionner',
+  'quickAdd.deselectAll': 'Tout désélectionner',
+  'quickAdd.remember': 'Mémoriser ces marchands',
+  'quickAdd.rememberNote_one': 'Les prochaines opérations de {count} marchand entièrement sélectionné iront dans cette catégorie.',
+  'quickAdd.rememberNote_other': 'Les prochaines opérations de {count} marchands entièrement sélectionnés iront dans cette catégorie.',
+  'quickAdd.rememberHelp': "S'applique aux marchands dont toutes les opérations sont sélectionnées.",
+  'quickAdd.confirm_one': 'Ajouter {count} opération',
+  'quickAdd.confirm_other': 'Ajouter {count} opérations',
   'suggest.like': 'comme {merchant}',
   'suggest.learned': 'vous l’avez déjà choisie',
   'suggest.mentions': 'contient « {keyword} »',
@@ -539,6 +552,19 @@ export const fr: Translations = {
   'debt.form.noneContain': 'Aucune opération ne contient {keywords}.',
   'debt.form.notCounted': 'Non comptés : {hints}.',
   'debt.form.delete': 'Supprimer la dette',
+  'debt.form.pickFromTransactions': 'Choisir parmi les opérations',
+  'debt.pick.title': 'Choisir un paiement',
+  'debt.pick.help':
+    'Touchez un paiement. Tous les paiements au même prêteur sont sélectionnés avec lui ; touchez un paiement sélectionné pour l’écarter.',
+  'debt.pick.search': 'Rechercher des opérations',
+  'debt.pick.empty':
+    'Aucune dépense à choisir. Importez d’abord un relevé, ou les paiements sont déjà associés à une dette.',
+  'debt.pick.noResults': 'Aucune opération trouvée',
+  'debt.pick.noKeywordTitle': 'Association impossible',
+  'debt.pick.noKeyword':
+    'Cette opération n’a pas de nom que l’app peut rechercher. Ajoutez plutôt le paiement à la main depuis la dette.',
+  'debt.pick.use_one': 'Utiliser {count} paiement',
+  'debt.pick.use_other': 'Utiliser {count} paiements',
 
   'freedom.inTodaysMoney': 'En monnaie d’aujourd’hui.',
   'freedom.keyboardDone': 'OK, masquer le clavier',
@@ -1132,6 +1158,9 @@ export const fr: Translations = {
   'health.intro.step3Title': 'Fourchettes habituelles par catégorie',
   'health.intro.step3Text':
     'Chaque catégorie est comparée à une fourchette habituelle adaptée à votre foyer. Vert : dans la fourchette, jaune : un peu en dehors, rouge : nettement en dehors. Appui long sur une catégorie pour accepter votre niveau.',
+  'health.intro.householdTitle': 'Ce que change votre foyer',
+  'health.intro.householdText':
+    'Les adultes et les enfants déplacent les fourchettes habituelles, pas le score. Chaque enfant relève de {child} points de pourcentage le haut des fourchettes Courses et Garde d\'enfants et enfants ; avec un seul adulte, la fourchette Courses est plus basse de {single} points. Location et propriété partagent la même fourchette Logement. Le revenu et le coussin de sécurité que vous saisissez, eux, modifient le score.',
   'health.intro.step4Title': 'Une seule chose à améliorer',
   'health.intro.step4Text': 'Le score s\'accompagne toujours du changement qui rapporterait le plus de points.',
   'health.intro.step5Title': 'Alertes après un import',

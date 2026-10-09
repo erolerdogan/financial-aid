@@ -111,6 +111,15 @@ export const en = {
   'settings.switchCurrencyMessage':
     'Convert all transaction amounts and update the display symbol from {from} ({symbol}) to {to}?',
   'settings.switchCurrencyConfirm': 'Convert & Update Symbol',
+  'settings.searchCurrency': 'Search currency',
+  'settings.noCurrencyFound': 'No currency found',
+  'settings.switchCurrencyRate': '1 {from} = {rate} {to} (rate of {date})',
+  'settings.ratesUnavailableTitle': 'No Exchange Rate',
+  'settings.ratesUnavailableMessage':
+    'Today’s exchange rate could not be loaded, so the currency was not changed. Check your internet connection and try again.',
+  'settings.convertFailedMessage':
+    'The amounts could not be converted, so nothing was changed.',
+  'settings.ratesCredit': 'Rates By Exchange Rate API',
   'settings.resetTitle': 'Reset All Data & Profiles',
   'settings.resetMessage':
     'Are you sure you want to delete all profiles, transactions, and settings? This will completely reset the app to a clean state.',
@@ -135,13 +144,6 @@ export const en = {
   'licenses.title': 'Open-Source Licenses',
   'licenses.intro': 'Financial Aid is built with these open-source packages. Tap one to read its license.',
   'licenses.packageMeta': 'Version {version} · {license}',
-  'currency.EUR': 'Euro (€)',
-  'currency.USD': 'US Dollar ($)',
-  'currency.GBP': 'British Pound (£)',
-  'currency.JPY': 'Japanese Yen (¥)',
-  'currency.CAD': 'Canadian Dollar (CA$)',
-  'currency.AUD': 'Australian Dollar (A$)',
-  'currency.CHF': 'Swiss Franc (CHF)',
 
   'notifications.channel': 'Import Reminders',
   'notifications.title': 'Time to Import Transactions 📊',
@@ -304,6 +306,17 @@ export const en = {
   'review.categoriseAs': 'Categorise as {category}',
   'review.choose': 'Choose a category',
   'review.suggested': 'Suggested',
+  'quickAdd.button': 'Add uncategorised ({count})',
+  'quickAdd.title': 'Add to {category}',
+  'quickAdd.other': 'Other transactions',
+  'quickAdd.selectAll': 'Select all',
+  'quickAdd.deselectAll': 'Deselect all',
+  'quickAdd.remember': 'Remember these merchants',
+  'quickAdd.rememberNote_one': 'Future transactions from {count} fully selected merchant go to this category.',
+  'quickAdd.rememberNote_other': 'Future transactions from {count} fully selected merchants go to this category.',
+  'quickAdd.rememberHelp': 'Applies to merchants whose transactions are all selected.',
+  'quickAdd.confirm_one': 'Add {count} transaction',
+  'quickAdd.confirm_other': 'Add {count} transactions',
   'suggest.like': 'like {merchant}',
   'suggest.learned': 'you chose this before',
   'suggest.mentions': 'mentions "{keyword}"',
@@ -536,6 +549,19 @@ export const en = {
   'debt.form.noneContain': 'No statement transactions contain {keywords}.',
   'debt.form.notCounted': 'Not counted: {hints}.',
   'debt.form.delete': 'Delete Debt',
+  'debt.form.pickFromTransactions': 'Choose from transactions',
+  'debt.pick.title': 'Choose a payment',
+  'debt.pick.help':
+    'Tap one payment. Every payment to the same lender is selected with it; tap a selected one to leave it out.',
+  'debt.pick.search': 'Search transactions',
+  'debt.pick.empty':
+    'No expenses to choose from. Import a statement first, or the payments are already linked to a debt.',
+  'debt.pick.noResults': 'No transactions found',
+  'debt.pick.noKeywordTitle': 'Cannot match this one',
+  'debt.pick.noKeyword':
+    'This transaction has no name the app can match on. Add the payment by hand from the debt instead.',
+  'debt.pick.use_one': 'Use {count} payment',
+  'debt.pick.use_other': 'Use {count} payments',
 
   'freedom.inTodaysMoney': "In today's money.",
   'freedom.keyboardDone': 'Done, hide keyboard',
@@ -1106,6 +1132,9 @@ export const en = {
   'health.intro.step3Title': 'Typical ranges per category',
   'health.intro.step3Text':
     'Each category is shown against a typical range that adapts to your household. Green is within range, yellow a little outside, red well outside. Hold a category to accept your own level.',
+  'health.intro.householdTitle': 'What your household changes',
+  'health.intro.householdText':
+    'Adults and children move the typical ranges, not the score. Each child raises the upper end of Groceries and of Childcare & Kids by {child} percentage points; with a single adult the Groceries range sits {single} points lower. Renting and owning share the same Housing range. The income and the savings buffer you enter do change the score.',
   'health.intro.step4Title': 'One thing to fix',
   'health.intro.step4Text': 'The score always comes with the single change that would add the most points.',
   'health.intro.step5Title': 'Alerts after an import',

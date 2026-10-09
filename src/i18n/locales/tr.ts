@@ -112,6 +112,15 @@ export const tr: Translations = {
   'settings.switchCurrencyMessage':
     'Tüm işlem tutarları dönüştürülsün ve simge {from} ({symbol}) yerine {to} olarak güncellensin mi?',
   'settings.switchCurrencyConfirm': 'Dönüştür ve simgeyi güncelle',
+  'settings.searchCurrency': 'Para birimi ara',
+  'settings.noCurrencyFound': 'Para birimi bulunamadı',
+  'settings.switchCurrencyRate': '1 {from} = {rate} {to} ({date} tarihli kur)',
+  'settings.ratesUnavailableTitle': 'Döviz kuru yok',
+  'settings.ratesUnavailableMessage':
+    'Bugünün döviz kuru yüklenemedi, bu yüzden para birimi değiştirilmedi. İnternet bağlantını kontrol edip tekrar dene.',
+  'settings.convertFailedMessage':
+    'Tutarlar dönüştürülemedi, bu yüzden hiçbir şey değiştirilmedi.',
+  'settings.ratesCredit': 'Rates By Exchange Rate API',
   'settings.resetTitle': 'Tüm verileri ve profilleri sıfırla',
   'settings.resetMessage':
     'Tüm profilleri, işlemleri ve ayarları silmek istediğinden emin misin? Uygulama tamamen ilk haline dönecek.',
@@ -137,13 +146,6 @@ export const tr: Translations = {
   'licenses.intro':
     'Financial Aid bu açık kaynak paketleriyle geliştirildi. Lisansını okumak için bir pakete dokunun.',
   'licenses.packageMeta': 'Sürüm {version} · {license}',
-  'currency.EUR': 'Euro (€)',
-  'currency.USD': 'ABD doları ($)',
-  'currency.GBP': 'İngiliz sterlini (£)',
-  'currency.JPY': 'Japon yeni (¥)',
-  'currency.CAD': 'Kanada doları (CA$)',
-  'currency.AUD': 'Avustralya doları (A$)',
-  'currency.CHF': 'İsviçre frangı (CHF)',
 
   'notifications.channel': 'İçe aktarma hatırlatmaları',
   'notifications.title': 'İşlemleri içe aktarma zamanı 📊',
@@ -306,6 +308,17 @@ export const tr: Translations = {
   'review.categoriseAs': '{category} olarak kategorilendir',
   'review.choose': 'Kategori seç',
   'review.suggested': 'Önerilen',
+  'quickAdd.button': 'Kategorisiz ekle ({count})',
+  'quickAdd.title': '{category} kategorisine ekle',
+  'quickAdd.other': 'Diğer işlemler',
+  'quickAdd.selectAll': 'Tümünü seç',
+  'quickAdd.deselectAll': 'Seçimi kaldır',
+  'quickAdd.remember': 'Bu satıcıları hatırla',
+  'quickAdd.rememberNote_one': 'Tamamı seçilen {count} satıcının sonraki işlemleri bu kategoriye gider.',
+  'quickAdd.rememberNote_other': 'Tamamı seçilen {count} satıcının sonraki işlemleri bu kategoriye gider.',
+  'quickAdd.rememberHelp': 'Tüm işlemleri seçilen satıcılar için geçerlidir.',
+  'quickAdd.confirm_one': '{count} işlem ekle',
+  'quickAdd.confirm_other': '{count} işlem ekle',
   'suggest.like': '{merchant} gibi',
   'suggest.learned': 'bunu daha önce seçtin',
   'suggest.mentions': '"{keyword}" geçiyor',
@@ -534,6 +547,19 @@ export const tr: Translations = {
   'debt.form.noneContain': 'Hiçbir ekstre işleminde şu geçmiyor: {keywords}.',
   'debt.form.notCounted': 'Sayılmadı: {hints}.',
   'debt.form.delete': 'Borcu sil',
+  'debt.form.pickFromTransactions': 'İşlemlerden seç',
+  'debt.pick.title': 'Bir ödeme seç',
+  'debt.pick.help':
+    'Bir ödemeye dokun. Aynı kredi verene yapılan tüm ödemeler onunla birlikte seçilir; seçili birini çıkarmak için ona dokun.',
+  'debt.pick.search': 'İşlem ara',
+  'debt.pick.empty':
+    'Seçilecek gider yok. Önce bir ekstre içe aktar; ödemeler zaten bir borca bağlı da olabilir.',
+  'debt.pick.noResults': 'İşlem bulunamadı',
+  'debt.pick.noKeywordTitle': 'Bu işlem eşleştirilemiyor',
+  'debt.pick.noKeyword':
+    'Bu işlemin uygulamanın arayabileceği bir adı yok. Ödemeyi borcun içinden elle ekle.',
+  'debt.pick.use_one': '{count} ödemeyi kullan',
+  'debt.pick.use_other': '{count} ödemeyi kullan',
 
   'freedom.inTodaysMoney': 'Bugünün parasıyla.',
   'freedom.keyboardDone': 'Bitti, klavyeyi gizle',
@@ -1106,6 +1132,9 @@ export const tr: Translations = {
   'health.intro.step3Title': 'Kategori başına tipik aralıklar',
   'health.intro.step3Text':
     'Her kategori, hanene göre uyarlanan tipik bir aralıkla gösterilir. Yeşil aralıkta, sarı biraz dışında, kırmızı epey dışında demektir. Kendi seviyeni kabul etmek için kategoriye basılı tut.',
+  'health.intro.householdTitle': 'Hanen neyi değiştirir',
+  'health.intro.householdText':
+    'Yetişkinler ve çocuklar puanı değil, tipik aralıkları değiştirir. Her çocuk, Market ile Çocuk bakımı ve çocuklar aralıklarının üst sınırını {child} yüzde puanı yükseltir; tek yetişkinde Market aralığı {single} puan daha düşüktür. Kira ve ev sahipliği aynı Konut aralığını kullanır. Girdiğin gelir ve güvenlik payı ise puanı değiştirir.',
   'health.intro.step4Title': 'Düzeltilecek tek şey',
   'health.intro.step4Text': 'Puanın yanında her zaman en çok puan kazandıracak tek değişiklik yer alır.',
   'health.intro.step5Title': 'İçe aktarmadan sonra uyarılar',

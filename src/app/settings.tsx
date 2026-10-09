@@ -1,3 +1,4 @@
+import { CurrencyPickerSheet } from '@/components/CurrencyPickerSheet';
 import { BackupRestoreModal } from '@/components/modals/BackupRestoreModal';
 import { PasscodeModal, type PasscodeModalMode } from '@/components/modals/PasscodeModal';
 import { ReadOnlySheetHost } from '@/components/pro/ReadOnlySheet';
@@ -6,18 +7,21 @@ import { SelectableText } from '@/components/SelectableText';
 import { ThemeSwatches } from '@/components/ThemeSwatches';
 import { faqTranslate } from '@/content/faq';
 import { PRO_TESTING_ENABLED } from '@/constants/buildConfig';
+import { currencyInfo, DEFAULT_CURRENCY } from '@/constants/currencies';
 import { useEntitlement } from '@/contexts/EntitlementContext';
 import { ImportSummaryHost } from '@/contexts/ImportResultContext';
 import { useI18n } from '@/contexts/LanguageContext';
 import { usePasscode } from '@/contexts/PasscodeContext';
-import { CURRENCY_SYMBOLS, useProfile } from '@/contexts/ProfileContext';
+import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { clearAllData } from '@/db/database';
 import { LANGUAGES, LanguageCode } from '@/i18n';
 import { usePaywall } from '@/hooks/usePaywall';
 import { useProfileAccess } from '@/hooks/useProfileAccess';
 import { useStatementImporter } from '@/hooks/useStatementImporter';
+import { getRates, RATE_PROVIDER } from '@/services/exchangeRates';
 import { restore } from '@/services/purchases';
+import { conversionFactor } from '@/utils/exchangeRates';
 import { getStoreLinks } from '@/utils/storeLinks';
 import {
   cancelCurrentMonthReminders,
@@ -45,13 +49,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const AVAILABLE_CURRENCIES = ['EUR', 'USD', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF'] as const;
-
 export default function SettingsScreen() {
   const { activeProfile, updateCurrency, refreshProfiles, isDemoMode } = useProfile();
   const { isDark, toggleTheme, colors } = useTheme();
   const { enabled: passcodeEnabled } = usePasscode();
-  const { t, language, storedLanguage, setLanguage } = useI18n();
+  const { t, format, language, storedLanguage, setLanguage } = useI18n();
   const router = useRouter();
   const db = useSQLiteContext();
   const { source, setDevOverride, refresh: refreshEntitlement } = useEntitlement();
@@ -61,6 +63,7 @@ export default function SettingsScreen() {
   const [loading, setLoading] = useState(false);
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [currencyModalVisible, setCurrencyModalVisible] = useState(false);
+  const [rateLoading, setRateLoading] = useState(false);
   const [backupModalVisible, setBackupModalVisible] = useState(false);
   const [passcodeModalVisible, setPasscodeModalVisible] = useState(false);
   const [passcodeModalMode, setPasscodeModalMode] = useState<PasscodeModalMode>('set');
@@ -75,8 +78,8 @@ export default function SettingsScreen() {
     Linking.openURL(url).catch((error) => console.warn('Could not open link:', error));
   };
 
-  const activeCurrencyCode = activeProfile?.currency || 'EUR';
-  const activeCurrencySymbol = CURRENCY_SYMBOLS[activeCurrencyCode] || '€';
+  const activeCurrencyCode = activeProfile?.currency || DEFAULT_CURRENCY;
+  const activeCurrencySymbol = currencyInfo(activeCurrencyCode).symbol.trim();
 
   const activeLanguageLabel = LANGUAGES.find((item) => item.code === language)?.label ?? '';
   const languageOptions: { code: LanguageCode | null; label: string }[] = [
@@ -112,30 +115,49 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleSelectCurrency = (newCurrencyCode: string) => {
+  const handleSelectCurrency = async (newCurrencyCode: string) => {
     if (newCurrencyCode === activeCurrencyCode) {
       setCurrencyModalVisible(false);
       return;
     }
 
-    Alert.alert(
-      t('settings.switchCurrencyTitle'),
-      t('settings.switchCurrencyMessage', {
-        from: activeCurrencyCode,
-        symbol: activeCurrencySymbol,
-        to: newCurrencyCode,
-      }),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('settings.switchCurrencyConfirm'),
-          onPress: async () => {
-            await updateCurrency(newCurrencyCode);
+    // Converting needs today's rate; without one the currency stays as it is.
+    setRateLoading(true);
+    const table = await getRates(db).catch(() => null);
+    setRateLoading(false);
+    const factor = table ? conversionFactor(table, activeCurrencyCode, newCurrencyCode) : null;
+
+    if (!table || factor === null) {
+      Alert.alert(t('settings.ratesUnavailableTitle'), t('settings.ratesUnavailableMessage'));
+      return;
+    }
+
+    const message = t('settings.switchCurrencyMessage', {
+      from: activeCurrencyCode,
+      symbol: activeCurrencySymbol,
+      to: newCurrencyCode,
+    });
+    const rate = t('settings.switchCurrencyRate', {
+      from: activeCurrencyCode,
+      to: newCurrencyCode,
+      rate: format.number(factor, { maximumFractionDigits: factor < 1 ? 6 : 4 }),
+      date: format.date(new Date(table.updatedAt), { day: 'numeric', month: 'short', year: 'numeric' }),
+    });
+    Alert.alert(t('settings.switchCurrencyTitle'), `${message}\n\n${rate}`, [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('settings.switchCurrencyConfirm'),
+        onPress: async () => {
+          try {
+            await updateCurrency(newCurrencyCode, factor);
             setCurrencyModalVisible(false);
-          },
+          } catch (error) {
+            console.error('Error updating currency:', error);
+            Alert.alert(t('common.error'), t('settings.convertFailedMessage'));
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const handleResetDatabase = () => {
@@ -676,56 +698,22 @@ export default function SettingsScreen() {
         onClose={() => setBackupModalVisible(false)}
       />
 
-      {/* Currency Picker Sheet Modal */}
-      <Modal visible={currencyModalVisible} transparent animationType="slide" onRequestClose={() => setCurrencyModalVisible(false)}>
-        <TouchableOpacity
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          accessible={false}
-          onPress={() => setCurrencyModalVisible(false)}
-        >
-          <TouchableWithoutFeedback accessible={false}>
-            <View
-              style={[styles.sheetContainer, { backgroundColor: colors.card }]}
-              onAccessibilityEscape={() => setCurrencyModalVisible(false)}
-            >
-              <View style={styles.sheetHeader}>
-                <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
-                <SelectableText style={[styles.sheetTitle, { color: colors.text }]}>{t('settings.selectCurrency')}</SelectableText>
-              </View>
-              <ScrollView style={{ maxHeight: 320 }}>
-                {AVAILABLE_CURRENCIES.map((code) => {
-                  const isSelected = activeCurrencyCode === code;
-                  return (
-                    <TouchableOpacity
-                      key={code}
-                      style={[
-                        styles.sheetItem,
-                        { borderBottomColor: colors.border },
-                        isSelected && { backgroundColor: colors.tintBackground },
-                      ]}
-                      onPress={() => handleSelectCurrency(code)}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: isSelected }}
-                    >
-                      <Text
-                        style={[
-                          styles.sheetItemText,
-                          { color: colors.text },
-                          isSelected && { fontWeight: '700', color: colors.accent },
-                        ]}
-                      >
-                        {t(`currency.${code}`)}
-                      </Text>
-                      {isSelected && <Ionicons name="checkmark-circle" size={20} color={colors.accent} />}
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            </View>
-          </TouchableWithoutFeedback>
-        </TouchableOpacity>
-      </Modal>
+      <CurrencyPickerSheet
+        visible={currencyModalVisible}
+        selected={activeCurrencyCode}
+        busy={rateLoading}
+        onSelect={handleSelectCurrency}
+        onClose={() => setCurrencyModalVisible(false)}
+        footer={
+          <TouchableOpacity
+            style={styles.ratesCredit}
+            onPress={() => openLink(RATE_PROVIDER.url)}
+            accessibilityRole="link"
+          >
+            <Text style={[styles.ratesCreditText, { color: colors.textSecondary }]}>{t('settings.ratesCredit')}</Text>
+          </TouchableOpacity>
+        }
+      />
 
       {/* Language Picker Sheet Modal */}
       <Modal visible={languageModalVisible} transparent animationType="slide" onRequestClose={() => setLanguageModalVisible(false)}>
@@ -872,4 +860,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   sheetItemText: { fontSize: 16, fontWeight: '500' },
+  ratesCredit: { minHeight: 44, justifyContent: 'center', alignItems: 'center', marginTop: 4 },
+  ratesCreditText: { fontSize: 12, textDecorationLine: 'underline' },
 });

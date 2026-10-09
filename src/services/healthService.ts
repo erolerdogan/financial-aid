@@ -1,4 +1,4 @@
-import { CURRENCY_SYMBOLS } from '@/contexts/ProfileContext';
+import { currencyInfo } from '@/constants/currencies';
 import {
   getAlerts,
   getAlertSettings,
@@ -115,9 +115,9 @@ export async function runHealthAlerts(db: SQLiteDatabase, profileId: number): Pr
   const profile = await db.getFirstAsync<{ currency: string }>(`SELECT currency FROM profiles WHERE id = ?;`, [
     profileId,
   ]);
-  const symbol = CURRENCY_SYMBOLS[profile?.currency ?? 'EUR'] ?? '€';
+  const { symbol, decimals } = currencyInfo(profile?.currency);
   const format = createFormatters(getActiveTag());
-  await notifyHealthAlerts(added.map((alert) => alertText(alert.message, tNow, format, symbol)));
+  await notifyHealthAlerts(added.map((alert) => alertText(alert.message, tNow, format, symbol, decimals)));
 
   return added;
 }
