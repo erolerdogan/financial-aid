@@ -1,6 +1,7 @@
 import { AlertsStrip } from '@/components/health/AlertsStrip';
 import { BenchmarkGroupSheet } from '@/components/health/BenchmarkGroupSheet';
 import { CategoryRangeRow } from '@/components/health/CategoryRangeRow';
+import { ForecastCard } from '@/components/health/ForecastCard';
 import { HEALTH_INTRO_SEEN_KEY, HealthIntro, HealthIntroModal } from '@/components/health/HealthIntro';
 import { HealthOptionsSheet } from '@/components/health/HealthOptions';
 import { levelKey, scoreColor } from '@/components/health/healthUi';
@@ -458,6 +459,12 @@ export function HealthScreen() {
 
               <SelectableText style={[styles.disclaimer, { color: colors.textSecondary }]}>{t('health.disclaimer')}</SelectableText>
             </View>
+
+            {snapshot.forecast ? (
+              <View style={cardStyle}>
+                <ForecastCard forecast={snapshot.forecast} />
+              </View>
+            ) : null}
 
             {score !== null ? (
               <View style={cardStyle}>

@@ -65,7 +65,7 @@ export const es: FaqCopy = {
     'La puntuación va de 0 a 100 y combina cinco pilares: tasa de ahorro (30%), vivienda (20%), gastos fijos (15%), pagos de deudas sin la hipoteca (20%) y un colchón de seguridad (15%). Cada pilar se compara con una regla general habitual. Un colchón que no has introducido se deja fuera y los demás pilares se reparten su peso.',
   'faq.plan.income.q': '¿Qué ingresos usa la puntuación de salud?',
   'faq.plan.income.a':
-    'La media de los tres últimos meses completos con ingresos en tus extractos, o el importe que escribes tú. Mientras no haya un mes con ingresos, no se muestra ninguna puntuación.',
+    'La media de los tres últimos meses completos con ingresos en tus extractos, o el importe que escribes tú. Mientras no haya un mes con ingresos, no se muestra ninguna puntuación. Un préstamo recibido u otro pago único grande no cuenta como ingreso.',
   'faq.plan.debts.q': '¿Cómo encuentra la app los pagos de mis deudas?',
   'faq.plan.debts.a':
     'Cada deuda tiene palabras clave. Después de cada importación, una transacción se vincula cuando una palabra clave coincide con una palabra entera y el importe se acerca al pago mensual. Las que casi coinciden aparecen como posibles coincidencias que puedes añadir a mano, y un pago vinculado se puede desvincular.',

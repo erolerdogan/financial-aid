@@ -66,7 +66,7 @@ export const en = {
     'The score runs from 0 to 100 and combines five pillars: savings rate (30%), housing (20%), fixed costs (15%), debt payments without the mortgage (20%) and a safety buffer (15%). Each pillar is compared with a common rule of thumb. A buffer you have not entered is left out, and the other pillars share its weight.',
   'faq.plan.income.q': 'Which income does the health score use?',
   'faq.plan.income.a':
-    'The average of the last three complete months of income in your statements, or the amount you type in yourself. Until there is a month with income, no score is shown.',
+    'The average of the last three complete months of income in your statements, or the amount you type in yourself. Until there is a month with income, no score is shown. A loan that is paid out, or another large one-off payment, is not counted as income.',
   'faq.plan.debts.q': 'How does the app find my debt payments?',
   'faq.plan.debts.a':
     'Every debt has keywords. After each import, a transaction is linked when a keyword matches a whole word and the amount is close to the monthly payment. Near-misses are listed as possible matches that you can add by hand, and a linked payment can be unlinked again.',

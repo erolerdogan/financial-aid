@@ -34,7 +34,10 @@ Purpose: answer "Is our money in good shape, and what's the one thing to fix?"
 ### Net income and spending
 
 - `detectNetIncome`: `net_income_override` wins; otherwise the average income of the last three complete months with data.
-- Money coming in from a Savings-group category is not income.
+- What counts as income is decided per transaction in `indexMonths` (`MonthBucket.income`), so the score and the forecast agree:
+  - money coming in from a Savings-group or Debt-group category is not income (back from savings, a loan paid out, a refund on the card);
+  - a large one-off is not income either (`oneOffTest`): its source (merchant, else the raw description) is seen in one month only and the amount is above 1.5 times the median monthly money in. `MonthBucket.oneOffs` counts them. A bonus from the employer, a second payment from the same client and a small gift stay income.
+  - With one month of data nothing can be a one-off. A first salary from a new employer is only left out when it is above 1.5 times the usual month, and counts again once the second one arrives.
 - A month that is still running takes its income from the months before it and is only used itself when it is all there is.
 - Spending leaves out money sent to a Savings-group category.
 - Savings rate = (net income - spending) / net income. Every percentage is of net income, not of the month's actual income.
@@ -61,6 +64,19 @@ Purpose: answer "Is our money in good shape, and what's the one thing to fix?"
 - An unknown buffer has no score and the other pillars share its weight.
 - No income or no data for the month: `enough` is false and there is no score.
 - `biggestImprovement` returns a `Message` (`health.improve.<pillar>`, params `target`, `points`), not a string, like other text built outside React.
+
+## Forecast
+
+- `src/utils/healthForecast.ts` is pure. Tests: `npx tsx src/utils/healthForecast.test.ts`. `loadHealth` returns it as `HealthSnapshot.forecast`; no extra query.
+- `forecastNextMonth(input)` describes the month after the latest month with data as a typical month. It does not follow the picked period and changes nothing in the score, the alerts or the report.
+- Sample (`forecastSample`): the complete months of that month's calendar year that have data; a running month is left out. Below three months the months before the year are added, newest first. Below two months, or without income, there is no forecast.
+- `typicalValue` is used for every spending series (fixed, flexible, each category, housing): the median below four months; otherwise the average of the months within `max(2.5 × 1.4826 × MAD, 15% of the median)` of the median. A yearly bill or a holiday therefore does not move the figure, and a cost that came once is typically zero.
+- `monthsDropped` counts the months left out of the fixed or flexible figure. `oneOffs` counts the one-off payments left out of income in the sample (zero when the income is typed).
+- Income: `net_income_override` wins, otherwise the plain average of the sample months' income (see Net income and spending): an uneven month or a bonus is real income, so no month is dropped. Left over = income - fixed - flexible; savings transfers are not spending, as in the engine.
+- Suggestions:
+  - the pillar one is `biggestImprovement` on the forecast month's metrics (debt share from the scheduled payments of active debts without mortgages, buffer against the typical fixed costs). Its "score +N" is for a month like the forecast; no second score is shown;
+  - up to three categories whose typical spend is yellow or red against their range (`rangeForCategory`, so an accepted range counts), ordered by the amount above the range maximum (`cut`). Savings-group categories and categories without a range are skipped.
+- It is a projection: the card is labelled "est." and carries `freedom.disclaimer` ("Projection, not guaranteed. Not financial advice.").
 
 ## Alerts
 
@@ -96,6 +112,7 @@ In `src/components/health/`:
 - `AlertsStrip`: the latest month's `new` alerts at the top of the Health segment, each with "Got it" and "Don't alert me about this".
 - `HealthIntro` / `HealthIntroModal`: the "How it works" page (see Intro).
 - `ScoreRing`: `react-native-svg` + RN `Animated`, not Reanimated. The sweep is skipped when `AccessibilityInfo.isReduceMotionEnabled()`.
+- `ForecastCard`: "Next month · est." between the score card and the pillars (see Forecast): income, fixed costs, flexible, left over, the months it is based on, the suggestions. Hidden while there is no forecast.
 - `PillarRow`, `CategoryRangeRow`, `HouseholdSheet`, `BenchmarkGroupSheet`, `ScoreHistoryChart`.
 - `HouseholdFields`: the people steppers with rent / own, and the income and savings inputs, shared by `HouseholdSheet` and the profile questions.
 - `HealthOptions` / `HealthOptionsSheet`: the bottom sheet opened from the ⋯ button in the top row of the segment (right of "How it works"): household profile, a switch per alert type, "Reset all range overrides". The household row closes the sheet before `HouseholdSheet` is presented. Budget Health has nothing in Settings.

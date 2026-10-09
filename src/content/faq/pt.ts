@@ -65,7 +65,7 @@ export const pt: FaqCopy = {
     'A pontuação vai de 0 a 100 e reúne cinco pilares: taxa de poupança (30%), moradia (20%), gastos fixos (15%), pagamentos de dívidas sem o financiamento imobiliário (20%) e uma reserva de segurança (15%). Cada pilar é comparado com uma regra prática comum. Uma reserva que você não informou fica de fora, e os outros pilares dividem o peso dela.',
   'faq.plan.income.q': 'Qual renda a pontuação de saúde usa?',
   'faq.plan.income.a':
-    'A média dos três últimos meses completos de receitas nos seus extratos, ou o valor que você mesmo digita. Enquanto não houver um mês com receitas, nenhuma pontuação é exibida.',
+    'A média dos três últimos meses completos de receitas nos seus extratos, ou o valor que você mesmo digita. Enquanto não houver um mês com receitas, nenhuma pontuação é exibida. Um empréstimo recebido ou outro pagamento pontual de valor alto não conta como receita.',
   'faq.plan.debts.q': 'Como o app encontra os pagamentos das minhas dívidas?',
   'faq.plan.debts.a':
     'Cada dívida tem palavras-chave. Depois de cada importação, uma transação é vinculada quando uma palavra-chave corresponde a uma palavra inteira e o valor fica perto do pagamento mensal. Os casos que quase correspondem aparecem como possíveis correspondências para adicionar à mão, e um pagamento vinculado pode ser desvinculado.',

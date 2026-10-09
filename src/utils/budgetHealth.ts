@@ -141,6 +141,8 @@ export const PILLAR_THRESHOLDS: Record<PillarId, { full: number; zero: number }>
 const YELLOW_MARGIN = 0.2;
 const NORMAL_MONTHS = 3;
 const INCOME_MONTHS = 3;
+/** Money in from a source seen in one month only is a one-off (a loan, an inheritance) when it is this many typical months of income. */
+const ONE_OFF_FACTOR = 1.5;
 
 export const monthOf = (date: string): string => date.slice(0, 7);
 
@@ -160,8 +162,11 @@ export const isPartialMonth = (month: string, today: string): boolean => month >
 
 const toPct = (amount: number, income: number): number | null => (income > 0 ? (amount / income) * 100 : null);
 
-interface MonthBucket {
+export interface MonthBucket {
+  /** Money in that counts as income; see `indexMonths`. */
   income: number;
+  /** Large one-off payments left out of `income`. */
+  oneOffs: number;
   /** Money out, without transfers to savings. */
   spending: number;
   fixed: number;
@@ -176,23 +181,61 @@ export type MonthIndex = Map<string, MonthBucket>;
 const groupOf = (input: Pick<HealthInput, 'categoryGroups'>, category: string): BenchmarkGroupId =>
   input.categoryGroups[category] ?? 'none';
 
-/** One pass over the transactions; every function below takes the result so a year of months costs one scan. */
+export const median = (values: number[]): number => {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 1 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+};
+
+/** Money coming back from savings, or in a debt category (a loan paid out, a refund on the card), is not income. */
+const canBeIncome = (group: BenchmarkGroupId): boolean => group !== 'savings' && group !== 'debt';
+
+const sourceOf = (tx: HealthTransaction): string =>
+  (tx.merchant && tx.merchant !== 'Unknown' ? tx.merchant : tx.rawDescription).trim().toLowerCase();
+
+/**
+ * Tells a large one-off payment from income: its source is seen in one month only and it is more than 1.5 times the
+ * money that comes in in a typical month. A bonus from the employer or an uneven month of a freelancer stays income.
+ */
+function oneOffTest(input: Pick<HealthInput, 'transactions' | 'categoryGroups'>): (tx: HealthTransaction) => boolean {
+  const moneyIn = new Map<string, number>();
+  const sourceMonths = new Map<string, Set<string>>();
+
+  for (const tx of input.transactions) {
+    const month = monthOf(tx.date);
+    if (!moneyIn.has(month)) moneyIn.set(month, 0);
+    if (tx.amount <= 0 || !canBeIncome(groupOf(input, tx.category))) continue;
+    moneyIn.set(month, (moneyIn.get(month) ?? 0) + tx.amount);
+    const source = sourceOf(tx);
+    const months = sourceMonths.get(source);
+    if (months) months.add(month);
+    else sourceMonths.set(source, new Set([month]));
+  }
+
+  const limit = median(Array.from(moneyIn.values())) * ONE_OFF_FACTOR;
+  return (tx) => limit > 0 && tx.amount > limit && sourceMonths.get(sourceOf(tx))?.size === 1;
+}
+
+/** Every function below takes the result, so a year of months costs one scan of the months. */
 export function indexMonths(input: Pick<HealthInput, 'transactions' | 'categoryGroups'>): MonthIndex {
   const index: MonthIndex = new Map();
+  const isOneOff = oneOffTest(input);
 
   for (const tx of input.transactions) {
     const month = monthOf(tx.date);
     let bucket = index.get(month);
     if (!bucket) {
-      bucket = { income: 0, spending: 0, fixed: 0, byCategory: new Map(), byGroup: new Map(), count: 0 };
+      bucket = { income: 0, oneOffs: 0, spending: 0, fixed: 0, byCategory: new Map(), byGroup: new Map(), count: 0 };
       index.set(month, bucket);
     }
     bucket.count++;
 
     const group = groupOf(input, tx.category);
     if (tx.amount > 0) {
-      // Money coming back from a savings account is not income.
-      if (group !== 'savings') bucket.income += tx.amount;
+      if (!canBeIncome(group)) continue;
+      if (isOneOff(tx)) bucket.oneOffs++;
+      else bucket.income += tx.amount;
       continue;
     }
     if (tx.amount === 0) continue;

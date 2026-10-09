@@ -65,7 +65,7 @@ export const nl: FaqCopy = {
     'De score loopt van 0 tot 100 en combineert vijf pijlers: spaarquote (30%), wonen (20%), vaste kosten (15%), schuldbetalingen zonder de hypotheek (20%) en een buffer (15%). Elke pijler wordt vergeleken met een gangbare vuistregel. Een buffer die je niet hebt ingevuld telt niet mee; de andere pijlers verdelen dan zijn gewicht.',
   'faq.plan.income.q': 'Welk inkomen gebruikt de gezondheidsscore?',
   'faq.plan.income.a':
-    'Het gemiddelde van de laatste drie volledige maanden met inkomsten in je afschriften, of het bedrag dat je zelf invult. Zolang er geen maand met inkomsten is, wordt er geen score getoond.',
+    'Het gemiddelde van de laatste drie volledige maanden met inkomsten in je afschriften, of het bedrag dat je zelf invult. Zolang er geen maand met inkomsten is, wordt er geen score getoond. Een uitbetaalde lening of een andere grote eenmalige betaling telt niet als inkomen.',
   'faq.plan.debts.q': 'Hoe vindt de app mijn schuldbetalingen?',
   'faq.plan.debts.a':
     'Elke schuld heeft trefwoorden. Na elke import wordt een transactie gekoppeld als een trefwoord overeenkomt met een heel woord en het bedrag dicht bij de maandbetaling ligt. Wat er net naast zit, staat als mogelijke match in de lijst en kun je met de hand toevoegen; een gekoppelde betaling kun je weer ontkoppelen.',

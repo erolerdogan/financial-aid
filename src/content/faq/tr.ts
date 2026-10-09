@@ -64,7 +64,7 @@ export const tr: FaqCopy = {
     'Puan 0 ile 100 arasındadır ve beş temeli birleştirir: tasarruf oranı (%30), konut (%20), sabit giderler (%15), ipotek hariç borç ödemeleri (%20) ve güvenlik tamponu (%15). Her temel yaygın bir genel kuralla karşılaştırılır. Girmediğiniz bir tampon hesaba katılmaz ve ağırlığını diğer temeller paylaşır.',
   'faq.plan.income.q': 'Sağlık puanı hangi geliri kullanıyor?',
   'faq.plan.income.a':
-    'Ekstrelerinizdeki, gelir içeren son üç tam ayın ortalamasını veya kendi yazdığınız tutarı. Gelir içeren bir ay olana kadar puan gösterilmez.',
+    'Ekstrelerinizdeki, gelir içeren son üç tam ayın ortalamasını veya kendi yazdığınız tutarı. Gelir içeren bir ay olana kadar puan gösterilmez. Size ödenen bir kredi veya başka bir büyük tek seferlik ödeme gelir sayılmaz.',
   'faq.plan.debts.q': 'Uygulama borç ödemelerimi nasıl buluyor?',
   'faq.plan.debts.a':
     'Her borcun anahtar kelimeleri vardır. Her içe aktarmadan sonra, bir anahtar kelime tam bir sözcükle eşleşiyorsa ve tutar aylık ödemeye yakınsa işlem borca bağlanır. Kıl payı uymayanlar, elle ekleyebileceğiniz olası eşleşmeler olarak listelenir; bağlanmış bir ödemenin bağlantısı kaldırılabilir.',

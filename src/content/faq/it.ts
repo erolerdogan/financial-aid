@@ -65,7 +65,7 @@ export const it: FaqCopy = {
     'Il punteggio va da 0 a 100 e unisce cinque pilastri: tasso di risparmio (30%), casa (20%), spese fisse (15%), rate dei debiti senza il mutuo (20%) e un cuscinetto di sicurezza (15%). Ogni pilastro viene confrontato con una regola pratica comune. Un cuscinetto che non hai inserito viene escluso e gli altri pilastri se ne dividono il peso.',
   'faq.plan.income.q': 'Quale reddito usa il punteggio di salute?',
   'faq.plan.income.a':
-    'La media degli ultimi tre mesi completi di entrate nei tuoi estratti conto, oppure l’importo che inserisci tu. Finché non c’è un mese con entrate, non viene mostrato alcun punteggio.',
+    'La media degli ultimi tre mesi completi di entrate nei tuoi estratti conto, oppure l’importo che inserisci tu. Finché non c’è un mese con entrate, non viene mostrato alcun punteggio. Un prestito erogato o un altro pagamento una tantum di importo elevato non conta come entrata.',
   'faq.plan.debts.q': 'Come trova l’app i pagamenti dei miei debiti?',
   'faq.plan.debts.a':
     'Ogni debito ha delle parole chiave. Dopo ogni importazione, una transazione viene collegata quando una parola chiave corrisponde a una parola intera e l’importo è vicino alla rata mensile. I casi quasi corrispondenti sono elencati come possibili corrispondenze da aggiungere a mano, e un pagamento collegato si può scollegare.',
