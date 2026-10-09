@@ -100,11 +100,13 @@ export default function ReviewScreen() {
       <View
         style={[styles.headerRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}
       >
-        <SelectableText style={[styles.headerTitle, { color: colors.text }]}>{t('transactions.review')}</SelectableText>
+        <SelectableText style={[styles.headerTitle, { color: colors.text }]} maxFontSizeMultiplier={1.4}>{t('transactions.review')}</SelectableText>
         <TouchableOpacity
           style={[styles.headerBtn, { backgroundColor: colors.background }]}
           onPress={() => router.back()}
           activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.close')}
         >
           <Ionicons name="close" size={20} color={colors.text} />
         </TouchableOpacity>
@@ -135,6 +137,7 @@ export default function ReviewScreen() {
                   style={styles.rowItem}
                   activeOpacity={0.7}
                   onPress={() => openPicker(group)}
+                  accessibilityRole="button"
                 >
                   <View style={styles.rowTextWrap}>
                     <Text style={[styles.rowTitle, { color: colors.text }]} numberOfLines={1}>
@@ -200,6 +203,7 @@ export default function ReviewScreen() {
                     style={styles.sheetRow}
                     activeOpacity={0.7}
                     onPress={() => selected && assign(selected, category.name)}
+                    accessibilityRole="button"
                   >
                     <View style={[styles.colorDot, { backgroundColor: category.color }]} />
                     <Text style={[styles.rowTitle, styles.sheetRowTitle, { color: colors.text }]} numberOfLines={1}>
@@ -230,7 +234,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  headerTitle: { fontSize: 22, fontWeight: '700', letterSpacing: -0.4 },
+  headerTitle: { fontSize: 22, fontWeight: '700', letterSpacing: -0.4, flexShrink: 1 },
   headerBtn: {
     width: 34,
     height: 34,

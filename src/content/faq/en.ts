@@ -19,7 +19,7 @@ export const en = {
     "Download it in your bank's app or on its website as a CSV or Excel file. {settings} → {guide} shows the steps per bank, taken from each bank's own help pages, and general steps for any other bank.",
   'faq.start.demo.q': 'Can I try the app without my own data?',
   'faq.start.demo.a':
-    'Yes. The welcome screen offers {demo}: a separate profile with three months of sample transactions and two sample debts. Import, backup, reset, profile switching and import reminders are switched off there. Leave it with {exitDemo}.',
+    'Yes. The welcome screen offers {demo}: a separate profile with three months of sample transactions and two sample debts. Import, backup, reset, profile switching and import reminders are switched off there. The Future Growth plan cannot be changed there. Leave it with {exitDemo}.',
 
   'faq.import.title': 'Importing statements',
   'faq.import.files.q': 'Which files can I import?',

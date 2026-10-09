@@ -145,6 +145,10 @@ export async function initDatabase(db: SQLiteDatabase): Promise<void> {
     ON transactions(date, amount, rawDescription, profileId);
     CREATE INDEX IF NOT EXISTS idx_transactions_profile_date
     ON transactions(profileId, date DESC);
+    CREATE INDEX IF NOT EXISTS idx_transactions_profile_month
+    ON transactions(profileId, monthName);
+    CREATE INDEX IF NOT EXISTS idx_transactions_profile_category
+    ON transactions(profileId, category);
     CREATE TABLE IF NOT EXISTS category_rules (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       profileId INTEGER NOT NULL DEFAULT 1,
@@ -408,14 +412,19 @@ export async function getProfiles(db: SQLiteDatabase): Promise<Profile[]> {
   return await db.getAllAsync<Profile>(`SELECT * FROM profiles ORDER BY id ASC;`);
 }
 
-export async function createProfile(db: SQLiteDatabase, name: string, avatarColor: string): Promise<Profile | null> {
+export async function createProfile(
+  db: SQLiteDatabase,
+  name: string,
+  avatarColor: string,
+  currency: string = 'EUR'
+): Promise<Profile | null> {
   try {
     const result = await db.runAsync(
-      `INSERT INTO profiles (name, avatarColor, isDefault, currency) VALUES (?, ?, 0, 'EUR');`,
-      [name, avatarColor]
+      `INSERT INTO profiles (name, avatarColor, isDefault, currency) VALUES (?, ?, 0, ?);`,
+      [name, avatarColor, currency]
     );
     const newId = result.lastInsertRowId;
-    return { id: newId, name, avatarColor, isDefault: 0, currency: 'EUR' };
+    return { id: newId, name, avatarColor, isDefault: 0, currency };
   } catch (error) {
     console.error('Failed to create profile:', error);
     return null;
@@ -487,13 +496,21 @@ export async function deleteProfile(
     );
   `);
 
+  // Everything the profile owns goes with it; what stays would also travel in every backup.
   await db.withTransactionAsync(async () => {
     await db.runAsync(`DELETE FROM transactions WHERE profileId = ?;`, [id]);
     await db.runAsync(`DELETE FROM category_goals WHERE profileId = ?;`, [id]);
     await db.runAsync(`DELETE FROM category_rules WHERE profileId = ?;`, [id]);
     await db.runAsync(`DELETE FROM fixed_cost_rules WHERE profileId = ?;`, [id]);
+    await db.runAsync(`DELETE FROM categories WHERE profileId = ?;`, [id]);
+    await db.runAsync(`DELETE FROM debt_payments WHERE profileId = ?;`, [id]);
+    await db.runAsync(`DELETE FROM debt_rules WHERE profileId = ?;`, [id]);
+    await db.runAsync(`DELETE FROM debts WHERE profileId = ?;`, [id]);
+    await db.runAsync(`DELETE FROM freedom_plans WHERE profile_id = ?;`, [id]);
     await db.runAsync(`DELETE FROM debt_plan WHERE profile_id = ?;`, [id]);
     await clearHealthTables(db, id);
+    // Per-profile settings are stored as `<name>:<profileId>` (dismissed inbox items and suggestions, shown prompts).
+    await db.runAsync(`DELETE FROM app_meta WHERE key LIKE '%:' || ?;`, [String(id)]);
     await db.runAsync(`DELETE FROM profiles WHERE id = ?;`, [id]);
   });
 }
@@ -508,10 +525,19 @@ export function parseRangeKey(period: string): { from: string; to: string } | nu
   return match ? { from: match[1], to: match[2] } : null;
 }
 
+/**
+ * The day after `day` (YYYY-MM-DD). A range is queried as `date >= from AND date < dayAfter(to)`:
+ * it includes rows stored with a time part and, unlike `substr(date, 1, 10)`, it can use the date index.
+ */
+function dayAfter(day: string): string {
+  const [year, month, date] = day.split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, date + 1)).toISOString().slice(0, 10);
+}
+
 function periodClause(period: string): { sql: string; params: string[] } {
   const range = parseRangeKey(period);
   if (range) {
-    return { sql: `substr(date, 1, 10) BETWEEN ? AND ?`, params: [range.from, range.to] };
+    return { sql: `date >= ? AND date < ?`, params: [range.from, dayAfter(range.to)] };
   }
   return { sql: `monthName = ?`, params: [period] };
 }
@@ -767,6 +793,9 @@ export async function setCategoryGoal(
   );
 }
 
+// Rows per INSERT statement: 11 values each, well under SQLite's limit of 999 bound values in older builds.
+const INSERT_CHUNK_ROWS = 50;
+
 export async function insertTransactions(
   db: SQLiteDatabase,
   transactions: Omit<Transaction, 'id'>[],
@@ -776,13 +805,14 @@ export async function insertTransactions(
   let skippedCount = 0;
 
   await db.withTransactionAsync(async () => {
-    for (const tx of transactions) {
+    for (let start = 0; start < transactions.length; start += INSERT_CHUNK_ROWS) {
+      const chunk = transactions.slice(start, start + INSERT_CHUNK_ROWS);
       const result = await db.runAsync(
         `INSERT OR IGNORE INTO transactions
            (profileId, date, amount, rawDescription, merchant, category, monthName, isZeroFlagged, dateAmbiguous, is_fixed,
             counterpartyIban, txType)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?);`,
-        [
+         VALUES ${chunk.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)').join(', ')};`,
+        chunk.flatMap((tx) => [
           tx.profileId ?? profileId,
           tx.date,
           Number(tx.amount),
@@ -794,14 +824,11 @@ export async function insertTransactions(
           tx.dateAmbiguous ?? 0,
           tx.counterpartyIban ?? null,
           tx.txType ?? null,
-        ]
+        ])
       );
 
-      if (result.changes > 0) {
-        insertedCount++;
-      } else {
-        skippedCount++;
-      }
+      insertedCount += result.changes;
+      skippedCount += chunk.length - result.changes;
     }
   });
 
@@ -903,7 +930,8 @@ export async function getTransactionsByMonthAndCategory(
   db: SQLiteDatabase,
   monthName: string,
   category: string,
-  profileId: number
+  profileId: number,
+  direction: TrendDirection = 'EXPENSE'
 ): Promise<Transaction[]> {
   const period = periodClause(monthName);
   const isAll = category === 'All';
@@ -911,7 +939,7 @@ export async function getTransactionsByMonthAndCategory(
 
   const query = `
     SELECT * FROM transactions
-    WHERE profileId = ? AND ${period.sql} ${categoryFilter} AND amount < 0
+    WHERE profileId = ? AND ${period.sql} ${categoryFilter} AND ${directionClause(direction)}
     ORDER BY ABS(amount) DESC;
   `;
 
@@ -1256,6 +1284,11 @@ export async function getRecurringCandidates(
   return candidates || [];
 }
 
+/** Which side of the ledger a trend shows: money out (negative amounts) or money in (positive amounts). */
+export type TrendDirection = 'EXPENSE' | 'INCOME';
+
+const directionClause = (direction: TrendDirection): string => (direction === 'INCOME' ? 'amount > 0' : 'amount < 0');
+
 export interface AnnualTrendPointWithBudget {
   monthName: string;
   totalAmount: number;
@@ -1294,12 +1327,13 @@ export async function getAnnualTrendWithBudget(
   db: SQLiteDatabase,
   year: string = '2026',
   category: string = 'All',
-  profileId: number = 1
+  profileId: number = 1,
+  direction: TrendDirection = 'EXPENSE'
 ): Promise<AnnualTrendPointWithBudget[]> {
   let query = `
     SELECT monthName, TOTAL(ABS(amount)) as totalAmount
     FROM transactions
-    WHERE monthName LIKE ? AND profileId = ? AND amount < 0
+    WHERE monthName LIKE ? AND profileId = ? AND ${directionClause(direction)}
   `;
   const params: (string | number)[] = [`${year}-%`, profileId];
 
@@ -1316,7 +1350,8 @@ export async function getAnnualTrendWithBudget(
     spendingMap[r.monthName] = r.totalAmount;
   });
 
-  const budgetLimit = await getCategoryGoal(db, category, profileId);
+  // Budgets are spending limits; income has none.
+  const budgetLimit = direction === 'INCOME' ? 0 : await getCategoryGoal(db, category, profileId);
 
   const months = Array.from({ length: 12 }, (_, i) => {
     const m = String(i + 1).padStart(2, '0');
@@ -1330,12 +1365,13 @@ export async function getAnnualTrendWithBudget(
   }));
 }
 
-/** Monthly expense totals (index = month - 1, rounded) for each of the given years, in one query. */
+/** Monthly totals (index = month - 1, rounded) for each of the given years, in one query. */
 export async function getYearlyExpenseTotals(
   db: SQLiteDatabase,
   years: string[],
   category: string = 'All',
-  profileId: number = 1
+  profileId: number = 1,
+  direction: TrendDirection = 'EXPENSE'
 ): Promise<Record<string, number[]>> {
   const totals: Record<string, number[]> = {};
   if (years.length === 0) return totals;
@@ -1346,7 +1382,7 @@ export async function getYearlyExpenseTotals(
   let query = `
     SELECT monthName, TOTAL(ABS(amount)) as totalAmount
     FROM transactions
-    WHERE profileId = ? AND amount < 0 AND SUBSTR(monthName, 1, 4) IN (${years.map(() => '?').join(', ')})
+    WHERE profileId = ? AND ${directionClause(direction)} AND SUBSTR(monthName, 1, 4) IN (${years.map(() => '?').join(', ')})
   `;
   const params: (string | number)[] = [profileId, ...years];
 
@@ -1374,14 +1410,15 @@ export async function getRangeTrendWithBudget(
   from: string,
   to: string,
   category: string = 'All',
-  profileId: number = 1
+  profileId: number = 1,
+  direction: TrendDirection = 'EXPENSE'
 ): Promise<AnnualTrendPointWithBudget[]> {
   let query = `
     SELECT SUBSTR(date, 1, 7) AS monthName, TOTAL(ABS(amount)) AS totalAmount
     FROM transactions
-    WHERE profileId = ? AND amount < 0 AND SUBSTR(date, 1, 10) BETWEEN ? AND ?
+    WHERE profileId = ? AND ${directionClause(direction)} AND date >= ? AND date < ?
   `;
-  const params: (string | number)[] = [profileId, from, to];
+  const params: (string | number)[] = [profileId, from, dayAfter(to)];
 
   if (category && category !== 'All') {
     query += ` AND category = ?`;
@@ -1396,7 +1433,7 @@ export async function getRangeTrendWithBudget(
     spendingMap[r.monthName] = r.totalAmount;
   });
 
-  const monthlyGoal = await getCategoryGoal(db, category, profileId);
+  const monthlyGoal = direction === 'INCOME' ? 0 : await getCategoryGoal(db, category, profileId);
 
   const [fromYear, fromMonth] = from.split('-').map(Number);
   const [toYear, toMonth] = to.split('-').map(Number);
@@ -1433,14 +1470,15 @@ export async function getDailyTrend(
   from: string,
   to: string,
   category: string = 'All',
-  profileId: number = 1
+  profileId: number = 1,
+  direction: TrendDirection = 'EXPENSE'
 ): Promise<AnnualTrendPointWithBudget[]> {
   let query = `
     SELECT SUBSTR(date, 1, 10) AS dayKey, TOTAL(ABS(amount)) AS totalAmount
     FROM transactions
-    WHERE profileId = ? AND amount < 0 AND SUBSTR(date, 1, 10) BETWEEN ? AND ?
+    WHERE profileId = ? AND ${directionClause(direction)} AND date >= ? AND date < ?
   `;
-  const params: (string | number)[] = [profileId, from, to];
+  const params: (string | number)[] = [profileId, from, dayAfter(to)];
 
   if (category && category !== 'All') {
     query += ` AND category = ?`;
@@ -1603,11 +1641,10 @@ export async function reclassifyAllUnoverriddenTransactions(
       if (isFallback && !BUILT_IN_CATEGORY_NAMES.includes(tx.category)) {
         continue;
       }
+      // Most rows keep their category; a statement per row would cost one round trip each.
+      if (newCategory === tx.category) continue;
 
-      const res = await db.runAsync(
-        `UPDATE transactions SET category = ? WHERE id = ? AND category != ?;`,
-        [newCategory, tx.id, newCategory]
-      );
+      const res = await db.runAsync(`UPDATE transactions SET category = ? WHERE id = ?;`, [newCategory, tx.id]);
       if (res.changes > 0) updatedCount++;
     }
   });
@@ -1767,19 +1804,21 @@ export async function ensureCategoriesSeeded(
   db: SQLiteDatabase,
   profileId: number = 1
 ): Promise<void> {
-  for (const name of BUILT_IN_CATEGORY_NAMES) {
-    await db.runAsync(
-      `INSERT OR IGNORE INTO categories (profileId, name, color, isBuiltIn) VALUES (?, ?, ?, 1);`,
-      [profileId, name, CATEGORY_COLORS[name] ?? '#8E8E93']
-    );
-  }
+  await db.runAsync(
+    `INSERT OR IGNORE INTO categories (profileId, name, color, isBuiltIn)
+     VALUES ${BUILT_IN_CATEGORY_NAMES.map(() => '(?, ?, ?, 1)').join(', ')};`,
+    BUILT_IN_CATEGORY_NAMES.flatMap((name) => [profileId, name, CATEGORY_COLORS[name] ?? '#8E8E93'])
+  );
 
   // Built-in categories start with their benchmark group; a group the user picked is never replaced.
-  for (const [name, group] of Object.entries(DEFAULT_CATEGORY_GROUPS)) {
+  const defaultGroups = Object.entries(DEFAULT_CATEGORY_GROUPS);
+  if (defaultGroups.length > 0) {
     await db.runAsync(
-      `UPDATE categories SET benchmark_group = ?
-       WHERE profileId = ? AND name = ? AND isBuiltIn = 1 AND benchmark_group IS NULL;`,
-      [group, profileId, name]
+      `UPDATE categories
+       SET benchmark_group = CASE name ${defaultGroups.map(() => 'WHEN ? THEN ?').join(' ')} END
+       WHERE profileId = ? AND isBuiltIn = 1 AND benchmark_group IS NULL
+         AND name IN (${defaultGroups.map(() => '?').join(', ')});`,
+      [...defaultGroups.flat(), profileId, ...defaultGroups.map(([name]) => name)]
     );
   }
 
@@ -1879,6 +1918,24 @@ export async function getExpenseCategoryNames(
      WHERE c.profileId = ? AND ${EXPENSE_CATEGORY_SQL}
      ORDER BY COALESCE(s.spent, 0) DESC, c.name ASC;`,
     [profileId, ...(clause ? clause.params : []), profileId]
+  );
+  return rows.map((r) => r.name);
+}
+
+/** Categories that received money in the period, largest first: the filter pills of the income trend. */
+export async function getIncomeCategoryNames(
+  db: SQLiteDatabase,
+  profileId: number,
+  period: string
+): Promise<string[]> {
+  const clause = periodClause(period);
+  const rows = await db.getAllAsync<{ name: string }>(
+    `SELECT category AS name
+     FROM transactions
+     WHERE profileId = ? AND amount > 0 AND ${clause.sql}
+     GROUP BY category
+     ORDER BY TOTAL(amount) DESC, category ASC;`,
+    [profileId, ...clause.params]
   );
   return rows.map((r) => r.name);
 }

@@ -43,9 +43,12 @@ export function ReadOnlySheetHost() {
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={hideReadOnly}>
-      <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={hideReadOnly}>
-        <TouchableWithoutFeedback>
-          <View style={[styles.sheet, { backgroundColor: colors.card }]}>
+      <TouchableOpacity style={styles.overlay} activeOpacity={1} accessible={false} onPress={hideReadOnly}>
+        <TouchableWithoutFeedback accessible={false}>
+          <View
+            style={[styles.sheet, { backgroundColor: colors.card }]}
+            onAccessibilityEscape={hideReadOnly}
+          >
             <View style={[styles.handle, { backgroundColor: colors.border }]} />
             <View style={[styles.icon, { backgroundColor: colors.tintBackground }]}>
               <Ionicons name="lock-closed" size={22} color={colors.accent} />
@@ -79,14 +82,14 @@ export function ReadOnlySheetHost() {
 }
 
 /** For controls inside a modal, where the sheet cannot present: says why they are off. */
-export function ReadOnlyNote() {
+export function ReadOnlyNote({ text }: { text?: string }) {
   const { colors } = useTheme();
   const { t } = useI18n();
 
   return (
     <View style={[styles.note, { backgroundColor: colors.surface }]}>
       <Ionicons name="lock-closed" size={14} color={colors.textSecondary} />
-      <SelectableText style={[styles.noteText, { color: colors.textSecondary }]}>{t('pro.readOnly.note')}</SelectableText>
+      <SelectableText style={[styles.noteText, { color: colors.textSecondary }]}>{text ?? t('pro.readOnly.note')}</SelectableText>
     </View>
   );
 }

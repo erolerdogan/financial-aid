@@ -54,6 +54,10 @@ export function MonthStepper({
           ]}
           onPress={onPrevMonth}
           disabled={isPrevDisabled}
+          hitSlop={6}
+          accessibilityRole="button"
+          accessibilityLabel={t('a11y.previous')}
+          accessibilityState={{ disabled: isPrevDisabled }}
         >
           <Ionicons
             name="chevron-back"
@@ -62,8 +66,13 @@ export function MonthStepper({
           />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.monthTitleButton} onPress={onOpenMonthPicker}>
-          <Text style={[styles.monthLabelText, { color: colors.text }]}>
+        <TouchableOpacity style={styles.monthTitleButton} onPress={onOpenMonthPicker} accessibilityRole="button">
+          <Text
+            style={[styles.monthLabelText, { color: colors.text }]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.6}
+          >
             {monthNames[selectedMonth] || selectedMonth || t('period.selectMonth')}
           </Text>
           <Ionicons
@@ -82,6 +91,10 @@ export function MonthStepper({
           ]}
           onPress={onNextMonth}
           disabled={isNextDisabled}
+          hitSlop={6}
+          accessibilityRole="button"
+          accessibilityLabel={t('a11y.next')}
+          accessibilityState={{ disabled: isNextDisabled }}
         >
           <Ionicons
             name="chevron-forward"
@@ -154,12 +167,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   monthTitleButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 4,
     paddingHorizontal: 8,
   },
-  monthLabelText: { fontSize: 16, fontWeight: '700' },
+  monthLabelText: { flexShrink: 1, fontSize: 16, fontWeight: '700' },
   coverageBadgeRow: {
     flexDirection: 'row',
     alignItems: 'center',

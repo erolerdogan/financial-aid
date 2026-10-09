@@ -75,6 +75,40 @@ export const THEMES: ThemeDefinition[] = [
     },
   },
   {
+    name: 'classic',
+    label: 'Classic',
+    light: {
+      background: '#F2F2F7',
+      card: '#FFFFFF',
+      text: '#1C1C1E',
+      textSecondary: '#8E8E93',
+      border: '#E5E5EA',
+      accent: '#007AFF',
+      tintBackground: '#E6F0FF',
+      surface: '#F2F2F7',
+      track: '#E5E5EA',
+      field: '#FFFFFF',
+      raised: '#FFFFFF',
+      gradient: ['#007AFF', '#5856D6'],
+      onGradient: '#FFFFFF',
+    },
+    dark: {
+      background: '#000000',
+      card: '#1C1C1E',
+      text: '#FFFFFF',
+      textSecondary: '#8E8E93',
+      border: '#38383A',
+      accent: '#0A84FF',
+      tintBackground: '#1A2942',
+      surface: '#2C2C2E',
+      track: '#38383A',
+      field: '#2C2C2E',
+      raised: '#3A3A3C',
+      gradient: ['#0A84FF', '#5E5CE6'],
+      onGradient: '#FFFFFF',
+    },
+  },
+  {
     name: 'midnightGold',
     label: 'Midnight Gold',
     light: {
@@ -210,43 +244,9 @@ export const THEMES: ThemeDefinition[] = [
       onGradient: '#FFFFFF',
     },
   },
-  {
-    name: 'classic',
-    label: 'Classic',
-    light: {
-      background: '#F2F2F7',
-      card: '#FFFFFF',
-      text: '#1C1C1E',
-      textSecondary: '#8E8E93',
-      border: '#E5E5EA',
-      accent: '#007AFF',
-      tintBackground: '#E6F0FF',
-      surface: '#F2F2F7',
-      track: '#E5E5EA',
-      field: '#FFFFFF',
-      raised: '#FFFFFF',
-      gradient: ['#007AFF', '#5856D6'],
-      onGradient: '#FFFFFF',
-    },
-    dark: {
-      background: '#000000',
-      card: '#1C1C1E',
-      text: '#FFFFFF',
-      textSecondary: '#8E8E93',
-      border: '#38383A',
-      accent: '#0A84FF',
-      tintBackground: '#1A2942',
-      surface: '#2C2C2E',
-      track: '#38383A',
-      field: '#2C2C2E',
-      raised: '#3A3A3C',
-      gradient: ['#0A84FF', '#5E5CE6'],
-      onGradient: '#FFFFFF',
-    },
-  },
 ];
 
-const DEFAULT_THEME: ThemeName = 'classic';
+const DEFAULT_THEME: ThemeName = 'aurora';
 const THEME_NAME_KEY = 'theme_name';
 const THEME_MODE_KEY = 'theme_mode';
 const DEFAULT_ALLOCATION_CHART: AllocationChartType = 'donut';
@@ -260,8 +260,12 @@ interface ThemeContextType {
   toggleTheme: () => void;
   colors: ThemeColors;
   isDark: boolean;
+  /** The saved theme. */
   themeName: ThemeName;
   setThemeName: (name: ThemeName) => void;
+  /** A theme shown without being saved (a Pro theme tried out in the first-launch questions); null = none. */
+  previewThemeName: ThemeName | null;
+  setPreviewTheme: (name: ThemeName | null) => void;
   allocationChart: AllocationChartType;
   setAllocationChart: (type: AllocationChartType) => void;
 }
@@ -273,6 +277,8 @@ const ThemeContext = createContext<ThemeContextType>({
   isDark: false,
   themeName: DEFAULT_THEME,
   setThemeName: () => {},
+  previewThemeName: null,
+  setPreviewTheme: () => {},
   allocationChart: DEFAULT_ALLOCATION_CHART,
   setAllocationChart: () => {},
 });
@@ -294,6 +300,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const stored = readMeta(THEME_NAME_KEY);
     return THEMES.some((theme) => theme.name === stored) ? (stored as ThemeName) : DEFAULT_THEME;
   });
+  // Never written to `app_meta`: a restart shows the saved theme again.
+  const [previewThemeName, setPreviewTheme] = useState<ThemeName | null>(null);
   // null = follow the system scheme until the user picks a mode.
   const [storedMode, setStoredMode] = useState<ThemeMode | null>(() => {
     const stored = readMeta(THEME_MODE_KEY);
@@ -339,7 +347,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   );
 
   const value = useMemo<ThemeContextType>(() => {
-    const theme = findTheme(themeName);
+    const theme = findTheme(previewThemeName ?? themeName);
     return {
       mode,
       toggleTheme,
@@ -347,10 +355,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       isDark,
       themeName,
       setThemeName,
+      previewThemeName,
+      setPreviewTheme,
       allocationChart,
       setAllocationChart,
     };
-  }, [mode, isDark, themeName, toggleTheme, setThemeName, allocationChart, setAllocationChart]);
+  }, [mode, isDark, themeName, previewThemeName, toggleTheme, setThemeName, allocationChart, setAllocationChart]);
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }

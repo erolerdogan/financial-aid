@@ -8,6 +8,7 @@ React Native / Expo SDK 57, TypeScript, Expo Router, expo-sqlite. Local-first pe
 - `npx tsc --noEmit`: type check (also in CI). Run it after every step.
 - `npm test`: every `src/**/*.test.ts` with tsx (`scripts/run-tests.js`). `npm test -- freedom` runs the files whose path contains that word; one file: `npx tsx src/utils/freedom.test.ts`.
 - `npm run lint`: ESLint.
+- `npm run perf`: times the database loaders of each screen against 20,000 made-up transactions (`scripts/perf-db.ts`; see `docs/navigation.md`, Performance). Run it after changing a query or an index.
 - `npm run site`: builds the website into `site-dist/`.
 - `npm run pdfhost`: rebuilds `assets/pdf/pdfhost.html` (pdf.js inlined, for PDF statement import) after changing the `pdfjs-dist` version or the page script.
 - `npm run licenses`: rebuilds `src/constants/licenses.ts` (Personal Data & Privacy → Open-Source Licenses) after adding, removing or upgrading a dependency.
@@ -29,6 +30,7 @@ React Native / Expo SDK 57, TypeScript, Expo Router, expo-sqlite. Local-first pe
 - Pure modules with `tsx` tests (`src/utils/*`, `src/constants/*`) must not import `src/db/database.ts`: it pulls in `expo-sqlite`. DB loaders go in `src/services/`.
 - Does not resolve under this tsconfig: importing Reanimated directly (use RN `Animated` / `PanResponder`) and `@noble/hashes` v2 (stay on v1).
 - Any area with its own horizontal gesture must block the tab swipe (`useBlockTabSwipe()` or `TabSwipeBlocker`).
+- Accessibility: every touchable has `accessibilityRole`, an icon-only one also an `accessibilityLabel`; a sheet's backdrop touchable and its `TouchableWithoutFeedback` have `accessible={false}` (see `docs/navigation.md`, Accessibility).
 - Projections are labelled "est." with "Projection, not guaranteed. Not financial advice."; Budget Health with "Guidance, not financial advice."
 - IMPORTANT: Real bank statements for tests live in `scripts/fixtures/private/` (gitignored). Never copy their content, or JSON made from them, into a committed file or a test fixture; tests use made-up data. A PDF statement whose totals do not match is never imported.
 - Bank export guide steps come from the bank's help page (`sourceUrl`); never write them from memory.
@@ -41,7 +43,7 @@ React Native / Expo SDK 57, TypeScript, Expo Router, expo-sqlite. Local-first pe
 - Never gate: backup/restore, export, delete, app lock, languages, data correctness (transfer detection, categorisation).
 - Downgrade never deletes or hides data: items beyond free limits stay visible, read-only, with a "Renew to edit" note.
 - IMPORTANT: All checks go through `useEntitlement()` and the `FEATURES` map (`src/constants/features.ts`). No scattered `isPro` checks. A new write path respects `useProfileAccess()` (read-only profile).
-- No payment SDK yet. `src/services/purchases.ts` is the only file the store plugs into. The developer switch (`pro_dev_override`) counts in `__DEV__` only.
+- No payment SDK yet. `src/services/purchases.ts` is the only file the store plugs into. The Pro testing switch (`pro_dev_override`) counts only when `PRO_TESTING_ENABLED` (`src/constants/buildConfig.ts`: `__DEV__` or `EXPO_PUBLIC_PRO_TESTING=1` at build time) is true.
 
 ## Map
 - Source in `src/` (`@/` alias → `src/`). Routes in `src/app`, tabs in `src/app/(tabs)`.
@@ -74,7 +76,7 @@ Naming traps:
 | `docs/freedom.md` | Future Growth: layout, inputs, scenarios, persistence, math, goal solvers, reference test vector |
 | `docs/health.md` | Budget Health: benchmarks, tables, engine, pillars, alerts, UI, PDF report |
 | `docs/backup.md` | Backup and restore, encrypted `.fabackup` format, transaction export |
-| `docs/navigation.md` | Routes, headers, passcode lock, tab swipe, picked period, drill-down, Home chart, Trends, Transactions, For You inbox, themes |
+| `docs/navigation.md` | Routes, headers, passcode lock, tab swipe, picked period, drill-down, Home chart, Trends, Transactions, For You inbox, themes, accessibility, performance |
 | `docs/i18n.md` | Languages, keys and plurals, `format`, category names, `Message`, what stays English |
 | `docs/subscription.md` | Free and Pro: limits and flags, read-only rules, every gated location, paywall, purchase stub, Pro offers |
 | `docs/website.md` | Website pages, copy files, changelog, images, build settings, deployment |

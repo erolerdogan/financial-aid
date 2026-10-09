@@ -1,5 +1,6 @@
 import { ReadOnlyNote } from '@/components/pro/ReadOnlySheet';
 import { SelectableText } from '@/components/SelectableText';
+import { useEntitlement } from '@/contexts/EntitlementContext';
 import { useProfileAccess } from '@/hooks/useProfileAccess';
 import type { Household } from '@/constants/benchmarks';
 import { useI18n } from '@/contexts/LanguageContext';
@@ -40,7 +41,9 @@ export function HealthOptions({ household, onEditHousehold, onRangesReset }: Hea
   const { t } = useI18n();
   const { activeProfile, dataVersion } = useProfile();
   // Shown in a sheet, where the read-only sheet cannot present: the controls are off with a note.
-  const { readOnly } = useProfileAccess();
+  const { readOnly: profileReadOnly } = useProfileAccess();
+  const { can } = useEntitlement();
+  const readOnly = profileReadOnly || !can('budgetHealth');
   const profileId = activeProfile?.id ?? 1;
 
   // Tagged with its profile, so a switch never shows the previous profile's switches.
@@ -179,9 +182,12 @@ export function HealthOptionsSheet({ visible, onClose, ...options }: HealthOptio
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
-        <TouchableWithoutFeedback>
-          <View style={[styles.sheet, { backgroundColor: colors.card }]}>
+      <TouchableOpacity style={styles.overlay} activeOpacity={1} accessible={false} onPress={onClose}>
+        <TouchableWithoutFeedback accessible={false}>
+          <View
+            style={[styles.sheet, { backgroundColor: colors.card }]}
+            onAccessibilityEscape={onClose}
+          >
             <View style={[styles.handle, { backgroundColor: colors.border }]} />
             <SelectableText style={[styles.sheetTitle, { color: colors.text }]}>{t('freedom.moreOptions')}</SelectableText>
             <ScrollView showsVerticalScrollIndicator={false}>

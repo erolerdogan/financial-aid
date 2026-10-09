@@ -291,6 +291,22 @@ export interface KeywordMatch {
 }
 
 /**
+ * Every built-in keyword, longest first, so the first hit is the longest one and the search can stop there.
+ * Keywords of one length keep the order of `CATEGORY_KEYWORDS` (parts before words).
+ */
+const KEYWORDS_BY_LENGTH: { category: string; keyword: string; wholeWord: boolean }[] = CATEGORY_KEYWORDS.flatMap(
+  ({ category, parts, words }) => [
+    ...parts.map((keyword) => ({ category, keyword, wholeWord: false })),
+    ...words.map((keyword) => ({ category, keyword, wholeWord: true })),
+  ]
+)
+  .map((entry, order) => ({ entry, order }))
+  .sort((a, b) => b.entry.keyword.length - a.entry.keyword.length || a.order - b.order)
+  .map(({ entry }) => entry);
+
+const INCOMING_KEYWORDS = KEYWORDS_BY_LENGTH.filter(({ category }) => INCOMING_CATEGORIES.has(category));
+
+/**
  * Longest built-in keyword found in `text`, so "UBER EATS" beats "UBER" and "DISNEY PLUS" beats "PLUS".
  * Joined names are also tried split ("JD3001GammaEindhoven", "TeslaMotorsBV").
  */
@@ -307,21 +323,11 @@ export function matchKeywords(
     (options.allowNameOnly || !NAME_ONLY_KEYWORDS.has(keyword)) &&
     !(options.incoming && INCOMING_IGNORED_KEYWORDS.has(keyword));
 
-  let best: KeywordMatch | null = null;
-  for (const { category, parts, words } of CATEGORY_KEYWORDS) {
-    if (options.incoming && !INCOMING_CATEGORIES.has(category)) continue;
-    for (const part of parts) {
-      if (part.length > (best?.keyword.length ?? 0) && allowed(part) && text.includes(part)) {
-        best = { category, keyword: part };
-      }
-    }
-    for (const word of words) {
-      if (word.length > (best?.keyword.length ?? 0) && allowed(word) && containsWord(text, word)) {
-        best = { category, keyword: word };
-      }
-    }
+  for (const { category, keyword, wholeWord } of options.incoming ? INCOMING_KEYWORDS : KEYWORDS_BY_LENGTH) {
+    if (!allowed(keyword)) continue;
+    if (wholeWord ? containsWord(text, keyword) : text.includes(keyword)) return { category, keyword };
   }
-  return best;
+  return null;
 }
 
 /** Categories the user confirmed before, keyed by `learnedKey`. */
@@ -464,7 +470,11 @@ export function classifyTransaction(
   return (byName ?? byText)?.category ?? fallback;
 }
 
-function parseLocaleAmount(raw: any): { magnitude: number; isNegative: boolean } | null {
+/**
+ * `legacySign` reads the sign as versions before the fix below did (only a minus as the very first
+ * character counts), to recognise the rows they stored.
+ */
+function parseLocaleAmount(raw: any, legacySign = false): { magnitude: number; isNegative: boolean } | null {
   if (raw === null || raw === undefined) return null;
 
   if (typeof raw === 'number') {
@@ -487,6 +497,9 @@ function parseLocaleAmount(raw: any): { magnitude: number; isNegative: boolean }
     str = str.slice(1);
   } else if (/^\+/.test(str)) {
     str = str.slice(1);
+  } else if (!legacySign && (/^[^\d]*[-\u2212]/.test(str) || /\d\s*[-\u2212]$/.test(str))) {
+    // "€ -45,00" (a currency cell saved from a spreadsheet), "45,00-", "−45,00" with a typographic minus.
+    explicitNegative = true;
   }
 
   str = str.replace(/[^0-9.,]/g, '');
@@ -523,14 +536,43 @@ function parseLocaleAmount(raw: any): { magnitude: number; isNegative: boolean }
   return { magnitude, isNegative: parenNegative || explicitNegative };
 }
 
-function resolveDate(raw: any, dayFirst = false): { iso: string; ambiguous: boolean } | null {
-  if (raw === null || raw === undefined) return null;
-  const str = String(raw)
+/** Which number of "03/04/2026" is the day, when the file or its bank format settles it. */
+type DateOrder = 'DAY_FIRST' | 'MONTH_FIRST';
+
+const YEAR_LAST_DATE = /^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/;
+
+const cleanDateCell = (raw: any): string =>
+  String(raw)
     .replace(/\\/g, '')
     .replace(/["']/g, '')
     .trim()
     // Drop a time part: "2024-02-01 10:11:12", "2024-02-01T10:11:12Z"
     .replace(/[T ]\d{1,2}:\d{2}.*$/, '');
+
+/**
+ * The date order a file proves: one "25/06/2026" makes every "03/04/2026" in it day first, one
+ * "06/25/2026" makes them month first. `undefined` when no date says so, or when the file has both.
+ */
+function detectDateOrder(rows: any[][], dateColumn: number, startRow: number): DateOrder | undefined {
+  let dayFirst = false;
+  let monthFirst = false;
+  for (let i = startRow; i < rows.length; i++) {
+    const raw = rows[i]?.[dateColumn];
+    if (raw === null || raw === undefined) continue;
+    const match = cleanDateCell(raw).match(YEAR_LAST_DATE);
+    if (!match) continue;
+    const first = parseInt(match[1], 10);
+    const second = parseInt(match[2], 10);
+    if (first > 12 && second <= 12) dayFirst = true;
+    else if (second > 12 && first <= 12) monthFirst = true;
+  }
+  if (dayFirst === monthFirst) return undefined;
+  return dayFirst ? 'DAY_FIRST' : 'MONTH_FIRST';
+}
+
+function resolveDate(raw: any, order?: DateOrder): { iso: string; ambiguous: boolean } | null {
+  if (raw === null || raw === undefined) return null;
+  const str = cleanDateCell(raw);
 
   if (/^\d{8}$/.test(str)) {
     const y = str.substring(0, 4);
@@ -555,7 +597,7 @@ function resolveDate(raw: any, dayFirst = false): { iso: string; ambiguous: bool
     return { iso: `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`, ambiguous: false };
   }
 
-  const yearLastMatch = str.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
+  const yearLastMatch = str.match(YEAR_LAST_DATE);
   if (yearLastMatch) {
     const [, a, b, y] = yearLastMatch;
     const numA = parseInt(a, 10);
@@ -568,7 +610,10 @@ function resolveDate(raw: any, dayFirst = false): { iso: string; ambiguous: bool
       return { iso: `${y}-${a.padStart(2, '0')}-${b.padStart(2, '0')}`, ambiguous: false };
     }
     if (numA <= 12 && numB <= 12) {
-      return { iso: `${y}-${b.padStart(2, '0')}-${a.padStart(2, '0')}`, ambiguous: !dayFirst };
+      if (order === 'MONTH_FIRST') {
+        return { iso: `${y}-${a.padStart(2, '0')}-${b.padStart(2, '0')}`, ambiguous: false };
+      }
+      return { iso: `${y}-${b.padStart(2, '0')}-${a.padStart(2, '0')}`, ambiguous: order !== 'DAY_FIRST' };
     }
     return null;
   }
@@ -670,7 +715,7 @@ function positionalColumns(rows: any[][]): ColumnMap {
   };
 }
 
-function readAmount(row: any[], cols: ColumnMap): number | null {
+function readAmount(row: any[], cols: ColumnMap, legacySign = false): number | null {
   const fee = cols.fee !== undefined ? parseLocaleAmount(row[cols.fee])?.magnitude ?? 0 : 0;
 
   if (cols.direction !== undefined) {
@@ -688,7 +733,7 @@ function readAmount(row: any[], cols: ColumnMap): number | null {
   }
 
   if (cols.amount !== -1) {
-    const amountResult = parseLocaleAmount(row[cols.amount]);
+    const amountResult = parseLocaleAmount(row[cols.amount], legacySign);
     if (!amountResult) return null;
     const isDebit =
       amountResult.isNegative || (cols.sign !== -1 && DEBIT_MARK.test(cleanCell(row[cols.sign])));
@@ -710,8 +755,22 @@ interface RowReading {
   legacyDesc: string;
 }
 
+/** False for a date no calendar has ("2026-13-45", "2026-02-30"): such a row is not a transaction. */
+function isCalendarDate(iso: string): boolean {
+  const [year, month, day] = iso.split('-').map(Number);
+  if (!(month >= 1 && month <= 12 && day >= 1)) return false;
+  return day <= new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+interface RowReadOptions {
+  /** Date order proved by the other rows of the file; a bank format's `dayFirst` comes first. */
+  dateOrder?: DateOrder;
+  /** Read the amount's sign as earlier versions did. */
+  legacySign?: boolean;
+}
+
 /** One statement row read through a column map, or `null` when it is not a transaction. */
-function readRow(row: any[], cols: ColumnMap): RowReading | null {
+function readRow(row: any[], cols: ColumnMap, options: RowReadOptions = {}): RowReading | null {
   const rawDate = row[cols.date];
   if (rawDate === undefined) return null;
 
@@ -723,12 +782,12 @@ function readRow(row: any[], cols: ColumnMap): RowReading | null {
     if (status && !cols.keepStatus.test(status)) return null;
   }
 
-  const signedAmount = readAmount(row, cols);
+  const signedAmount = readAmount(row, cols, options.legacySign);
   if (signedAmount === null) return null;
   const amount = Number(signedAmount.toFixed(2));
 
-  const date = resolveDate(rawDate, cols.dayFirst);
-  if (!date) return null;
+  const date = resolveDate(rawDate, cols.dayFirst ? 'DAY_FIRST' : options.dateOrder);
+  if (!date || !isCalendarDate(date.iso)) return null;
 
   const memoCells = cols.memos.map((idx) => cleanCell(row[idx])).filter(Boolean);
   const sideColumns = amount < 0 ? cols.nameOut : cols.nameIn;
@@ -805,19 +864,22 @@ function parseMatrixData(
   }
 
   const transactions: ParsedTransaction[] = [];
+  const dateOrder = cols.dayFirst ? undefined : detectDateOrder(rows, cols.date, startRowIndex);
 
   for (let i = startRowIndex; i < rows.length; i++) {
     const row = rows[i];
     if (!row || row.length === 0) continue;
 
-    const reading = readRow(row, cols);
+    const reading = readRow(row, cols, { dateOrder });
     if (!reading) continue;
 
     const { amount, name } = reading;
     const originalDesc = reading.description;
     const dateResult = reading.date;
 
-    const previous = previousCols ? readRow(row, previousCols) : null;
+    // Earlier versions read every row on its own: day first unless the row itself said otherwise,
+    // and a minus sign only as the first character.
+    const previous = readRow(row, previousCols ?? cols, { legacySign: true });
     const previousKeys: PreviousKey[] = [];
     if (
       previous &&

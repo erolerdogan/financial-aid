@@ -217,11 +217,29 @@ export async function openSafetyCopy(): Promise<PendingBackup | null> {
   return openBackup(await file.bytes(), getSafetyCopyDate());
 }
 
-/** Keeps a copy of the current data, then replaces everything with the backup. */
+/**
+ * Keeps a copy of the current data, then replaces everything with the backup.
+ * When the backup goes in but cannot be migrated (a file that passed the checks with another table
+ * layout), the previous data is put back before the error is thrown: a failed restore changes nothing.
+ */
 export async function applyBackup(db: SQLiteDatabase, backup: PendingBackup): Promise<void> {
-  writeFile(safetyCopyFile(), await snapshot(db));
+  const previous = await snapshot(db);
+  writeFile(safetyCopyFile(), previous);
   try {
     await replaceDatabaseContents(db, backup.source);
+  } catch (error) {
+    try {
+      const source = await deserializeDatabaseAsync(previous);
+      try {
+        await replaceDatabaseContents(db, source);
+      } finally {
+        await source.closeAsync().catch(() => {});
+      }
+    } catch (rollbackError) {
+      // `pre-restore.db` still holds the previous data for "Undo Last Restore".
+      console.error('Failed to put the data back after a failed restore:', rollbackError);
+    }
+    throw error;
   } finally {
     await backup.source.closeAsync().catch(() => {});
   }

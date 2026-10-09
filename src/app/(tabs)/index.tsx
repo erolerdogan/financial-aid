@@ -467,7 +467,7 @@ export default function DashboardScreen() {
       >
         {/* Top Header Bar */}
         <View style={styles.headerRow}>
-          <SelectableText style={[styles.headerTitle, { color: colors.text }]}>{t('tabs.home')}</SelectableText>
+          <SelectableText style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1} maxFontSizeMultiplier={1.4}>{t('tabs.home')}</SelectableText>
           <HeaderActions />
         </View>
 
@@ -495,6 +495,7 @@ export default function DashboardScreen() {
                   onPress={importStatement}
                   disabled={importing || importDisabled}
                   activeOpacity={0.85}
+                  accessibilityRole="button"
                 >
                   {importing ? (
                     <ActivityIndicator size="small" color="#FFF" />
@@ -602,14 +603,18 @@ export default function DashboardScreen() {
         onClose={() => setRangeModalVisible(false)}
       />
 
-      <Modal visible={monthPickerVisible} transparent animationType="slide">
+      <Modal visible={monthPickerVisible} transparent animationType="slide" onRequestClose={() => setMonthPickerVisible(false)}>
         <TouchableOpacity
           style={styles.modalOverlay}
           activeOpacity={1}
+          accessible={false}
           onPress={() => setMonthPickerVisible(false)}
         >
-          <TouchableWithoutFeedback>
-            <View style={[styles.sheetContainer, { backgroundColor: colors.card }]}>
+          <TouchableWithoutFeedback accessible={false}>
+            <View
+              style={[styles.sheetContainer, { backgroundColor: colors.card }]}
+              onAccessibilityEscape={() => setMonthPickerVisible(false)}
+            >
               <View style={styles.sheetHeader}>
                 <View style={[styles.sheetHandle, { backgroundColor: colors.border }]} />
                 <SelectableText style={[styles.sheetTitle, { color: colors.text }]}>{t('period.select')}</SelectableText>
@@ -625,6 +630,7 @@ export default function DashboardScreen() {
                     ],
                   ]}
                   onPress={handleOpenRangePicker}
+                  accessibilityRole="button"
                 >
                   <View style={styles.sheetItemLeft}>
                     <Ionicons name="calendar-outline" size={18} color={colors.accent} />
@@ -659,6 +665,8 @@ export default function DashboardScreen() {
                         ],
                       ]}
                       onPress={() => handlePickMonth(m)}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: isSelected }}
                     >
                       <Text
                         style={[

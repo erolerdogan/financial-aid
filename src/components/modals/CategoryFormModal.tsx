@@ -259,7 +259,7 @@ export function CategoryFormModal({
   const renderDeleteStep = () => (
     <>
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => setDeleting(false)} hitSlop={8}>
+        <TouchableOpacity onPress={() => setDeleting(false)} hitSlop={8} accessibilityRole="button">
           <Text style={[styles.headerAction, { color: colors.accent }]}>{t('common.back')}</Text>
         </TouchableOpacity>
         <SelectableText style={[styles.headerTitle, { color: colors.text }]}>{t('categoryForm.delete')}</SelectableText>
@@ -284,6 +284,7 @@ export function CategoryFormModal({
                     Haptics.selectionAsync().catch(() => {});
                     setReassignTarget(option.name);
                   }}
+                  accessibilityRole="button"
                 >
                   <View style={[styles.dot, { backgroundColor: option.color }]} />
                   <Text style={[styles.reassignText, { color: colors.text }]}>{categoryName(option.name)}</Text>
@@ -299,6 +300,7 @@ export function CategoryFormModal({
           disabled={saving || !reassignTarget}
           style={[styles.deleteBtn, (saving || !reassignTarget) && styles.btnDisabled]}
           onPress={handleConfirmDelete}
+          accessibilityRole="button"
         >
           {saving ? (
             <ActivityIndicator color="#FFFFFF" />
@@ -313,13 +315,13 @@ export function CategoryFormModal({
   const renderFormStep = () => (
     <>
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={onClose} hitSlop={8}>
+        <TouchableOpacity onPress={onClose} hitSlop={8} accessibilityRole="button">
           <Text style={[styles.headerAction, { color: colors.accent }]}>{t('common.cancel')}</Text>
         </TouchableOpacity>
         <SelectableText style={[styles.headerTitle, { color: colors.text }]}>
           {isCreate ? t('categoryForm.new') : t('categoryForm.edit')}
         </SelectableText>
-        <TouchableOpacity onPress={handleSave} disabled={saving} hitSlop={8}>
+        <TouchableOpacity onPress={handleSave} disabled={saving} hitSlop={8} accessibilityRole="button">
           {saving ? (
             <ActivityIndicator size="small" color={colors.accent} />
           ) : (
@@ -358,11 +360,14 @@ export function CategoryFormModal({
 
         <SelectableText style={[styles.sectionLabel, { color: colors.textSecondary }]}>{t('categoryForm.color')}</SelectableText>
         <View style={styles.swatchGrid}>
-          {CATEGORY_COLOR_PALETTE.map((swatch) => {
+          {CATEGORY_COLOR_PALETTE.map((swatch, index) => {
             const isSelected = swatch === color;
             return (
               <TouchableOpacity
                 key={swatch}
+                accessibilityRole="button"
+                accessibilityLabel={t('a11y.colorOption', { number: index + 1, total: CATEGORY_COLOR_PALETTE.length })}
+                accessibilityState={{ selected: isSelected }}
                 activeOpacity={0.8}
                 style={[
                   styles.swatchRing,
@@ -417,6 +422,7 @@ export function CategoryFormModal({
               { backgroundColor: colors.accent },
               keywordInput.trim().length === 0 && styles.btnDisabled,
             ]}
+            accessibilityRole="button"
           >
             <Text style={styles.addKeywordText}>{t('common.add')}</Text>
           </TouchableOpacity>
@@ -430,7 +436,12 @@ export function CategoryFormModal({
                 style={[styles.chip, { backgroundColor: fieldBg, borderColor: colors.border }]}
               >
                 <SelectableText style={[styles.chipText, { color: colors.text }]}>{keyword}</SelectableText>
-                <TouchableOpacity onPress={() => handleRemoveKeyword(keyword)} hitSlop={8}>
+                <TouchableOpacity
+                  onPress={() => handleRemoveKeyword(keyword)}
+                  hitSlop={14}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('a11y.remove', { name: keyword })}
+                >
                   <Ionicons name="close-circle" size={16} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
@@ -443,6 +454,7 @@ export function CategoryFormModal({
             activeOpacity={0.8}
             style={[styles.dangerRow, { backgroundColor: colors.card }]}
             onPress={handleStartDelete}
+            accessibilityRole="button"
           >
             <Ionicons name="trash-outline" size={18} color="#FF3B30" />
             <Text style={styles.dangerText}>{t('categoryForm.delete')}</Text>

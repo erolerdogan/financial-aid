@@ -132,9 +132,12 @@ export function ImportSummaryModal({ visible, summary, profileName, onClose }: I
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
-        <TouchableWithoutFeedback>
-          <View style={[styles.sheet, { backgroundColor: colors.card }]}>
+      <TouchableOpacity style={styles.overlay} activeOpacity={1} accessible={false} onPress={onClose}>
+        <TouchableWithoutFeedback accessible={false}>
+          <View
+            style={[styles.sheet, { backgroundColor: colors.card }]}
+            onAccessibilityEscape={onClose}
+          >
             <View style={styles.header}>
               <View style={[styles.handle, { backgroundColor: colors.border }]} />
               <View style={[styles.iconBadge, { backgroundColor: hasNewRows ? colors.tintBackground : chipBg }]}>
@@ -185,6 +188,7 @@ export function ImportSummaryModal({ visible, summary, profileName, onClose }: I
                   activeOpacity={0.8}
                   style={[styles.footerBtn, { backgroundColor: chipBg }]}
                   onPress={handleReview}
+                  accessibilityRole="button"
                 >
                   <Text style={[styles.footerBtnText, { color: colors.text }]}>{t('transactions.review')}</Text>
                 </TouchableOpacity>
@@ -193,6 +197,7 @@ export function ImportSummaryModal({ visible, summary, profileName, onClose }: I
                 activeOpacity={0.8}
                 style={[styles.footerBtn, { backgroundColor: colors.accent }]}
                 onPress={handleDone}
+                accessibilityRole="button"
               >
                 <Text style={[styles.footerBtnText, { color: '#FFFFFF' }]}>
                   {hasNewRows && summary.isFirstImport ? t('import.viewDashboard') : t('common.done')}

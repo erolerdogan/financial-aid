@@ -32,7 +32,7 @@ npx tsc --noEmit   # type check (also run in CI)
 npm test           # every src/**/*.test.ts with tsx; "npm test -- freedom" runs matching files
 ```
 
-The first launch opens with a short animated intro (about 23 seconds, tap to move on, "Skip" at any time) that says what the app is for; it plays once and "Replay intro" on the welcome screen shows it again. The welcome screen then offers two paths: "Get started" imports a statement, "Try the demo" opens the demo workspace to explore the app with sample data. A backup from another device or an earlier install can be restored from the same screen.
+The first launch opens with a short animated intro (about 23 seconds, tap to move on, "Skip" at any time) that says what the app is for; it plays once and "Replay intro" on the welcome screen shows it again. The welcome screen then offers two paths: "Get started" asks a few optional questions about the profile (name, colour, currency, household, net monthly income, savings buffer), lets you pick a colour theme with light or dark mode and set a passcode lock, and ends on a step where you pick your first statement, "Explore With Demo" opens the demo workspace to explore the app with sample data. A backup from another device or an earlier install can be restored from the same screen.
 
 ### Website
 
@@ -119,6 +119,7 @@ npm run site       # writes site-dist/
 ### Trends
 
 - Line chart of spending over a year, a range of months, or day by day.
+- Expenses / Income switch at the top: the same chart, totals, year comparison and drill-down for money coming in. Income is every positive amount (salary, but also refunds and incoming transfers), the same total as on Home; the category pills narrow it down. Budget goals are shown for expenses only.
 - Compare years in the year view: the previous year is drawn next to the selected one, and the year chips above the chart turn it off or add more years (up to four), each as a line in its own colour. Selecting a month shows how much more or less was spent than in the same month of each compared year.
 - View all expenses or a single category.
 - Shows the category's budget goal as a reference line and highlights points over the limit.
@@ -164,6 +165,7 @@ npm run site       # writes site-dist/
 - One answer: the final balance with a line saying how much you pay in and how much growth adds, updating as you type, in the profile currency.
 - Growth chart: one stacked bar per year showing the balance split into contributions and profit; the last bar is the final balance.
 - Outlook: Cautious / Expected / Optimistic set the yearly return to 5% / 7% / 9%, with the final balance of all three side by side. Typing your own return under "More options" deselects the outlook.
+- Cash vs. invested: the plan's final balance next to the same payments kept as cash (no return), the difference, and what that cash would still buy after inflation. Follows the prices switch.
 - Details (collapsed): a Future prices / Today's prices switch (today's prices shows the final balance, chart, outlooks and table after inflation), what the fee costs (final balance at 0% fee vs your fee, and the difference) and the yearly breakdown table (year, start, contributions, profit, end).
 - Goal (opt-in, an "Add a goal" row until one is set): a target balance or a target passive income per month (converted with the 4% rule, an assumption: income × 12 ÷ 0.04). Shows an on-track / behind status with a progress bar, the years needed at your current monthly amount and the monthly amount needed for your timeframe. Follows the prices switch.
 - The plan is saved per profile on the device and restored on the next launch.
@@ -179,7 +181,7 @@ npm run site       # writes site-dist/
 - The Health segment shows the score ring, how the score moved since the previous month, the single change that would add the most points, the five pillars, and every category against a typical range (as a share of net income) with your own average of the previous three months marked. Green is within the range, yellow up to 20% above, red beyond that; for savings it is the other way round. It follows the month picked on Home.
 - Introduction: the first visit shows a short page explaining the score with a worked example; "How it works" at the top reopens it.
 - Options (the ⋯ button at the top of the segment): household profile, a switch per alert type, and a reset for the category ranges you accepted.
-- Typical ranges adapt to your household (adults, children, rent or own), asked once in a short sheet. Hold a category to accept its current level ("This is fine for us"), reset it, or compare it with a different group. Custom categories are compared once you pick a group for them.
+- Typical ranges adapt to your household (adults, children, rent or own), asked once when the profile is set up and editable from the options. Hold a category to accept its current level ("This is fine for us"), reset it, or compare it with a different group. Custom categories are compared once you pick a group for them.
 - Alerts after each import, at most three, shown at the top of the Health segment with "Got it" and "Don't alert me about this", and as rows under the For You bell: a debt payment that did not come through, a new recurring charge, a price increase, a category ahead of its usual pace, an unusually large purchase, a drop in the savings rate, and good news when a category comes in clearly below your normal. Missed debt payments and new recurring charges are on by default; the others are switched on from the ⋯ button at the top of the Health segment. Alerts that are on also arrive as a local notification when notifications are allowed.
 - Monthly report: score and change, income, expenses, saved and savings rate, pillars, the category table, fixed vs. flexible, debts with the estimated debt-free month, and the month's alerts. "Export PDF" creates the file on the device and opens the share sheet.
 - Score history: a line chart of the last 12 months.
@@ -195,26 +197,28 @@ npm run site       # writes site-dist/
 - Keep separate ledgers in one app (for example Personal, Business, Household).
 - All transactions, rules, goals, categories and debts belong to a profile.
 - Each profile has its own name, avatar colour and currency.
+- A new profile starts with a short questionnaire: name, colour, currency, household, net monthly income and savings buffer. Every step can be skipped.
 
 ### Settings
 
 - Currency: EUR, USD, GBP, JPY, CHF, CAD or AUD. Switching currency converts existing amounts using fixed built-in rates.
 - Language: English, Dutch, German, Turkish, Spanish, French, Italian, Portuguese and Russian. The app follows the device language until you pick one in Settings → Language; the choice is remembered. Built-in category names, numbers, dates and reminder notifications follow the language. Translations have not been reviewed by native speakers yet.
-- Six colour themes (Aurora, Midnight Gold, Sunset, Forest Mint, Orchid, Classic; Classic is the default) with gradient accents, each in light and dark; the choice is remembered. Dark mode follows the system until you toggle it.
+- Six colour themes (Aurora, Classic, Midnight Gold, Sunset, Forest Mint, Orchid; Aurora is the default) with gradient accents, each in light and dark; the choice is remembered. Dark mode follows the system until you toggle it.
 - Import reminders: local notifications on the 15th and 28th of each month. Importing a statement cancels the pending reminders.
 - Passcode lock: an optional six-digit passcode (Settings → Security), asked every time the app is opened or brought back to the front; the app's content is hidden in the app switcher on iOS. After five wrong tries the app makes you wait, from one minute up to an hour. Only a salted hash is stored, on the device and outside backups. A forgotten passcode cannot be recovered: reinstall the app and restore a backup.
 - Reset all data and profiles.
 - Copy text: long-press a text that is not a button or a tappable row (a merchant name, an amount, the bank description, an export guide step, the legal texts, a result figure, the app version) to copy it.
-- About: Frequently asked questions answers how the app works in six groups (getting started, importing statements, categories and budgets, the Plan tab, privacy and backups, profiles and settings); tap a question to open its answer. Personal Data & Privacy explains in a few lines what is stored on the device, that nothing is collected, where saved files go and how to delete everything. The same screen holds the legal documents: Privacy Policy, Terms of Use and Disclaimer open inside the app, in the app's language and without a connection, and Open-Source Licenses lists the packages the app is built with and their license texts. The app version is shown below the row. The welcome screen links to the terms and the privacy policy.
+- About: Frequently asked questions answers how the app works in six groups (getting started, importing statements, categories and budgets, the Plan tab, privacy and backups, profiles and settings); tap a question to open its answer. Personal Data & Privacy explains in a few lines what is stored on the device, that nothing is collected, where saved files go and how to delete everything. The same screen holds the legal documents: Privacy Policy, Terms of Use and Disclaimer open inside the app, in the app's language and without a connection, and Open-Source Licenses lists the packages the app is built with and their license texts. Rate the App and Write a Review open the app's page in the App Store or Google Play. The app version is the last row. The welcome screen links to the terms and the privacy policy.
 
 ### Free and Pro
 
 - The app has a free plan and Pro. Buying Pro is not possible yet: the screen that shows what Pro adds is there, the purchase is not.
-- Free: one profile, three budgets, two debts, CSV and Excel import, yearly Trends, the basic Future Growth plan, and the Classic and Sunset themes.
-- Pro adds: PDF statement import, custom date ranges with the daily view and year comparison in Trends, unlimited budgets and debts, Future Growth outlooks, goals, today's prices and details, more profiles, and all themes.
+- Free: one profile, three budgets, two debts, CSV and Excel import, yearly Trends for expenses and income, and the Aurora, Classic and Sunset themes.
+- Pro adds: Budget Health (score, what to improve, alerts after an import), the Future Growth calculator, PDF statement import, custom date ranges with the daily view and year comparison in Trends, unlimited budgets and debts, more profiles, and all themes.
+- Without Pro, Health and Future Growth on the Plan tab are shown read-only: Health with your own figures, Future Growth with an example plan (or the plan saved earlier). A tap on the note or on an input opens Pro.
 - Always free: backup and restore, export, deleting, the passcode lock, all languages and categorisation.
 - Nothing is removed without Pro. Profiles, budgets and debts beyond the free limits stay visible and can be deleted; they are read-only, marked "Renew to edit".
-- Pro features stay visible with a "Pro" badge; a tap shows what Pro adds. The app offers Pro unasked once, after the second import, and as a quiet item under the bell that can be dismissed.
+- Pro features stay visible with a "Pro" badge; a tap shows what Pro adds. The app offers Pro unasked once, after the first import, and as a quiet item under the bell that can be dismissed.
 - Settings → Subscription shows the plan, "See Pro" and "Restore purchases".
 - No account and no tracking, also with Pro.
 
@@ -222,6 +226,7 @@ npm run site       # writes site-dist/
 
 - A separate demo profile with three months of sample transactions and two sample debts. Everything is unlocked there, including the Pro features.
 - Import, backup and restore, reset, profile switching and import reminders are switched off (grayed out) in the demo; leave it with "Exit Demo" to use your own data.
+- The Future Growth plan is shown with its sample values and cannot be changed in the demo; the Future prices / Today's prices switch and the details still work.
 
 ### Backup and restore
 

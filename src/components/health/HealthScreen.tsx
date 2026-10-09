@@ -10,7 +10,10 @@ import { ScoreHistoryChart } from '@/components/health/ScoreHistoryChart';
 import { ScoreRing } from '@/components/health/ScoreRing';
 import { TransactionDetailModal } from '@/components/modals/TransactionDetailModal';
 import { TransactionListModal } from '@/components/modals/TransactionListModal';
+import { ReadOnlyNote } from '@/components/pro/ReadOnlySheet';
 import { SelectableText } from '@/components/SelectableText';
+import { useEntitlement } from '@/contexts/EntitlementContext';
+import { usePaywall } from '@/hooks/usePaywall';
 import { useProfileAccess } from '@/hooks/useProfileAccess';
 import type { BenchmarkGroupId, Household } from '@/constants/benchmarks';
 import { useI18n } from '@/contexts/LanguageContext';
@@ -46,6 +49,7 @@ import {
   Alert,
   AlertButton,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -67,7 +71,19 @@ export function HealthScreen() {
   const { colors } = useTheme();
   const { t, format, categoryName } = useI18n();
   const { activeProfile, dataVersion } = useProfile();
-  const { readOnly, guardWrite } = useProfileAccess();
+  const { can } = useEntitlement();
+  const { openPaywall } = usePaywall();
+  const { readOnly: profileReadOnly, guardWrite: guardProfileWrite } = useProfileAccess();
+  // Budget Health is a Pro feature. Without Pro the screen is shown read-only.
+  const locked = !can('budgetHealth');
+  const readOnly = locked || profileReadOnly;
+  const guardWrite = (action?: () => void): boolean => {
+    if (locked) {
+      openPaywall('health');
+      return false;
+    }
+    return guardProfileWrite(action);
+  };
   const profileId = activeProfile?.id ?? 1;
   // Follows the month picked on Home and Transactions; the latest month with data otherwise.
   const { period } = usePeriod();
@@ -110,8 +126,7 @@ export function HealthScreen() {
   const [fixedState, setFixedState] = useState<FixedOverrideState>('AUTO');
   const [fixedAuto, setFixedAuto] = useState<{ autoIsFixed: boolean; reason: Message[] }>({ autoIsFixed: false, reason: [] });
 
-  // The household questions and the group prompt are each raised once per visit.
-  const askedHouseholdRef = useRef<number | null>(null);
+  // The group prompt is raised once per visit.
   const promptedGroupRef = useRef(false);
 
   const load = useCallback(async () => {
@@ -135,18 +150,9 @@ export function HealthScreen() {
   const household = snapshot?.input.household ?? null;
   const month = result?.month ?? '';
 
-  // First visit without a household profile: ask the few questions.
-  useEffect(() => {
-    if (introSeen !== true || !snapshot || !snapshot.result || snapshot.input.household || readOnly) return;
-    if (askedHouseholdRef.current === profileId) return;
-    askedHouseholdRef.current = profileId;
-    setHouseholdVisible(true);
-  }, [introSeen, snapshot, profileId, readOnly]);
-
   // A custom category that was never given a group: ask once, ever, per category.
   useEffect(() => {
     if (introSeen !== true || !db || !snapshot?.result || householdVisible || promptedGroupRef.current) return;
-    if (!snapshot.input.household && askedHouseholdRef.current !== profileId) return;
 
     const ungrouped = snapshot.result.categories
       .filter((item) => item.amount > 0 && !(item.category in snapshot.input.categoryGroups))
@@ -344,7 +350,7 @@ export function HealthScreen() {
   const detectedIncome = result && result.income.source === 'detected' ? result.income.value : null;
   const spendingRows = result ? result.categories : [];
 
-  if (introSeen === false) {
+  if (introSeen === false && !locked) {
     return <HealthIntro actionLabel={t('health.intro.start')} onDone={handleIntroDone} />;
   }
 
@@ -378,6 +384,13 @@ export function HealthScreen() {
           </TouchableOpacity>
         </View>
 
+        {locked && (
+          <Pressable onPress={() => openPaywall('health')} accessibilityRole="button">
+            {/* "Renew" only fits someone who set the feature up before. */}
+            <ReadOnlyNote text={snapshot && !household ? t('pro.locked.note') : undefined} />
+          </Pressable>
+        )}
+
         <AlertsStrip />
 
         {!snapshot || introSeen === null ? (
@@ -397,6 +410,7 @@ export function HealthScreen() {
                     <SelectableText
                       style={[styles.score, { color: colors.text }]}
                       accessibilityLabel={t('health.scoreOf', { score })}
+                      maxFontSizeMultiplier={1.4}
                     >
                       {score}
                     </SelectableText>

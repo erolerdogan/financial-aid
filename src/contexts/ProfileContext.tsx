@@ -1,5 +1,5 @@
 import {
-  clearAllData, convertDebtAmounts, convertHouseholdAmounts, createProfile,
+  clearAllData, convertDebtAmounts, convertHouseholdAmounts, createProfile, deleteProfile,
   getProfiles,
   Profile,
   syncCategoryColors, updateProfileCurrency
@@ -38,7 +38,7 @@ interface ProfileContextType {
   currencySymbol: string;
   setIsDemoMode: (isDemo: boolean) => Promise<void>;
   switchProfile: (profile: Profile) => Promise<void>;
-  addNewProfile: (name: string, color?: string) => Promise<Profile | null>;
+  addNewProfile: (name: string, color?: string, currency?: string) => Promise<Profile | null>;
   editProfile: (id: number, name: string, color: string) => Promise<void>;
   updateCurrency: (currencyCode: string, convertAmounts?: boolean) => Promise<void>;
   refreshProfiles: () => Promise<void>;
@@ -194,7 +194,12 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       setLoadingProfiles(true);
 
       if (!isDemo) {
-        await clearAllData(db);
+        // Only the demo profile goes: the user's own profile keeps its name, currency and household answers.
+        const demoProfile = (await getProfiles(db)).find(isDemoProfile);
+        if (demoProfile) {
+          await clearAllData(db, demoProfile.id);
+          await deleteProfile(db, demoProfile.id);
+        }
         hasInitializedRef.current = false;
         await refreshProfiles();
       } else {
@@ -231,9 +236,9 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     setDataVersion((prev) => prev + 1);
   };
 
-  const addNewProfile = async (name: string, color?: string): Promise<Profile | null> => {
+  const addNewProfile = async (name: string, color?: string, currency?: string): Promise<Profile | null> => {
     if (!db || !name.trim()) return null;
-    const newProf = await createProfile(db, name.trim(), color || '#007AFF');
+    const newProf = await createProfile(db, name.trim(), color || '#007AFF', currency || 'EUR');
     if (newProf) {
       setProfiles((prev) => [...prev, newProf]);
       setActiveProfile(newProf);

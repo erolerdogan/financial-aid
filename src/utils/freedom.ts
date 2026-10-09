@@ -121,7 +121,23 @@ export const feeImpact = (input: FreedomInput): FeeImpact => {
   return { withoutFee, withFee, cost: withoutFee - withFee };
 };
 
-export type ScenarioKey = 'PESSIMISTIC' | 'NEUTRAL' | 'OPTIMISTIC';
+export type CashComparison = {
+  /** Final balance of the plan as entered. */
+  invested: number;
+  /** Final balance with 0% return and 0% fee: the payments only. */
+  cash: number;
+  /** What investing adds: `invested - cash` (negative when the fee is above the return). */
+  gain: number;
+};
+
+export const cashComparison = (input: FreedomInput): CashComparison => {
+  const finalBalance = (plan: FreedomInput) => summarize(projectGrowth(plan), plan).finalBalance;
+  const invested = finalBalance(input);
+  const cash = finalBalance({ ...input, returnPct: 0, feePct: 0 });
+  return { invested, cash, gain: invested - cash };
+};
+
+export type ScenarioKey ='PESSIMISTIC' | 'NEUTRAL' | 'OPTIMISTIC';
 
 export type Scenario = { key: ScenarioKey; label: string; returnPct: number };
 

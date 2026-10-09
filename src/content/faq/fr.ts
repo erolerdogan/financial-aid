@@ -19,7 +19,7 @@ export const fr: FaqCopy = {
     'Téléchargez-le dans l’application ou sur le site de votre banque, au format CSV ou Excel. {settings} → {guide} indique les étapes pour chaque banque, reprises des pages d’aide de la banque elle-même, ainsi que des étapes générales pour toute autre banque.',
   'faq.start.demo.q': 'Puis-je essayer l’application sans mes propres données ?',
   'faq.start.demo.a':
-    'Oui. L’écran d’accueil propose {demo} : un profil séparé avec trois mois de transactions d’exemple et deux dettes d’exemple. L’import, la sauvegarde, la réinitialisation, le changement de profil et les rappels d’import y sont désactivés. On en sort avec {exitDemo}.',
+    'Oui. L’écran d’accueil propose {demo} : un profil séparé avec trois mois de transactions d’exemple et deux dettes d’exemple. L’import, la sauvegarde, la réinitialisation, le changement de profil et les rappels d’import y sont désactivés. Le plan de Croissance future ne peut pas y être modifié. On en sort avec {exitDemo}.',
 
   'faq.import.title': 'Importer des relevés',
   'faq.import.files.q': 'Quels fichiers puis-je importer ?',

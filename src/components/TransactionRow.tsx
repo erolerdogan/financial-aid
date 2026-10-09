@@ -12,8 +12,16 @@ interface TransactionRowProps {
   onPress: (transaction: Transaction) => void;
 }
 
-/** One row of a grouped transaction list (Transactions screen, Recent activity on Home). */
-export function TransactionRow({ transaction, isFirst, isLast, onPress }: TransactionRowProps) {
+/**
+ * One row of a grouped transaction list (Transactions screen, Recent activity on Home).
+ * Memoised: a long list re-renders on every search keystroke and every loaded page.
+ */
+export const TransactionRow = React.memo(function TransactionRow({
+  transaction,
+  isFirst,
+  isLast,
+  onPress,
+}: TransactionRowProps) {
   const { colors } = useTheme();
   const { format, categoryName } = useI18n();
   const { currencySymbol } = useProfile();
@@ -33,22 +41,23 @@ export function TransactionRow({ transaction, isFirst, isLast, onPress }: Transa
         isLast && styles.rowLast,
         isLast && { borderBottomWidth: 0 },
       ]}
+      accessibilityRole="button"
     >
       <View style={styles.rowTextWrap}>
-        <Text style={[styles.rowTitle, { color: colors.text }]} numberOfLines={1}>
+        <Text style={[styles.rowTitle, { color: colors.text }]} numberOfLines={2}>
           {title}
         </Text>
         <Text style={[styles.rowSubtitle, { color: colors.textSecondary }]} numberOfLines={1}>
           {categoryName(transaction.category)}
         </Text>
       </View>
-      <Text style={[styles.rowAmount, { color: isIncome ? '#34C759' : colors.text }]}>
+      <Text style={[styles.rowAmount, { color: isIncome ? '#34C759' : colors.text }]} maxFontSizeMultiplier={1.5}>
         {isIncome ? '+' : '-'}
         {format.money(Math.abs(transaction.amount), currencySymbol, 2)}
       </Text>
     </TouchableOpacity>
   );
-}
+});
 
 const styles = StyleSheet.create({
   row: {

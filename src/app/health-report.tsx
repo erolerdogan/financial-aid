@@ -262,7 +262,7 @@ export default function HealthReportScreen() {
   return (
     <ScreenContainer showDemoBanner={false}>
       <View style={[styles.headerRow, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
-        <SelectableText style={[styles.headerTitle, { color: colors.text }]}>{t('report.title')}</SelectableText>
+        <SelectableText style={[styles.headerTitle, { color: colors.text }]} maxFontSizeMultiplier={1.4}>{t('report.title')}</SelectableText>
         <TouchableOpacity
           style={[styles.closeBtn, { backgroundColor: colors.surface }]}
           onPress={() => router.back()}
@@ -296,7 +296,7 @@ export default function HealthReportScreen() {
 
             <View style={[cardStyle, styles.scoreCard]}>
               <ScoreRing score={score} size={76} strokeWidth={8} color={ringColor} trackColor={colors.track}>
-                <SelectableText style={[styles.score, { color: colors.text }]}>{score ?? '–'}</SelectableText>
+                <SelectableText style={[styles.score, { color: colors.text }]} maxFontSizeMultiplier={1.2}>{score ?? '–'}</SelectableText>
               </ScoreRing>
               <View style={styles.scoreBody}>
                 <SelectableText style={[styles.cardTitle, { color: colors.text }]}>{t('report.score')}</SelectableText>
@@ -465,7 +465,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  headerTitle: { fontSize: 20, fontWeight: '700' },
+  headerTitle: { fontSize: 20, fontWeight: '700', flexShrink: 1 },
   closeBtn: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
   container: { flex: 1 },
   content: { padding: 20, paddingBottom: 40 },

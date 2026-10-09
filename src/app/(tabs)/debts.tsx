@@ -317,6 +317,7 @@ export default function DebtsScreen() {
               hitSlop={8}
               style={[styles.suggestionAdd, { backgroundColor: colors.accent }]}
               accessibilityLabel={t('debt.a11yAddSuggestion', { name: suggestion.name })}
+              accessibilityRole="button"
             >
               <Text style={styles.suggestionAddText}>{t('common.add')}</Text>
             </TouchableOpacity>
@@ -324,6 +325,7 @@ export default function DebtsScreen() {
               onPress={() => dismissSuggestion(suggestion)}
               hitSlop={10}
               accessibilityLabel={t('debt.a11yDismissSuggestion', { name: suggestion.name })}
+              accessibilityRole="button"
             >
               <Ionicons name="close" size={18} color={colors.textSecondary} />
             </TouchableOpacity>
@@ -335,7 +337,7 @@ export default function DebtsScreen() {
   return (
     <ScreenContainer>
       <View style={styles.headerRow}>
-        <SelectableText style={[styles.headerTitle, { color: colors.text }]}>{t('tabs.plan')}</SelectableText>
+        <SelectableText style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1} maxFontSizeMultiplier={1.4}>{t('tabs.plan')}</SelectableText>
         <HeaderActions showSearch={false}>
           {segment === 'DEBTS' && (
             <TouchableOpacity
@@ -354,6 +356,9 @@ export default function DebtsScreen() {
       <View style={[styles.segmentedContainer, { backgroundColor: colors.track }]} accessibilityRole="tablist">
         {SEGMENTS.map(({ key, label }) => {
           const active = segment === key;
+          // Health and Future Growth are Pro features; the segment stays reachable and shows what it is.
+          const proOnly =
+            (key === 'HEALTH' && !can('budgetHealth')) || (key === 'FREEDOM' && !can('futureGrowth'));
           return (
             <TouchableOpacity
               key={key}
@@ -362,6 +367,7 @@ export default function DebtsScreen() {
               onPress={() => selectSegment(key)}
               accessibilityRole="tab"
               accessibilityState={{ selected: active }}
+              accessibilityLabel={proOnly ? t('pro.gateA11y', { label: t(label) }) : t(label)}
             >
               <Text
                 style={[
@@ -373,6 +379,8 @@ export default function DebtsScreen() {
                 adjustsFontSizeToFit
                 minimumFontScale={0.8}
               >
+                {proOnly && <Ionicons name="lock-closed" size={11} color={colors.textSecondary} />}
+                {proOnly ? ' ' : ''}
                 {t(label)}
               </Text>
             </TouchableOpacity>
@@ -402,6 +410,7 @@ export default function DebtsScreen() {
             activeOpacity={0.85}
             style={[styles.emptyBtn, { backgroundColor: colors.accent }]}
             onPress={openCreate}
+            accessibilityRole="button"
           >
             <Ionicons name="add-circle-outline" size={18} color="#FFFFFF" />
             <Text style={styles.emptyBtnText}>{t('debt.addFirst')}</Text>
@@ -438,6 +447,7 @@ export default function DebtsScreen() {
                 activeOpacity={0.8}
                 style={[styles.debtCard, { backgroundColor: colors.card, borderColor: colors.border }]}
                 onPress={() => openDetail(debt)}
+                accessibilityRole="button"
               >
                 <View style={styles.debtTop}>
                   <View style={[styles.debtIcon, { backgroundColor: `${debt.color}22` }]}>

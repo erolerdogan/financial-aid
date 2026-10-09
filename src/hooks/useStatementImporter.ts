@@ -200,7 +200,8 @@ export function useStatementImporter(options?: UseStatementImporterOptions) {
     // After the reminders are cleared (these are shown at once, not scheduled) and before the refresh,
     // so Home reloads with the new alerts already stored.
     try {
-      await runHealthAlerts(db, targetProfileId);
+      // Budget Health and its alerts are a Pro feature.
+      if (can('budgetHealth')) await runHealthAlerts(db, targetProfileId);
     } catch (error) {
       console.error('Failed to run health alerts after import:', error);
     }

@@ -9,7 +9,8 @@ Purpose: answer "Is our money in good shape, and what's the one thing to fix?"
 - Tone: warm and factual, never shaming. Include positive messages too.
 - Respect the `dataVersion` refresh.
 - Pro items (score history on the Health screen, "Export PDF" in the report) are enabled for everyone: their flags `healthFull` and `reportPdf` are placeholders in `FEATURES`, and each place is marked `// TODO(pro)`.
-- On a read-only profile ([subscription.md](subscription.md)) the household editor, the long-press actions and the options are off; the household question is not asked.
+- The whole feature is Pro (`budgetHealth`, [subscription.md](subscription.md)). Without Pro `HealthScreen` shows the full screen read-only, with or without a saved household (never the explainer; the first-visit intro is skipped). The score, pillars, ranges and report are therefore visible for free; only editing is Pro. Without a household the note reads `pro.locked.note` instead of "Renew Pro to edit". Alerts are only created for Pro (`runHealthAlerts` is skipped in `runImport`).
+- Read-only (no Pro, or a profile beyond the free limit): the household editor, the long-press actions and the options are off.
 
 ## Benchmarks
 
@@ -96,6 +97,7 @@ In `src/components/health/`:
 - `HealthIntro` / `HealthIntroModal`: the "How it works" page (see Intro).
 - `ScoreRing`: `react-native-svg` + RN `Animated`, not Reanimated. The sweep is skipped when `AccessibilityInfo.isReduceMotionEnabled()`.
 - `PillarRow`, `CategoryRangeRow`, `HouseholdSheet`, `BenchmarkGroupSheet`, `ScoreHistoryChart`.
+- `HouseholdFields`: the people steppers with rent / own, and the income and savings inputs, shared by `HouseholdSheet` and the profile questions.
 - `HealthOptions` / `HealthOptionsSheet`: the bottom sheet opened from the ⋯ button in the top row of the segment (right of "How it works"): household profile, a switch per alert type, "Reset all range overrides". The household row closes the sheet before `HouseholdSheet` is presented. Budget Health has nothing in Settings.
 
 ## Placement
@@ -105,7 +107,7 @@ In `src/components/health/`:
 - In the segment:
   - tap a category → `TransactionListModal` → `TransactionDetailModal`;
   - long-press → action sheet: "This is fine for us" saves an override of ±20% around the current share, "Reset range", "Change benchmark group" (Android alerts take three buttons, so there is no Cancel button there);
-  - opens `HouseholdSheet` once per visit while the profile has no household row;
+  - the household is not asked here: the answers come from the profile questions on Welcome and in the profile switcher ([navigation.md](navigation.md)). `HouseholdSheet` is the editor, opened from the ⋯ options, "Add income" and the buffer pillar. A profile without a row uses `DEFAULT_HOUSEHOLD` and the detected income;
   - asks once per custom category without a group, tracked in `app_meta` `health_group_prompt:<profileId>`.
 - Alerts show in two places that stay in step: `AlertsStrip` in the segment and one row per `new` alert in the For You inbox ([navigation.md](navigation.md)). The strip calls `refreshInbox(true)` after an answer and reloads when the inbox's alert rows change.
 - The only route is `src/app/health-report.tsx` (modal in the root `Stack`, optional `month` param, opened from the segment): `MonthStepper`, score and change, summary, pillars, categories, fixed vs. flexible, debts and debt-free month, the month's alerts and their status.
@@ -116,7 +118,7 @@ In `src/components/health/`:
 - Until `app_meta` has `health_intro_seen` (app-wide, not per profile) `HealthScreen` renders the intro instead of the score; "See My Score" sets the key.
 - Afterwards the "How it works" link at the top of the scroll view opens the same content as a page sheet.
 - The example card's score and improvement line come from `pillarScores` / `healthScore` / `biggestImprovement`.
-- The household sheet and the group prompt wait until the intro has been read.
+- The group prompt waits until the intro has been read.
 
 ## PDF
 

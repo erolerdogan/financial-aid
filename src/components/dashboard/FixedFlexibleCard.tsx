@@ -57,7 +57,7 @@ export function FixedFlexibleCard({ summary, onPressFixed, onPressFlexible }: Fi
       {/* Simplified Metrics Row */}
       <View style={styles.statsRow}>
         {/* Fixed Overhead */}
-        <TouchableOpacity style={styles.statCol} activeOpacity={0.7} onPress={onPressFixed} disabled={!onPressFixed}>
+        <TouchableOpacity style={styles.statCol} activeOpacity={0.7} onPress={onPressFixed} disabled={!onPressFixed} accessibilityRole="button">
           <View style={styles.indicatorRow}>
             <View style={[styles.dot, { backgroundColor: '#5856D6' }]} />
             <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{t('fixed.fixed')}</Text>
@@ -78,7 +78,7 @@ export function FixedFlexibleCard({ summary, onPressFixed, onPressFlexible }: Fi
         />
 
         {/* Flexible Spending */}
-        <TouchableOpacity style={styles.statCol} activeOpacity={0.7} onPress={onPressFlexible} disabled={!onPressFlexible}>
+        <TouchableOpacity style={styles.statCol} activeOpacity={0.7} onPress={onPressFlexible} disabled={!onPressFlexible} accessibilityRole="button">
           <View style={styles.indicatorRow}>
             <View style={[styles.dot, { backgroundColor: '#FF9500' }]} />
             <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{t('fixed.flexible')}</Text>

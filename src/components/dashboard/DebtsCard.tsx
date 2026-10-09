@@ -57,6 +57,7 @@ export function DebtsCard() {
         activeOpacity={0.8}
         style={[styles.card, styles.emptyCard, { backgroundColor: colors.card, borderColor: colors.border }]}
         onPress={() => router.navigate({ pathname: '/debts', params: { segment: 'debts' } })}
+        accessibilityRole="button"
       >
         <View style={[styles.iconCircle, { backgroundColor: colors.tintBackground }]}>
           <Ionicons name="trending-down-outline" size={18} color={colors.accent} />
@@ -85,6 +86,7 @@ export function DebtsCard() {
       activeOpacity={0.8}
       style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
       onPress={() => router.navigate({ pathname: '/debts', params: { segment: 'debts' } })}
+      accessibilityRole="button"
     >
       <View style={styles.headerRow}>
         <Text style={[styles.title, { color: colors.text }]}>{t('home.debts.title')}</Text>

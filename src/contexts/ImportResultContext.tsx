@@ -72,7 +72,7 @@ export function ImportSummaryHost() {
   const { readOnly } = useProfileAccess();
   const { openPaywall } = usePaywall();
 
-  // The one unasked Pro offer: once ever, when the summary of a later import is closed.
+  // The one unasked Pro offer: once ever, when the summary of the first import that stored rows is closed.
   const handleClose = async () => {
     dismissImportResult();
     try {

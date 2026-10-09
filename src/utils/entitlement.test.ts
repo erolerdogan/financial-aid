@@ -22,8 +22,10 @@ const check = (label: string, condition: boolean, detail = ''): void => {
 
 // Source
 check('no override is free', resolveSource(null, true) === 'free');
-check('override in a dev build is dev', resolveSource('1', true) === 'dev');
-check('override is ignored in a release build', resolveSource('1', false) === 'free');
+check('override in a testing build is dev', resolveSource('1', true) === 'dev');
+check('override is ignored when testing is off', resolveSource('1', false) === 'free');
+check('override off is ignored when testing is off', resolveSource('0', false) === 'free');
+check('no override is free when testing is off', resolveSource(null, false) === 'free');
 check('override off is free', resolveSource('0', true) === 'free');
 check('free is not pro', !isProSource('free'));
 check('dev counts as pro', isProSource('dev'));
@@ -83,14 +85,15 @@ check('free: the oldest profile left is editable', !isProfileReadOnly(false, [2,
 // Themes
 check('free: Classic is open', !isThemeLocked(false, 'classic'));
 check('free: Sunset is open', !isThemeLocked(false, 'sunset'));
-check('free: Aurora is locked', isThemeLocked(false, 'aurora'));
+check('free: Aurora is open', !isThemeLocked(false, 'aurora'));
+check('free: Midnight Gold is locked', isThemeLocked(false, 'midnightGold'));
 check('free: Orchid is locked', isThemeLocked(false, 'orchid'));
-check('pro: Aurora is open', !isThemeLocked(true, 'aurora'));
+check('pro: Orchid is open', !isThemeLocked(true, 'orchid'));
 
 // One-time offer
-const offer = { isPro: false, isDemo: false, readOnly: false, imports: 2, shown: false };
-check('offer after the second import', shouldOfferPro(offer));
-check('no offer after the first import', !shouldOfferPro({ ...offer, imports: 1 }));
+const offer = { isPro: false, isDemo: false, readOnly: false, imports: 1, shown: false };
+check('offer after the first import', shouldOfferPro(offer));
+check('no offer before an import', !shouldOfferPro({ ...offer, imports: 0 }));
 check('no offer twice', !shouldOfferPro({ ...offer, shown: true }));
 check('no offer for pro', !shouldOfferPro({ ...offer, isPro: true }));
 check('no offer in the demo', !shouldOfferPro({ ...offer, isDemo: true }));

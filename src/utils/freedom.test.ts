@@ -1,6 +1,7 @@
 // Run with: npx tsx src/utils/freedom.test.ts
 import {
   balanceAfter,
+  cashComparison,
   compareScenarios,
   feeImpact,
   incomeToBalance,
@@ -189,6 +190,18 @@ const run = (overrides: Partial<FreedomInput> = {}) => {
   near('fee impact: cost is the difference', impact.cost, impact.withoutFee - impact.withFee);
   check('fee impact: cost is positive', impact.cost > 0, `got ${impact.cost.toFixed(2)}`);
   check('fee impact: 0% fee costs nothing', feeImpact(base).cost === 0);
+}
+
+// Cash vs. invested: the same payments with no return
+{
+  const comparison = cashComparison(base);
+  near('cash: invested is the reference vector', comparison.invested, 1371766.71);
+  near('cash: cash is what was paid in', comparison.cash, 280960.92);
+  near('cash: gain is the difference', comparison.gain, comparison.invested - comparison.cash);
+  near('cash: a fee does not lower the cash', cashComparison({ ...base, feePct: 0.015 }).cash, comparison.cash);
+  const costly = cashComparison({ ...base, returnPct: 0.01, feePct: 0.02 });
+  check('cash: a fee above the return makes the gain negative', costly.gain < 0, `got ${costly.gain.toFixed(2)}`);
+  check('cash: 0% return and 0% fee adds nothing', cashComparison({ ...base, returnPct: 0 }).gain === 0);
 }
 
 // Goal: 4% rule
