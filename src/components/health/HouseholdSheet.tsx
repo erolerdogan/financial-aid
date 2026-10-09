@@ -4,7 +4,7 @@ import { DEFAULT_HOUSEHOLD, type Household, type HousingType } from '@/constants
 import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { parseOptionalAmount } from '@/utils/profileSetup';
+import { incomeOverrideToSave, incomePrefill, parseOptionalAmount } from '@/utils/profileSetup';
 import * as Haptics from 'expo-haptics';
 import React, { useState } from 'react';
 import {
@@ -49,8 +49,10 @@ function HouseholdForm({ household, detectedIncome, onSave, onClose }: Omit<Hous
   const [adults, setAdults] = useState(initial.adults);
   const [children, setChildren] = useState(initial.children);
   const [housingType, setHousingType] = useState<HousingType>(initial.housingType);
+  // No income typed (the question was skipped): the field starts with the monthly average from the statements.
+  const [prefilledIncome] = useState(() => incomePrefill(initial.netIncomeOverride, detectedIncome));
   const [incomeText, setIncomeText] = useState(
-    initial.netIncomeOverride !== null ? String(initial.netIncomeOverride) : ''
+    initial.netIncomeOverride !== null ? String(initial.netIncomeOverride) : prefilledIncome
   );
   const [savingsText, setSavingsText] = useState(initial.safetySavings !== null ? String(initial.safetySavings) : '');
   const [saving, setSaving] = useState(false);
@@ -71,8 +73,8 @@ function HouseholdForm({ household, detectedIncome, onSave, onClose }: Omit<Hous
         adults,
         children,
         housingType,
-        // 0 means "not given": the detected income is used.
-        netIncomeOverride: income !== null && income > 0 ? income : null,
+        // 0, empty or the untouched prefill means "not given": the detected income keeps being used.
+        netIncomeOverride: incomeOverrideToSave(incomeText, prefilledIncome),
         safetySavings: savings,
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
