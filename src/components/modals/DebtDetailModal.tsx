@@ -44,34 +44,50 @@ export function DebtDetailModal({ visible, debt, onClose, onEdit, readOnly = fal
   const db = useSQLiteContext();
   const { colors } = useTheme();
   const { t, format } = useI18n();
-  const { activeProfile, currencySymbol } = useProfile();
+  const { activeProfile, currencySymbol, currencyDecimals } = useProfile();
   const profileId = activeProfile?.id ?? 1;
 
   const [payments, setPayments] = useState<DebtPayment[]>([]);
   const [amountInput, setAmountInput] = useState('');
   const [dateInput, setDateInput] = useState(todayKey());
 
+  const debtId = debt?.id;
+  const paymentCount = debt?.paymentCount;
+  const paidPrincipal = debt?.paidPrincipal;
+  const defaultAmount = debt && debt.paymentAmount > 0 ? String(debt.paymentAmount) : '';
+
   const loadPayments = useCallback(async () => {
-    if (!db || !debt) return;
+    if (!db || debtId === undefined) return;
     try {
-      setPayments(await getDebtPayments(db, debt.id));
+      setPayments(await getDebtPayments(db, debtId));
     } catch (error) {
       console.error('Failed to load debt payments:', error);
     }
-  }, [db, debt?.id]);
+  }, [db, debtId]);
 
+  // Also when the debt's totals change: a payment was linked or removed somewhere else.
   useEffect(() => {
-    if (visible) {
-      loadPayments();
-    }
-  }, [visible, loadPayments, debt?.paymentCount, debt?.paidPrincipal]);
+    if (!visible || !db || debtId === undefined) return;
+    let active = true;
+    getDebtPayments(db, debtId)
+      .then((rows) => {
+        if (active) setPayments(rows);
+      })
+      .catch((error) => console.error('Failed to load debt payments:', error));
+    return () => {
+      active = false;
+    };
+  }, [visible, db, debtId, paymentCount, paidPrincipal]);
 
-  useEffect(() => {
+  // Opening the sheet, or another debt while it is open, starts the payment form again.
+  const [shown, setShown] = useState({ visible: false, debtId });
+  if (shown.visible !== visible || shown.debtId !== debtId) {
+    setShown({ visible, debtId });
     if (visible) {
-      setAmountInput(debt && debt.paymentAmount > 0 ? String(debt.paymentAmount) : '');
+      setAmountInput(defaultAmount);
       setDateInput(todayKey());
     }
-  }, [visible, debt?.id]);
+  }
 
   if (!debt) return null;
 
@@ -193,7 +209,7 @@ export function DebtDetailModal({ visible, debt, onClose, onEdit, readOnly = fal
               </View>
 
               <SelectableText style={[styles.heroLabel, { color: colors.textSecondary }]}>{t('debt.detail.remaining')}</SelectableText>
-              <SelectableText style={[styles.heroValue, { color: colors.text }]}>{fmt(debt.balance, 2)}</SelectableText>
+              <SelectableText style={[styles.heroValue, { color: colors.text }]}>{fmt(debt.balance, currencyDecimals)}</SelectableText>
 
               <View style={styles.barWrap}>
                 <DebtProgressBar percent={debt.percentPaid} color={debt.color} height={12} />
@@ -304,13 +320,13 @@ export function DebtDetailModal({ visible, debt, onClose, onEdit, readOnly = fal
                         {payment.source === 'AUTO' && payment.keyword ? ` • ${t('debt.detail.via', { keyword: payment.keyword })}` : ''}
                       </SelectableText>
                       <SelectableText style={[styles.paymentSplit, { color: colors.textSecondary }]}>
-                        {t('debt.detail.principal', { amount: fmt(payment.principal, 2) })}
-                        {payment.interest > 0 ? ` • ${t('debt.detail.interest', { amount: fmt(payment.interest, 2) })}` : ''}
+                        {t('debt.detail.principal', { amount: fmt(payment.principal, currencyDecimals) })}
+                        {payment.interest > 0 ? ` • ${t('debt.detail.interest', { amount: fmt(payment.interest, currencyDecimals) })}` : ''}
                       </SelectableText>
                     </View>
                     <View style={styles.paymentRight}>
                       <SelectableText style={[styles.paymentAmount, { color: colors.text }]}>
-                        {fmt(payment.amount, 2)}
+                        {fmt(payment.amount, currencyDecimals)}
                       </SelectableText>
                       <View
                         style={[

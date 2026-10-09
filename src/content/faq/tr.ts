@@ -48,7 +48,7 @@ export const tr: FaqCopy = {
     'İşlemi açın ve kategorisine dokunun. Seçiminiz hatırlanır ve sonradan üzerine yazılmaz. Bir satıcıyı en az iki kez ve çoğunlukla aynı şekilde düzelttiğinizde, o satıcının yeni işlemleri seçiminizi izler.',
   'faq.categories.review.q': 'Kategorisiz işlemlerle ne yapmalıyım?',
   'faq.categories.review.a':
-    '{transactions} ekranı en üstte kaç tane olduğunu gösterir. İnceleme listesi bunları satıcıya göre, en büyükten başlayarak gruplar ve mümkün olduğunda bir kategori önerir. Bir kez kategori seçmek, o satıcının tüm işlemlerine ve sonraki içe aktarmalara uygulanır.',
+    '{transactions} ekranı en üstte kaç tane olduğunu gösterir. İnceleme listesi bunları satıcıya göre, en büyükten başlayarak gruplar ve mümkün olduğunda bir kategori önerir. Bir kez kategori seçmek, o satıcının tüm işlemlerine ve sonraki içe aktarmalara uygulanır. Ayrıca {home}, {health}, {trends} veya {categories} bölümünde bir kategoriyi açıp kategorisiz işlemleri oraya ekleyebilirsiniz: birkaçını birden işaretleyin; tamamı seçilen satıcı sonraki içe aktarmalar için hatırlanır.',
   'faq.categories.fixed.q': 'Sabit ve esnek giderler nedir?',
   'faq.categories.fixed.a':
     'Sabit giderler kira, faturalar ve abonelikler gibi tekrarlayan ödemelerdir; geri kalanı esnektir. Uygulama bunları satıcının davranışından algılar: düzenli bir aralık, değişmeyen tutarlar ve otomatik ödemeler. Bir işlemin ayrıntısında satıcıyı {fixed} veya {flexible} olarak işaretleyebilir ya da {resetAuto} ile geri dönebilirsiniz.',
@@ -67,7 +67,7 @@ export const tr: FaqCopy = {
     'Ekstrelerinizdeki, gelir içeren son üç tam ayın ortalamasını veya kendi yazdığınız tutarı. Gelir içeren bir ay olana kadar puan gösterilmez. Size ödenen bir kredi veya başka bir büyük tek seferlik ödeme gelir sayılmaz.',
   'faq.plan.debts.q': 'Uygulama borç ödemelerimi nasıl buluyor?',
   'faq.plan.debts.a':
-    'Her borcun anahtar kelimeleri vardır. Her içe aktarmadan sonra, bir anahtar kelime tam bir sözcükle eşleşiyorsa ve tutar aylık ödemeye yakınsa işlem borca bağlanır. Kıl payı uymayanlar, elle ekleyebileceğiniz olası eşleşmeler olarak listelenir; bağlanmış bir ödemenin bağlantısı kaldırılabilir.',
+    'Her borcun anahtar kelimeleri vardır. Her içe aktarmadan sonra, bir anahtar kelime tam bir sözcükle eşleşiyorsa ve tutar aylık ödemeye yakınsa işlem borca bağlanır. Kıl payı uymayanlar, elle ekleyebileceğiniz olası eşleşmeler olarak listelenir; bağlanmış bir ödemenin bağlantısı kaldırılabilir. Borç formunda işlemlerinizden bir ödeme de seçebilirsiniz: aynı kredi verene yapılan tüm ödemeler onunla birlikte seçilir ve anahtar kelimesi sizin için eklenir.',
   'faq.plan.growth.q': '{growth} neyi gösterir?',
   'faq.plan.growth.a':
     'Bir başlangıç tutarının ve aylık katkının yıllar içinde nasıl büyüyebileceğini. Üç senaryo yıllık %5, %7 ve %9 getiri kullanır; kendi getirinizi, ücretinizi ve enflasyonu da girebilirsiniz. Sonuç bir tahmindir, söz değildir.',
@@ -98,10 +98,10 @@ export const tr: FaqCopy = {
     'Tek bir uygulamada ayrı hesap defterleri; örneğin kişisel, iş ve ev. Her profilin kendi işlemleri, kategorileri, kuralları, bütçeleri ve borçları ile kendi adı, rengi ve para birimi vardır. Ekstre, o anda etkin olan profile aktarılır.',
   'faq.profiles.currency.q': 'Para birimini değiştirdiğimde ne olur?',
   'faq.profiles.currency.a':
-    'Profilde kayıtlı tutarlar, güncel döviz kurlarıyla değil, uygulamaya yerleşik sabit kurlarla dönüştürülür; bu yüzden sonuç yaklaşıktır.',
+    'Uygulama günün döviz kurunu indirir, gösterir ve onayınızdan sonra profilde kayıtlı tutarları (işlemler, bütçeler, borçlar ve hane tutarları) dönüştürür. Gelecek Büyüme planları dönüştürülmez. İstek, verilerinizden hiçbirini içermez. Para birimini değiştirmek için internet bağlantısı gerekir. Dönüştürülen tutarlar yuvarlanır; bu yüzden sonuç yaklaşıktır.',
   'faq.profiles.languages.q': 'Hangi para birimleri ve diller var?',
   'faq.profiles.languages.a':
-    'Para birimleri: EUR, USD, GBP, JPY, CHF, CAD ve AUD. Diller: İngilizce, Felemenkçe, Almanca, Türkçe, İspanyolca, Fransızca, İtalyanca, Portekizce ve Rusça.',
+    'Para birimleri: EUR, USD, GBP, JPY, CHF, CAD ve AUD dahil 150’den fazla. Diller: İngilizce, Felemenkçe, Almanca, Türkçe, İspanyolca, Fransızca, İtalyanca, Portekizce ve Rusça.',
   'faq.profiles.notifications.q': 'Uygulama ne zaman bildirim gönderir?',
   'faq.profiles.notifications.a':
     'Her ayın 15’inde ve 28’inde içe aktarma hatırlatıcıları (bir ekstre içe aktardığınızda iptal edilir) ve açtığınız {health} uyarıları. Hepsi cihazınızda planlanır. Hatırlatıcılar şuradan kapatılır: {settings} → {reminders}.',

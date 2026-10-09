@@ -1,5 +1,6 @@
 // Run with: npx tsx src/utils/profileSetup.test.ts
 import { DEFAULT_HOUSEHOLD } from '../constants/benchmarks';
+import { CURRENCY_CODES } from '../constants/currencies';
 import {
   AVATAR_COLORS,
   buildHousehold,
@@ -58,7 +59,8 @@ check(
 const supported = ['EUR', 'USD', 'GBP'];
 check('a supported region currency is preselected', defaultCurrency('USD', supported) === 'USD');
 check('the code is matched without case', defaultCurrency('gbp', supported) === 'GBP');
-check('an unsupported currency falls back to EUR', defaultCurrency('TRY', supported) === 'EUR');
+check('an unsupported currency falls back to EUR', defaultCurrency('ZZZ', supported) === 'EUR');
+check('every offered currency can be the region default', defaultCurrency('TRY', CURRENCY_CODES) === 'TRY' && defaultCurrency('jpy', CURRENCY_CODES) === 'JPY');
 check('no region currency falls back to EUR', defaultCurrency(null, supported) === 'EUR' && defaultCurrency(undefined, supported) === 'EUR');
 
 // Shape

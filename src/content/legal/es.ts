@@ -14,7 +14,7 @@ export const es: LegalCopy = {
     'Los extractos que importas y las categorías, presupuestos, deudas, planes y ajustes que creas se guardan en una base de datos en tu dispositivo. La app no tiene cuentas ni un servidor que reciba estos datos.',
   'privacy.s2Title': 'Datos que recopila la app',
   'privacy.s2Text':
-    'Ninguno. La app no contiene analíticas, publicidad ni seguimiento, y no hace peticiones de red con tus datos.',
+    'Ninguno. La app no contiene analíticas, publicidad ni seguimiento, y no hace peticiones de red con tus datos. La única solicitud que hace la app: cuando cambias la moneda de un perfil, descarga los tipos de cambio del día de exchangerate-api.com. Esta solicitud no contiene ninguno de tus datos ni indica qué monedas usas; como en cualquier solicitud de internet, ese servicio ve tu dirección IP.',
   'privacy.s3Title': 'Archivos que importas, guardas y compartes',
   'privacy.s3Text':
     'Los extractos se leen en el dispositivo. Las copias de seguridad, las transacciones exportadas y los informes en PDF se crean en el dispositivo y solo se guardan o comparten donde tú elijas. Si los guardas en un servicio en la nube, se aplica la política de privacidad de ese servicio.',
@@ -82,7 +82,7 @@ export const es: LegalCopy = {
     'Las fechas de liquidación, los intereses y los tipos estimados de las deudas se calculan a partir de lo que introduces y de los pagos que importas. Las cifras que valen son las de tu entidad acreedora.',
   'disclaimer.s5Title': 'Monedas',
   'disclaimer.s5Text':
-    'Cuando cambias la moneda, la app convierte tus importes con tipos de cambio fijos incluidos en la app. No son tipos en tiempo real y pueden diferir de los reales.',
+    'Cuando cambias la moneda, la app convierte tus importes con los tipos de cambio que descarga ese día de un servicio público de tipos de cambio. Son tipos orientativos que pueden diferir del tipo de tu banco, y los importes convertidos se redondean.',
   'disclaimer.s6Title': 'Tus decisiones',
   'disclaimer.s6Text': 'Tú decides qué hacer con tu dinero y eres responsable de esas decisiones.',
 };

@@ -49,7 +49,7 @@ export const it: FaqCopy = {
     'Apri la transazione e tocca la sua categoria. La tua scelta viene ricordata e non viene sovrascritta in seguito. Dopo aver corretto un esercente almeno due volte, quasi sempre allo stesso modo, le sue nuove transazioni seguono la tua scelta.',
   'faq.categories.review.q': 'Che cosa faccio con le transazioni senza categoria?',
   'faq.categories.review.a':
-    'La schermata {transactions} mostra in alto quante sono. L’elenco di revisione le raggruppa per esercente, dalle più grandi, e suggerisce una categoria quando può. Scegliere una categoria una volta la applica a tutte le transazioni di quell’esercente e alle importazioni future.',
+    'La schermata {transactions} mostra in alto quante sono. L’elenco di revisione le raggruppa per esercente, dalle più grandi, e suggerisce una categoria quando può. Scegliere una categoria una volta la applica a tutte le transazioni di quell’esercente e alle importazioni future. Puoi anche aprire una categoria in {home}, {health}, {trends} o {categories} e aggiungervi transazioni senza categoria: selezionane più di una alla volta; un esercente selezionato per intero viene ricordato per le importazioni future.',
   'faq.categories.fixed.q': 'Che cosa sono le spese fisse e flessibili?',
   'faq.categories.fixed.a':
     'Le spese fisse sono le bollette che si ripetono, come affitto, utenze e abbonamenti; il resto è flessibile. L’app le riconosce dal comportamento dell’esercente: un ritmo regolare, importi stabili e addebiti diretti. Nel dettaglio di una transazione puoi segnare l’esercente come {fixed} o {flexible}, oppure tornare indietro con {resetAuto}.',
@@ -68,7 +68,7 @@ export const it: FaqCopy = {
     'La media degli ultimi tre mesi completi di entrate nei tuoi estratti conto, oppure l’importo che inserisci tu. Finché non c’è un mese con entrate, non viene mostrato alcun punteggio. Un prestito erogato o un altro pagamento una tantum di importo elevato non conta come entrata.',
   'faq.plan.debts.q': 'Come trova l’app i pagamenti dei miei debiti?',
   'faq.plan.debts.a':
-    'Ogni debito ha delle parole chiave. Dopo ogni importazione, una transazione viene collegata quando una parola chiave corrisponde a una parola intera e l’importo è vicino alla rata mensile. I casi quasi corrispondenti sono elencati come possibili corrispondenze da aggiungere a mano, e un pagamento collegato si può scollegare.',
+    'Ogni debito ha delle parole chiave. Dopo ogni importazione, una transazione viene collegata quando una parola chiave corrisponde a una parola intera e l’importo è vicino alla rata mensile. I casi quasi corrispondenti sono elencati come possibili corrispondenze da aggiungere a mano, e un pagamento collegato si può scollegare. Nel modulo del debito puoi anche scegliere un pagamento dai tuoi movimenti: tutti i pagamenti allo stesso finanziatore vengono selezionati insieme e la parola chiave viene aggiunta per te.',
   'faq.plan.growth.q': 'Che cosa mostra {growth}?',
   'faq.plan.growth.a':
     'Come potrebbero crescere negli anni un importo iniziale e un versamento mensile. I tre scenari usano un rendimento annuo del 5%, 7% e 9%; puoi anche inserire il tuo rendimento, i costi e l’inflazione. Il risultato è una proiezione, non una promessa.',
@@ -99,10 +99,10 @@ export const it: FaqCopy = {
     'Contabilità separate in un’unica app, per esempio personale, lavoro e famiglia. Ogni profilo ha le proprie transazioni, categorie, regole, budget e debiti, e un proprio nome, colore e valuta. Un estratto conto viene importato nel profilo attivo.',
   'faq.profiles.currency.q': 'Che cosa succede quando cambio valuta?',
   'faq.profiles.currency.a':
-    'Gli importi già salvati nel profilo vengono convertiti con tassi fissi integrati nell’app, non con i tassi di cambio del momento, quindi il risultato è approssimativo.',
+    'L’app scarica il tasso di cambio del giorno, lo mostra e, dopo la tua conferma, converte gli importi già salvati nel profilo (transazioni, budget, debiti e importi del nucleo familiare). I piani di Crescita futura non vengono convertiti. La richiesta non contiene nessuno dei tuoi dati. Per cambiare valuta serve una connessione a internet. Gli importi convertiti vengono arrotondati, quindi il risultato è approssimativo.',
   'faq.profiles.languages.q': 'Quali valute e lingue sono disponibili?',
   'faq.profiles.languages.a':
-    'Valute: EUR, USD, GBP, JPY, CHF, CAD e AUD. Lingue: inglese, olandese, tedesco, turco, spagnolo, francese, italiano, portoghese e russo.',
+    'Valute: più di 150, tra cui EUR, USD, GBP, JPY, CHF, CAD e AUD. Lingue: inglese, olandese, tedesco, turco, spagnolo, francese, italiano, portoghese e russo.',
   'faq.profiles.notifications.q': 'Quando invia notifiche l’app?',
   'faq.profiles.notifications.a':
     'Promemoria di importazione il 15 e il 28 di ogni mese, annullati quando importi un estratto conto, e gli avvisi di {health} che hai attivato. Sono tutti programmati sul tuo dispositivo. I promemoria si disattivano in {settings} → {reminders}.',

@@ -9,12 +9,14 @@ import { HouseholdSheet } from '@/components/health/HouseholdSheet';
 import { PillarRow } from '@/components/health/PillarRow';
 import { ScoreHistoryChart } from '@/components/health/ScoreHistoryChart';
 import { ScoreRing } from '@/components/health/ScoreRing';
+import { QuickCategoriseSheet } from '@/components/modals/QuickCategoriseSheet';
 import { TransactionDetailModal } from '@/components/modals/TransactionDetailModal';
 import { TransactionListModal } from '@/components/modals/TransactionListModal';
 import { ReadOnlyNote } from '@/components/pro/ReadOnlySheet';
 import { SelectableText } from '@/components/SelectableText';
 import { useEntitlement } from '@/contexts/EntitlementContext';
 import { usePaywall } from '@/hooks/usePaywall';
+import { useQuickCategorise } from '@/hooks/useQuickCategorise';
 import { useProfileAccess } from '@/hooks/useProfileAccess';
 import type { BenchmarkGroupId, Household } from '@/constants/benchmarks';
 import { useI18n } from '@/contexts/LanguageContext';
@@ -143,6 +145,7 @@ export function HealthScreen() {
   useFocusEffect(
     useCallback(() => {
       load();
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- dataVersion is listed on purpose: reload when stored data changes
     }, [load, dataVersion])
   );
 
@@ -277,6 +280,7 @@ export function HealthScreen() {
     setListCategory(item.category);
     setListTransactions([]);
     setListVisible(true);
+    quickAdd.reloadCount();
     try {
       setLoadingList(true);
       await loadList(item.category);
@@ -307,6 +311,19 @@ export function HealthScreen() {
   const refreshAfterDetailChange = async () => {
     if (listCategory) await loadList(listCategory);
     await load();
+  };
+
+  // The list sheet makes way for the quick add sheet and comes back when that closes.
+  const quickAdd = useQuickCategorise({
+    onMoved: () => refreshAfterDetailChange(),
+    onClosed: () => setTimeout(() => setListVisible(true), 250),
+  });
+
+  const handleAddUncategorised = () => {
+    if (!listCategory) return;
+    const category = listCategory;
+    setListVisible(false);
+    setTimeout(() => quickAdd.open(category), 250);
   };
 
   const handleSelectFixedState = async (newState: FixedOverrideState) => {
@@ -552,7 +569,11 @@ export function HealthScreen() {
         fixedSummary={listSummary}
         onClose={() => setListVisible(false)}
         onSelectTransaction={handleSelectFromList}
+        uncategorisedCount={!readOnly && quickAdd.canAdd(listCategory) ? quickAdd.count : 0}
+        onAddUncategorised={handleAddUncategorised}
       />
+
+      <QuickCategoriseSheet {...quickAdd.sheetProps} />
 
       <TransactionDetailModal
         visible={selectedTransaction !== null}

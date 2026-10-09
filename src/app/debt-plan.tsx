@@ -170,6 +170,7 @@ export default function DebtPlanScreen() {
         active = false;
         flushSave();
       };
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- dataVersion is listed on purpose: reload when stored data changes
     }, [db, profileId, dataVersion, flushSave, startMonth])
   );
 

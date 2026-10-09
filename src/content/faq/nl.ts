@@ -49,7 +49,7 @@ export const nl: FaqCopy = {
     'Open de transactie en tik op de categorie. Je keuze wordt onthouden en later niet overschreven. Als je een winkel minstens twee keer hebt verbeterd, meestal op dezelfde manier, volgen nieuwe transacties van die winkel jouw keuze.',
   'faq.categories.review.q': 'Wat doe ik met transacties zonder categorie?',
   'faq.categories.review.a':
-    'Het scherm {transactions} toont bovenaan hoeveel het er zijn. De controlelijst groepeert ze per winkel, de grootste eerst, en stelt waar mogelijk een categorie voor. Eén keer een categorie kiezen geldt voor alle transacties van die winkel en voor volgende imports.',
+    'Het scherm {transactions} toont bovenaan hoeveel het er zijn. De controlelijst groepeert ze per winkel, de grootste eerst, en stelt waar mogelijk een categorie voor. Eén keer een categorie kiezen geldt voor alle transacties van die winkel en voor volgende imports. Je kunt ook een categorie openen op {home}, in {health}, in {trends} of onder {categories} en daar transacties zonder categorie toevoegen: vink er meerdere tegelijk aan; een winkel die je volledig selecteert, wordt onthouden voor volgende imports.',
   'faq.categories.fixed.q': 'Wat zijn vaste en flexibele kosten?',
   'faq.categories.fixed.a':
     'Vaste kosten zijn rekeningen die terugkomen, zoals huur, energie en abonnementen; de rest is flexibel. De app herkent ze aan het gedrag van een winkel: een vast ritme, stabiele bedragen en incasso’s. In het detail van een transactie kun je de winkel op {fixed} of {flexible} zetten, of teruggaan met {resetAuto}.',
@@ -68,7 +68,7 @@ export const nl: FaqCopy = {
     'Het gemiddelde van de laatste drie volledige maanden met inkomsten in je afschriften, of het bedrag dat je zelf invult. Zolang er geen maand met inkomsten is, wordt er geen score getoond. Een uitbetaalde lening of een andere grote eenmalige betaling telt niet als inkomen.',
   'faq.plan.debts.q': 'Hoe vindt de app mijn schuldbetalingen?',
   'faq.plan.debts.a':
-    'Elke schuld heeft trefwoorden. Na elke import wordt een transactie gekoppeld als een trefwoord overeenkomt met een heel woord en het bedrag dicht bij de maandbetaling ligt. Wat er net naast zit, staat als mogelijke match in de lijst en kun je met de hand toevoegen; een gekoppelde betaling kun je weer ontkoppelen.',
+    'Elke schuld heeft trefwoorden. Na elke import wordt een transactie gekoppeld als een trefwoord overeenkomt met een heel woord en het bedrag dicht bij de maandbetaling ligt. Wat er net naast zit, staat als mogelijke match in de lijst en kun je met de hand toevoegen; een gekoppelde betaling kun je weer ontkoppelen. In het schuldformulier kun je ook een betaling uit je transacties kiezen: alle betalingen aan dezelfde geldverstrekker worden mee geselecteerd en het trefwoord wordt voor je toegevoegd.',
   'faq.plan.growth.q': 'Wat laat {growth} zien?',
   'faq.plan.growth.a':
     'Hoe een startbedrag en een maandelijkse inleg in de loop van de jaren kunnen groeien. De drie scenario’s rekenen met een jaarlijks rendement van 5%, 7% en 9%; je kunt ook je eigen rendement, kosten en inflatie invullen. De uitkomst is een prognose, geen belofte.',
@@ -99,10 +99,10 @@ export const nl: FaqCopy = {
     'Gescheiden administraties in één app, bijvoorbeeld privé, zakelijk en huishouden. Elk profiel heeft zijn eigen transacties, categorieën, regels, budgetten en schulden, en een eigen naam, kleur en valuta. Een afschrift wordt geïmporteerd in het profiel dat actief is.',
   'faq.profiles.currency.q': 'Wat gebeurt er als ik de valuta wijzig?',
   'faq.profiles.currency.a':
-    'De bedragen die al in het profiel staan, worden omgerekend met vaste koersen die in de app zijn ingebouwd, niet met actuele wisselkoersen. Het resultaat is dus een benadering.',
+    'De app downloadt de wisselkoers van de dag, toont die en rekent na je bevestiging de bedragen om die al in het profiel staan (transacties, budgetten, schulden en huishoudbedragen). Plannen in Toekomstige groei worden niet omgerekend. Het verzoek bevat geen gegevens van jou. Voor het wijzigen van de valuta is een internetverbinding nodig. Omgerekende bedragen worden afgerond, het resultaat is dus een benadering.',
   'faq.profiles.languages.q': 'Welke valuta’s en talen zijn er?',
   'faq.profiles.languages.a':
-    'Valuta’s: EUR, USD, GBP, JPY, CHF, CAD en AUD. Talen: Engels, Nederlands, Duits, Turks, Spaans, Frans, Italiaans, Portugees en Russisch.',
+    'Valuta’s: meer dan 150, waaronder EUR, USD, GBP, JPY, CHF, CAD en AUD. Talen: Engels, Nederlands, Duits, Turks, Spaans, Frans, Italiaans, Portugees en Russisch.',
   'faq.profiles.notifications.q': 'Wanneer stuurt de app meldingen?',
   'faq.profiles.notifications.a':
     'Importherinneringen op de 15e en de 28e van elke maand, die vervallen zodra je een afschrift importeert, en de meldingen van {health} die je hebt aangezet. Ze worden allemaal op je toestel ingepland. De herinneringen zet je uit onder {settings} → {reminders}.',

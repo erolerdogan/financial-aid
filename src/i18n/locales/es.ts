@@ -112,6 +112,15 @@ export const es: Translations = {
   'settings.switchCurrencyMessage':
     '¿Convertir todos los importes y cambiar el símbolo de {from} ({symbol}) a {to}?',
   'settings.switchCurrencyConfirm': 'Convertir y cambiar símbolo',
+  'settings.searchCurrency': 'Buscar moneda',
+  'settings.noCurrencyFound': 'No se encontró ninguna moneda',
+  'settings.switchCurrencyRate': '1 {from} = {rate} {to} (tipo de cambio del {date})',
+  'settings.ratesUnavailableTitle': 'Sin tipo de cambio',
+  'settings.ratesUnavailableMessage':
+    'No se pudo cargar el tipo de cambio de hoy, así que la moneda no se cambió. Comprueba tu conexión a internet e inténtalo de nuevo.',
+  'settings.convertFailedMessage':
+    'No se pudieron convertir los importes, así que no se cambió nada.',
+  'settings.ratesCredit': 'Rates By Exchange Rate API',
   'settings.resetTitle': 'Restablecer todos los datos y perfiles',
   'settings.resetMessage':
     '¿Seguro que quieres eliminar todos los perfiles, movimientos y ajustes? La app volverá por completo a su estado inicial.',
@@ -136,13 +145,6 @@ export const es: Translations = {
   'licenses.title': 'Licencias de código abierto',
   'licenses.intro': 'Financial Aid usa estos paquetes de código abierto. Toca uno para leer su licencia.',
   'licenses.packageMeta': 'Versión {version} · {license}',
-  'currency.EUR': 'Euro (€)',
-  'currency.USD': 'Dólar estadounidense ($)',
-  'currency.GBP': 'Libra esterlina (£)',
-  'currency.JPY': 'Yen japonés (¥)',
-  'currency.CAD': 'Dólar canadiense (CA$)',
-  'currency.AUD': 'Dólar australiano (A$)',
-  'currency.CHF': 'Franco suizo (CHF)',
 
   'notifications.channel': 'Recordatorios de importación',
   'notifications.title': 'Hora de importar movimientos 📊',
@@ -306,6 +308,17 @@ export const es: Translations = {
   'review.categoriseAs': 'Categorizar como {category}',
   'review.choose': 'Elige una categoría',
   'review.suggested': 'Sugerida',
+  'quickAdd.button': 'Añadir sin categoría ({count})',
+  'quickAdd.title': 'Añadir a {category}',
+  'quickAdd.other': 'Otros movimientos',
+  'quickAdd.selectAll': 'Seleccionar todo',
+  'quickAdd.deselectAll': 'Quitar selección',
+  'quickAdd.remember': 'Recordar estos comercios',
+  'quickAdd.rememberNote_one': 'Los próximos movimientos de {count} comercio seleccionado por completo irán a esta categoría.',
+  'quickAdd.rememberNote_other': 'Los próximos movimientos de {count} comercios seleccionados por completo irán a esta categoría.',
+  'quickAdd.rememberHelp': 'Se aplica a los comercios con todos sus movimientos seleccionados.',
+  'quickAdd.confirm_one': 'Añadir {count} movimiento',
+  'quickAdd.confirm_other': 'Añadir {count} movimientos',
   'suggest.like': 'como {merchant}',
   'suggest.learned': 'ya lo elegiste antes',
   'suggest.mentions': 'menciona «{keyword}»',
@@ -539,6 +552,19 @@ export const es: Translations = {
   'debt.form.noneContain': 'Ningún movimiento contiene {keywords}.',
   'debt.form.notCounted': 'No contabilizados: {hints}.',
   'debt.form.delete': 'Eliminar deuda',
+  'debt.form.pickFromTransactions': 'Elegir entre los movimientos',
+  'debt.pick.title': 'Elegir un pago',
+  'debt.pick.help':
+    'Toca un pago. Todos los pagos al mismo prestamista se seleccionan con él; toca uno seleccionado para dejarlo fuera.',
+  'debt.pick.search': 'Buscar movimientos',
+  'debt.pick.empty':
+    'No hay gastos para elegir. Importa primero un extracto, o los pagos ya están vinculados a una deuda.',
+  'debt.pick.noResults': 'No se encontraron movimientos',
+  'debt.pick.noKeywordTitle': 'No se puede vincular',
+  'debt.pick.noKeyword':
+    'Este movimiento no tiene un nombre que la app pueda buscar. Añade el pago a mano desde la deuda.',
+  'debt.pick.use_one': 'Usar {count} pago',
+  'debt.pick.use_other': 'Usar {count} pagos',
 
   'freedom.inTodaysMoney': 'En dinero de hoy.',
   'freedom.keyboardDone': 'Listo, ocultar teclado',
@@ -1126,6 +1152,9 @@ export const es: Translations = {
   'health.intro.step3Title': 'Rangos habituales por categoría',
   'health.intro.step3Text':
     'Cada categoría se muestra frente a un rango habitual que se adapta a tu hogar. Verde es dentro del rango, amarillo un poco fuera, rojo bastante fuera. Mantén pulsada una categoría para aceptar tu propio nivel.',
+  'health.intro.householdTitle': 'Lo que cambia tu hogar',
+  'health.intro.householdText':
+    'Los adultos y los niños mueven los rangos habituales, no la puntuación. Cada niño sube {child} puntos porcentuales el límite superior de Supermercado y de Cuidado infantil y niños; con un solo adulto, el rango de Supermercado queda {single} puntos más bajo. Alquiler y propiedad comparten el mismo rango de Vivienda. Los ingresos y el colchón de ahorro que indiques sí cambian la puntuación.',
   'health.intro.step4Title': 'Una cosa que mejorar',
   'health.intro.step4Text': 'La puntuación siempre viene con el único cambio que sumaría más puntos.',
   'health.intro.step5Title': 'Avisos tras una importación',

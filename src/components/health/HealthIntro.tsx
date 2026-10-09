@@ -2,6 +2,7 @@ import { ScoreRing } from '@/components/health/ScoreRing';
 import { SelectableText } from '@/components/SelectableText';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { CHILD_POINTS, SINGLE_ADULT_POINTS } from '@/constants/benchmarks';
 import type { TranslationKey } from '@/i18n';
 import { biggestImprovement, healthScore, pillarScores, type HealthMetrics } from '@/utils/budgetHealth';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,12 +28,24 @@ const EXAMPLE: HealthMetrics = {
   bufferMonths: 1.5,
 };
 
-type Step = { icon: keyof typeof Ionicons.glyphMap; title: TranslationKey; text: TranslationKey };
+type Step = {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: TranslationKey;
+  text: TranslationKey;
+  params?: Record<string, number>;
+};
 
 const STEPS: Step[] = [
   { icon: 'pulse-outline', title: 'health.intro.step1Title', text: 'health.intro.step1Text' },
   { icon: 'cash-outline', title: 'health.intro.step2Title', text: 'health.intro.step2Text' },
   { icon: 'options-outline', title: 'health.intro.step3Title', text: 'health.intro.step3Text' },
+  {
+    icon: 'people-outline',
+    title: 'health.intro.householdTitle',
+    text: 'health.intro.householdText',
+    // The figures of `getRangesForHousehold`, so the text follows the ranges.
+    params: { child: CHILD_POINTS, single: SINGLE_ADULT_POINTS },
+  },
   { icon: 'flag-outline', title: 'health.intro.step4Title', text: 'health.intro.step4Text' },
   { icon: 'notifications-outline', title: 'health.intro.step5Title', text: 'health.intro.step5Text' },
 ];
@@ -104,7 +117,7 @@ export function HealthIntro({ actionLabel, onDone }: HealthIntroProps) {
             </View>
             <View style={styles.stepBody}>
               <SelectableText style={[styles.stepTitle, { color: colors.text }]}>{t(step.title)}</SelectableText>
-              <SelectableText style={[styles.stepText, { color: colors.textSecondary }]}>{t(step.text)}</SelectableText>
+              <SelectableText style={[styles.stepText, { color: colors.textSecondary }]}>{t(step.text, step.params)}</SelectableText>
             </View>
           </View>
         ))}

@@ -15,7 +15,7 @@ import {
   splitJoinedWords,
 } from '@/utils/merchantName';
 import Papa from 'papaparse';
-import XLSX from 'xlsx';
+import * as XLSX from 'xlsx';
 
 /**
  * Normalizes merchant names by stripping noisy transaction codes, dates,
@@ -473,8 +473,13 @@ export function classifyTransaction(
 /**
  * `legacySign` reads the sign as versions before the fix below did (only a minus as the very first
  * character counts), to recognise the rows they stored.
+ * `decimals` is what the profile currency has: with 3 (Kuwaiti dinar) "1,234" is 1.234, not 1234.
  */
-function parseLocaleAmount(raw: any, legacySign = false): { magnitude: number; isNegative: boolean } | null {
+function parseLocaleAmount(
+  raw: any,
+  legacySign = false,
+  decimals = 2
+): { magnitude: number; isNegative: boolean } | null {
   if (raw === null || raw === undefined) return null;
 
   if (typeof raw === 'number') {
@@ -507,6 +512,7 @@ function parseLocaleAmount(raw: any, legacySign = false): { magnitude: number; i
 
   const lastComma = str.lastIndexOf(',');
   const lastDot = str.lastIndexOf('.');
+  const isDecimalPart = (digits: number) => digits === 1 || digits === 2 || (decimals === 3 && digits === 3);
 
   let normalized: string;
 
@@ -518,19 +524,19 @@ function parseLocaleAmount(raw: any, legacySign = false): { magnitude: number; i
     }
   } else if (lastComma !== -1) {
     const decimalDigits = str.length - lastComma - 1;
-    normalized = decimalDigits === 1 || decimalDigits === 2
+    normalized = isDecimalPart(decimalDigits)
       ? str.replace(',', '.')
       : str.replace(/,/g, '');
   } else if (lastDot !== -1) {
     const decimalDigits = str.length - lastDot - 1;
-    normalized = decimalDigits === 1 || decimalDigits === 2
+    normalized = isDecimalPart(decimalDigits)
       ? str
       : str.replace(/\./g, '');
   } else {
     normalized = str;
   }
 
-  const magnitude = Number(parseFloat(normalized).toFixed(2));
+  const magnitude = Number(parseFloat(normalized).toFixed(Math.max(2, decimals)));
   if (isNaN(magnitude)) return null;
 
   return { magnitude, isNegative: parenNegative || explicitNegative };
@@ -715,17 +721,17 @@ function positionalColumns(rows: any[][]): ColumnMap {
   };
 }
 
-function readAmount(row: any[], cols: ColumnMap, legacySign = false): number | null {
-  const fee = cols.fee !== undefined ? parseLocaleAmount(row[cols.fee])?.magnitude ?? 0 : 0;
+function readAmount(row: any[], cols: ColumnMap, legacySign = false, decimals = 2): number | null {
+  const fee = cols.fee !== undefined ? parseLocaleAmount(row[cols.fee], false, decimals)?.magnitude ?? 0 : 0;
 
   if (cols.direction !== undefined) {
     const direction = cleanCell(row[cols.direction]).toUpperCase();
     if (direction === 'OUT') {
-      const sent = parseLocaleAmount(row[cols.amount]);
+      const sent = parseLocaleAmount(row[cols.amount], false, decimals);
       return sent ? -(sent.magnitude + fee) : null;
     }
     if (direction === 'IN') {
-      const received = parseLocaleAmount(row[cols.amountIn ?? cols.amount]);
+      const received = parseLocaleAmount(row[cols.amountIn ?? cols.amount], false, decimals);
       return received ? received.magnitude : null;
     }
     // Anything else is a conversion between the user's own balances.
@@ -733,15 +739,15 @@ function readAmount(row: any[], cols: ColumnMap, legacySign = false): number | n
   }
 
   if (cols.amount !== -1) {
-    const amountResult = parseLocaleAmount(row[cols.amount], legacySign);
+    const amountResult = parseLocaleAmount(row[cols.amount], legacySign, decimals);
     if (!amountResult) return null;
     const isDebit =
       amountResult.isNegative || (cols.sign !== -1 && DEBIT_MARK.test(cleanCell(row[cols.sign])));
     return (isDebit ? -amountResult.magnitude : amountResult.magnitude) - fee;
   }
 
-  const debit = parseLocaleAmount(row[cols.debit]);
-  const credit = parseLocaleAmount(row[cols.credit]);
+  const debit = parseLocaleAmount(row[cols.debit], false, decimals);
+  const credit = parseLocaleAmount(row[cols.credit], false, decimals);
   if (!debit && !credit) return null;
   return (credit?.magnitude ?? 0) - (debit?.magnitude ?? 0);
 }
@@ -767,6 +773,8 @@ interface RowReadOptions {
   dateOrder?: DateOrder;
   /** Read the amount's sign as earlier versions did. */
   legacySign?: boolean;
+  /** Decimals of the profile currency (default 2). */
+  decimals?: number;
 }
 
 /** One statement row read through a column map, or `null` when it is not a transaction. */
@@ -782,9 +790,9 @@ function readRow(row: any[], cols: ColumnMap, options: RowReadOptions = {}): Row
     if (status && !cols.keepStatus.test(status)) return null;
   }
 
-  const signedAmount = readAmount(row, cols, options.legacySign);
+  const signedAmount = readAmount(row, cols, options.legacySign, options.decimals);
   if (signedAmount === null) return null;
-  const amount = Number(signedAmount.toFixed(2));
+  const amount = Number(signedAmount.toFixed(Math.max(2, options.decimals ?? 2)));
 
   const date = resolveDate(rawDate, cols.dayFirst ? 'DAY_FIRST' : options.dateOrder);
   if (!date || !isCalendarDate(date.iso)) return null;
@@ -823,7 +831,8 @@ function readRow(row: any[], cols: ColumnMap, options: RowReadOptions = {}): Row
 function parseMatrixData(
   rows: any[][],
   customRules: CategoryRule[] = [],
-  learned?: LearnedCategories
+  learned?: LearnedCategories,
+  decimals = 2
 ): ParsedStatement {
   if (!rows || rows.length === 0) return { transactions: [], bank: null };
 
@@ -870,7 +879,7 @@ function parseMatrixData(
     const row = rows[i];
     if (!row || row.length === 0) continue;
 
-    const reading = readRow(row, cols, { dateOrder });
+    const reading = readRow(row, cols, { dateOrder, decimals });
     if (!reading) continue;
 
     const { amount, name } = reading;
@@ -879,7 +888,7 @@ function parseMatrixData(
 
     // Earlier versions read every row on its own: day first unless the row itself said otherwise,
     // and a minus sign only as the first character.
-    const previous = readRow(row, previousCols ?? cols, { legacySign: true });
+    const previous = readRow(row, previousCols ?? cols, { legacySign: true, decimals });
     const previousKeys: PreviousKey[] = [];
     if (
       previous &&
@@ -960,7 +969,8 @@ export function parseStatementRows(
 export function parseExcelContent(
   fileData: ArrayBuffer | string,
   customRules: CategoryRule[] = [],
-  learned?: LearnedCategories
+  learned?: LearnedCategories,
+  decimals = 2
 ): ParsedStatement {
   const empty: ParsedStatement = { transactions: [], bank: null };
   if (!fileData) return empty;
@@ -990,13 +1000,14 @@ export function parseExcelContent(
   if (!worksheet) return empty;
 
   const rawMatrixRows = XLSX.utils.sheet_to_json<any[]>(worksheet, { header: 1, raw: true });
-  return parseMatrixData(rawMatrixRows, customRules, learned);
+  return parseMatrixData(rawMatrixRows, customRules, learned, decimals);
 }
 
 export function parseCSVContent(
   csvText: string,
   customRules: CategoryRule[] = [],
-  learned?: LearnedCategories
+  learned?: LearnedCategories,
+  decimals = 2
 ): ParsedStatement {
   if (!csvText) return { transactions: [], bank: null };
 
@@ -1012,5 +1023,5 @@ export function parseCSVContent(
     dynamicTyping: false,
   });
 
-  return parseMatrixData(parsed.data || [], customRules, learned);
+  return parseMatrixData(parsed.data || [], customRules, learned, decimals);
 }

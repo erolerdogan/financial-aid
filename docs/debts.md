@@ -27,6 +27,15 @@ Debt math and payment linking: bottom of `src/db/database.ts`. UI helpers and `p
 - Removing a debt keyword deletes the auto payments it linked. Auto payments whose transaction is gone are removed on sync.
 - A debt-linked payment counts as fixed in the fixed / flexible resolver ([classifier.md](classifier.md)).
 
+## Picking payments from transactions
+
+- "Choose from transactions" in `DebtFormModal` (new and edit) opens `DebtTransactionPickerSheet` (`src/components/modals/`): the expenses no debt has claimed yet (`getUnlinkedExpenses`), with a search.
+- Tapping a row selects every related row. Related means: `keywordForTransaction` (`src/utils/debtPicker.ts`) derives a keyword from the row, the same way a statement suggestion does, and `relatedIds` takes every row that keyword matches as `EXACT`. Tapping a selected row leaves only that one out; a row of another lender adds a second group.
+- A row whose name gives no keyword of 3+ characters cannot be picked; an alert says so.
+- Confirming does not link anything. It hands the form the keywords, the ticked ids (into `addedIds`, so a payment the amount check turns into `POSSIBLE` is still linked on save) and the related rows left out (into `excludedIds`), and fills an empty name. The keyword effect and `handleSave` then work as for a typed keyword, so later imports keep linking.
+- The sheet is rendered inside the form's `Modal`; outside it, it would open behind the page sheet on iOS.
+- Tests: `npx tsx src/utils/debtPicker.test.ts`.
+
 ## APR estimate
 
 - `estimateApr(originalAmount, payment, termMonths)` in `src/utils/debt.ts`: bisection on the annuity formula, nominal rate. Returns `null` when the numbers do not add up or the rate is over 100%.
@@ -74,7 +83,7 @@ Persistence:
 - Table `debt_plan`: one row per profile (`profile_id` unique), `extra_monthly`, `strategy`, `lump_sums` (JSON list of `{ month: 'YYYY-MM', amount }`), `updated_at`. `getSavedDebtPlan` returns `null` without a row; `getDebtPlan` falls back to `DEFAULT_DEBT_PLAN`; stored values pass through `sanitizeDebtPlan`.
 - One-off payments are stored by calendar month and turned into month numbers by `planToInput`; months that are not in the future are ignored and dropped on the next save.
 - Cleared by `clearAllData` and `deleteProfile`. It is in backups without extra code (the backup is the whole file); an older backup simply has no row.
-- A currency switch converts the plan's amounts in `convertDebtAmounts`, unlike `freedom_plans`.
+- A currency switch also converts the plan's amounts (`convertDebtAmounts`, called by `switchProfileCurrency`), unlike `freedom_plans`.
 - The demo workspace seeds a plan (extra 100 a month, avalanche).
 - `src/services/debtPlanService.ts`: `loadDebtsWithPlan` (sync, summaries, saved plan) and `buildDebtOutlook(debts, plan, usePlan)`, the debt-free estimate for the hero and the Home `DebtsCard`. `usePlan` is `can('debtSimulator')`: without Pro, or without a saved row, the estimate is the baseline, and a saved plan is kept untouched.
 
@@ -91,4 +100,4 @@ Screen (`src/app/debt-plan.tsx`, a card pushed on the root `Stack` like Transact
 
 ## Currency
 
-- Switching currency rewrites stored debt amounts (and transaction amounts) using hardcoded `DEFAULT_EXCHANGE_RATES`. The payoff plan's amounts are converted with them.
+- Switching currency rewrites stored debt amounts, payments and the payoff plan with the rate of the day, rounded to the new currency's decimals (`switchProfileCurrency`; see [navigation.md](navigation.md), Currency).

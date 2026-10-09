@@ -1,5 +1,6 @@
 import { CategoryFilterBar } from '@/components/CategoryFilterBar';
 import { FixedFlexibleCard } from '@/components/dashboard/FixedFlexibleCard';
+import { QuickAddButton } from '@/components/QuickAddButton';
 import { SelectableText } from '@/components/SelectableText';
 import { getCategoryColor } from '@/constants/colors';
 import { useI18n } from '@/contexts/LanguageContext';
@@ -7,7 +8,7 @@ import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { FixedCostSummary, Transaction } from '@/db/database';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -41,6 +42,9 @@ interface TransactionListModalProps {
   onClose: () => void;
   onSelectTransaction: (trx: Transaction) => void;
   profileId?: number;
+  /** Uncategorised transactions the listed category can take; 0 hides the quick add button. */
+  uncategorisedCount?: number;
+  onAddUncategorised?: () => void;
 }
 
 export function TransactionListModal({
@@ -53,9 +57,11 @@ export function TransactionListModal({
   fixedSummary,
   onClose,
   onSelectTransaction,
+  uncategorisedCount = 0,
+  onAddUncategorised,
 }: TransactionListModalProps) {
   const { colors, isDark } = useTheme();
-  const { currencySymbol } = useProfile();
+  const { currencySymbol, currencyDecimals } = useProfile();
   const { t, format, categoryName } = useI18n();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -63,8 +69,8 @@ export function TransactionListModal({
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [isReady, setIsReady] = useState(false);
 
-  const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
-  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const [translateY] = useState(() => new Animated.Value(SCREEN_HEIGHT));
+  const [overlayOpacity] = useState(() => new Animated.Value(0));
 
   const handleDismiss = () => {
     Animated.parallel([
@@ -84,7 +90,7 @@ export function TransactionListModal({
     });
   };
 
-  const panResponder = useRef(
+  const [panResponder] = useState(() =>
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_, gestureState) => gestureState.dy > 5,
@@ -106,15 +112,22 @@ export function TransactionListModal({
         }
       },
     })
-  ).current;
+  );
 
-  useEffect(() => {
+  // Opening the list, or another kind of list while it is open, starts its filters again.
+  const [shown, setShown] = useState({ visible: false, listType });
+  if (shown.visible !== visible || shown.listType !== listType) {
+    setShown({ visible, listType });
     if (visible) {
       setSearchQuery('');
       setSelectedCategory('All');
       setFilterMode(listType === 'FIXED' ? 'FIXED' : listType === 'FLEXIBLE' ? 'FLEXIBLE' : 'ALL');
       setIsReady(false);
+    }
+  }
 
+  useEffect(() => {
+    if (visible) {
       translateY.setValue(SCREEN_HEIGHT);
       overlayOpacity.setValue(0);
 
@@ -139,7 +152,7 @@ export function TransactionListModal({
 
       return () => task.cancel();
     }
-  }, [visible, listType]);
+  }, [visible, listType, translateY, overlayOpacity]);
 
   const monthLabel = monthNames[selectedMonth] || selectedMonth;
   const isExpenseModal = listType === 'EXPENSE' || listType === 'FIXED' || listType === 'FLEXIBLE';
@@ -233,8 +246,8 @@ export function TransactionListModal({
             ]}
           >
             {trx.amount < 0
-              ? `-${format.money(Math.abs(trx.amount), currencySymbol, 2)}`
-              : `+${format.money(trx.amount, currencySymbol, 2)}`}
+              ? `-${format.money(Math.abs(trx.amount), currencySymbol, currencyDecimals)}`
+              : `+${format.money(trx.amount, currencySymbol, currencyDecimals)}`}
           </Text>
           <Ionicons name="chevron-forward" size={14} color={colors.textSecondary} />
         </View>
@@ -284,7 +297,7 @@ export function TransactionListModal({
               </View>
               <View style={[styles.totalBadge, { backgroundColor: colors.surface }]}>
                 <SelectableText style={[styles.totalBadgeText, { color: colors.text }]}>
-                  {format.money(totalAmount, currencySymbol, 2)}
+                  {format.money(totalAmount, currencySymbol, currencyDecimals)}
                 </SelectableText>
               </View>
             </View>
@@ -307,6 +320,14 @@ export function TransactionListModal({
                       <View style={styles.summaryCardWrapper}>
                         <FixedFlexibleCard summary={fixedSummary} />
                       </View>
+                    )}
+
+                    {uncategorisedCount > 0 && onAddUncategorised && (
+                      <QuickAddButton
+                        count={uncategorisedCount}
+                        onPress={onAddUncategorised}
+                        style={styles.summaryCardWrapper}
+                      />
                     )}
 
                     {/* Search Bar */}

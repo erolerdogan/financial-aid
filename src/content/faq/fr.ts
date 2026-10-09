@@ -50,7 +50,7 @@ export const fr: FaqCopy = {
     'Ouvrez la transaction et touchez sa catégorie. Votre choix est mémorisé et n’est pas écrasé par la suite. Une fois qu’un commerçant a été corrigé au moins deux fois, le plus souvent de la même façon, ses nouvelles transactions suivent votre choix.',
   'faq.categories.review.q': 'Que faire des transactions sans catégorie ?',
   'faq.categories.review.a':
-    'L’écran {transactions} indique en haut combien il y en a. La liste de révision les regroupe par commerçant, les plus importants d’abord, et propose une catégorie quand c’est possible. Choisir une catégorie une fois l’applique à toutes les transactions de ce commerçant et aux prochains imports.',
+    'L’écran {transactions} indique en haut combien il y en a. La liste de révision les regroupe par commerçant, les plus importants d’abord, et propose une catégorie quand c’est possible. Choisir une catégorie une fois l’applique à toutes les transactions de ce commerçant et aux prochains imports. Vous pouvez aussi ouvrir une catégorie dans {home}, {health}, {trends} ou {categories} et y ajouter des transactions sans catégorie : cochez-en plusieurs à la fois ; un commerçant sélectionné en entier est mémorisé pour les prochains imports.',
   'faq.categories.fixed.q': 'Que sont les dépenses fixes et flexibles ?',
   'faq.categories.fixed.a':
     'Les dépenses fixes sont les factures qui reviennent, comme le loyer, les charges et les abonnements ; le reste est flexible. L’application les détecte d’après le comportement d’un commerçant : un rythme régulier, des montants stables et des prélèvements. Dans le détail d’une transaction, vous pouvez marquer son commerçant comme {fixed} ou {flexible}, ou revenir en arrière avec {resetAuto}.',
@@ -69,7 +69,7 @@ export const fr: FaqCopy = {
     'La moyenne des trois derniers mois complets de revenus dans vos relevés, ou le montant que vous saisissez vous-même. Tant qu’il n’y a pas de mois avec des revenus, aucun score n’est affiché. Un prêt versé ou un autre versement ponctuel important n’est pas compté comme revenu.',
   'faq.plan.debts.q': 'Comment l’application trouve-t-elle mes remboursements de dettes ?',
   'faq.plan.debts.a':
-    'Chaque dette a des mots-clés. Après chaque import, une transaction est associée quand un mot-clé correspond à un mot entier et que le montant est proche de la mensualité. Les cas approchants sont listés comme correspondances possibles à ajouter à la main, et un paiement associé peut être dissocié.',
+    'Chaque dette a des mots-clés. Après chaque import, une transaction est associée quand un mot-clé correspond à un mot entier et que le montant est proche de la mensualité. Les cas approchants sont listés comme correspondances possibles à ajouter à la main, et un paiement associé peut être dissocié. Dans le formulaire de dette, vous pouvez aussi choisir un paiement parmi vos opérations : tous les paiements au même prêteur sont sélectionnés avec lui, et son mot-clé est ajouté pour vous.',
   'faq.plan.growth.q': 'Que montre {growth} ?',
   'faq.plan.growth.a':
     'Comment un montant de départ et un versement mensuel pourraient croître au fil des années. Les trois scénarios utilisent un rendement annuel de 5 %, 7 % et 9 % ; vous pouvez aussi saisir votre propre rendement, vos frais et l’inflation. Le résultat est une projection, pas une promesse.',
@@ -100,10 +100,10 @@ export const fr: FaqCopy = {
     'Des comptabilités séparées dans une seule application, par exemple personnel, professionnel et foyer. Chaque profil a ses propres transactions, catégories, règles, budgets et dettes, ainsi que son nom, sa couleur et sa devise. Un relevé est importé dans le profil actif.',
   'faq.profiles.currency.q': 'Que se passe-t-il quand je change de devise ?',
   'faq.profiles.currency.a':
-    'Les montants déjà enregistrés dans le profil sont convertis avec des taux fixes intégrés à l’application, et non avec les taux de change du moment ; le résultat est donc approximatif.',
+    'L’application télécharge le taux de change du jour, l’affiche et, après votre confirmation, convertit les montants déjà enregistrés dans le profil (transactions, budgets, dettes et montants du foyer). Les plans de Croissance future ne sont pas convertis. La requête ne contient aucune de vos données. Changer de devise nécessite une connexion internet. Les montants convertis sont arrondis ; le résultat est donc approximatif.',
   'faq.profiles.languages.q': 'Quelles devises et quelles langues sont disponibles ?',
   'faq.profiles.languages.a':
-    'Devises : EUR, USD, GBP, JPY, CHF, CAD et AUD. Langues : anglais, néerlandais, allemand, turc, espagnol, français, italien, portugais et russe.',
+    'Devises : plus de 150, dont EUR, USD, GBP, JPY, CHF, CAD et AUD. Langues : anglais, néerlandais, allemand, turc, espagnol, français, italien, portugais et russe.',
   'faq.profiles.notifications.q': 'Quand l’application envoie-t-elle des notifications ?',
   'faq.profiles.notifications.a':
     'Des rappels d’import le 15 et le 28 de chaque mois, annulés dès que vous importez un relevé, et les alertes de {health} que vous avez activées. Toutes sont programmées sur votre appareil. Les rappels se désactivent dans {settings} → {reminders}.',

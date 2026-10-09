@@ -1,3 +1,4 @@
+import { DebtPick, DebtTransactionPickerSheet } from '@/components/modals/DebtTransactionPickerSheet';
 import { SelectableText } from '@/components/SelectableText';
 import { CATEGORY_COLOR_PALETTE } from '@/constants/colors';
 import { useI18n } from '@/contexts/LanguageContext';
@@ -63,7 +64,7 @@ export function DebtFormModal({ visible, debt, prefill, focusApr = false, onClos
   const db = useSQLiteContext();
   const { colors } = useTheme();
   const { t, format } = useI18n();
-  const { activeProfile, currencySymbol } = useProfile();
+  const { activeProfile, currencySymbol, currencyDecimals } = useProfile();
   const profileId = activeProfile?.id ?? 1;
 
   const [name, setName] = useState('');
@@ -104,49 +105,60 @@ export function DebtFormModal({ visible, debt, prefill, focusApr = false, onClos
   const [addedIds, setAddedIds] = useState<number[]>([]);
   const [excludedIds, setExcludedIds] = useState<number[]>([]);
   const [showAllMatches, setShowAllMatches] = useState(false);
+  const [pickerVisible, setPickerVisible] = useState(false);
   const [autoFilledFrom, setAutoFilledFrom] = useState(0);
   // Last values filled in from statements; a field still holding one counts as untouched.
   const autoFill = useRef({ payment: '', payDay: '', startDate: '' });
   // Keyword set the fields were last filled for, so clearing a field does not refill it.
   const autoFillKey = useRef('');
 
+  // Opening the form, or another debt while it is open, starts it from that debt.
+  const [shown, setShown] = useState({ visible: false, debt, prefill });
+  if (shown.visible !== visible || shown.debt !== debt || shown.prefill !== prefill) {
+    setShown({ visible, debt, prefill });
+    if (visible) {
+      setSaving(false);
+      setKeywordInput('');
+      setEditingKeyword(null);
+      setAddedIds([]);
+      setExcludedIds([]);
+      setShowAllMatches(false);
+      setPickerVisible(false);
+      setAutoFilledFrom(0);
+      if (debt) {
+        setName(debt.name);
+        setType(debt.type);
+        setAmount(String(debt.originalAmount));
+        setApr(debt.apr > 0 ? String(debt.apr) : '');
+        setPayment(debt.paymentAmount > 0 ? String(debt.paymentAmount) : '');
+        setPayDay(String(debt.paymentDay));
+        const wholeYears = !!debt.termMonths && debt.termMonths % 12 === 0;
+        setTerm(debt.termMonths ? String(wholeYears ? debt.termMonths / 12 : debt.termMonths) : '');
+        setTermUnit(wholeYears ? 'YEARS' : 'MONTHS');
+        setStartDate(debt.startDate ?? '');
+        setColor(debt.color);
+        setKeywords(debt.keywords.map((k) => k.toUpperCase()));
+      } else {
+        setName(prefill?.name ?? '');
+        setType(prefill?.type ?? 'LOAN');
+        setAmount('');
+        setApr('');
+        setPayment('');
+        setPayDay('1');
+        setTerm('');
+        setTermUnit('MONTHS');
+        setStartDate('');
+        setColor(CATEGORY_COLOR_PALETTE[0]);
+        setKeywords(prefill?.keywords.map((k) => k.toUpperCase()) ?? []);
+      }
+    }
+  }
+
+  // The refs follow the same moments; before the effects below that read them.
   useEffect(() => {
     if (!visible) return;
-    setSaving(false);
-    setKeywordInput('');
-    setEditingKeyword(null);
-    setAddedIds([]);
-    setExcludedIds([]);
-    setShowAllMatches(false);
-    setAutoFilledFrom(0);
     autoFill.current = { payment: '', payDay: '', startDate: '' };
     autoFillKey.current = debt ? debt.keywords.map((k) => k.toUpperCase()).join('|') : '';
-    if (debt) {
-      setName(debt.name);
-      setType(debt.type);
-      setAmount(String(debt.originalAmount));
-      setApr(debt.apr > 0 ? String(debt.apr) : '');
-      setPayment(debt.paymentAmount > 0 ? String(debt.paymentAmount) : '');
-      setPayDay(String(debt.paymentDay));
-      const wholeYears = !!debt.termMonths && debt.termMonths % 12 === 0;
-      setTerm(debt.termMonths ? String(wholeYears ? debt.termMonths / 12 : debt.termMonths) : '');
-      setTermUnit(wholeYears ? 'YEARS' : 'MONTHS');
-      setStartDate(debt.startDate ?? '');
-      setColor(debt.color);
-      setKeywords(debt.keywords.map((k) => k.toUpperCase()));
-    } else {
-      setName(prefill?.name ?? '');
-      setType(prefill?.type ?? 'LOAN');
-      setAmount('');
-      setApr('');
-      setPayment('');
-      setPayDay('1');
-      setTerm('');
-      setTermUnit('MONTHS');
-      setStartDate('');
-      setColor(CATEGORY_COLOR_PALETTE[0]);
-      setKeywords(prefill?.keywords.map((k) => k.toUpperCase()) ?? []);
-    }
   }, [visible, debt, prefill]);
 
   const debtId = debt?.id ?? null;
@@ -213,7 +225,7 @@ export function DebtFormModal({ visible, debt, prefill, focusApr = false, onClos
   const matches = loadedMatches.filter((m) => keywords.includes(m.keyword));
 
   const fmt = (value: number) =>
-    format.money(value, currencySymbol, 2);
+    format.money(value, currencySymbol, currencyDecimals);
 
   const countByStatus = (status: DebtKeywordMatch['status']) =>
     matches.filter((m) => m.status === status).length;
@@ -268,6 +280,21 @@ export function DebtFormModal({ visible, debt, prefill, focusApr = false, onClos
     }
     setEditingKeyword(null);
     setKeywordInput('');
+  };
+
+  // Payments picked from the transaction list: their keywords do the linking, as if typed.
+  const handlePick = (pick: DebtPick) => {
+    setKeywords((prev) => {
+      const next = [...prev];
+      for (const keyword of pick.keywords) {
+        if (!next.some((k) => normalizeMatchText(k) === normalizeMatchText(keyword))) next.push(keyword);
+      }
+      return next;
+    });
+    // A picked payment with an unusual amount is only a possible match; it is linked all the same.
+    setAddedIds((prev) => Array.from(new Set([...prev, ...pick.selectedIds])));
+    setExcludedIds((prev) => Array.from(new Set([...prev, ...pick.excludedIds])));
+    if (name.trim() === '') setName(pick.name);
   };
 
   const handleEditKeyword = (keyword: string) => {
@@ -391,7 +418,7 @@ export function DebtFormModal({ visible, debt, prefill, focusApr = false, onClos
   const aprNumber = apr.trim() === '' ? 0 : parseNumber(apr);
   const showAprEstimate = estimatedApr !== null && Math.abs(aprNumber - estimatedApr) > 0.005;
   const formatMoney = (value: number) =>
-    format.money(value, currencySymbol, { maximumFractionDigits: 2 });
+    format.money(value, currencySymbol, { maximumFractionDigits: currencyDecimals });
   const needsTermForEstimate = term.trim() === '' && apr.trim() === '' && amountNumber > 0 && paymentNumber > 0;
 
   const renderField = (
@@ -508,6 +535,19 @@ export function DebtFormModal({ visible, debt, prefill, focusApr = false, onClos
                 <Text style={styles.addKeywordText}>{editingKeyword !== null ? t('debt.form.update') : t('common.add')}</Text>
               </TouchableOpacity>
             </View>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => {
+                Haptics.selectionAsync().catch(() => {});
+                setPickerVisible(true);
+              }}
+              style={styles.pickRow}
+              hitSlop={6}
+              accessibilityRole="button"
+            >
+              <Ionicons name="list-outline" size={18} color={colors.accent} />
+              <Text style={[styles.pickText, { color: colors.accent }]}>{t('debt.form.pickFromTransactions')}</Text>
+            </TouchableOpacity>
 
             {keywords.length > 0 && (
               <View style={styles.chipWrap}>
@@ -906,6 +946,11 @@ export function DebtFormModal({ visible, debt, prefill, focusApr = false, onClos
           </ScrollView>
         </View>
       </SafeAreaView>
+      <DebtTransactionPickerSheet
+        visible={pickerVisible}
+        onClose={() => setPickerVisible(false)}
+        onConfirm={handlePick}
+      />
     </Modal>
   );
 }
@@ -984,6 +1029,8 @@ const styles = StyleSheet.create({
   },
   addKeywordText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
   disabled: { opacity: 0.4 },
+  pickRow: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 6, marginTop: 12 },
+  pickText: { fontSize: 15, fontWeight: '600' },
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
   chip: {
     flexDirection: 'row',

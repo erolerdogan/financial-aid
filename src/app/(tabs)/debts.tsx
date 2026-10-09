@@ -55,11 +55,16 @@ export default function DebtsScreen() {
   const [segment, setSegment] = useState<PlanSegment>('DEBTS');
 
   // Links from Home and the inbox ask for a segment; the param is cleared so the next link fires again.
+  const requestedSegment: PlanSegment | null =
+    segmentParam === 'freedom' ? 'FREEDOM' : segmentParam === 'health' ? 'HEALTH' : segmentParam === 'debts' ? 'DEBTS' : null;
+  const [appliedParam, setAppliedParam] = useState<string | undefined>(undefined);
+  if (segmentParam !== appliedParam) {
+    setAppliedParam(segmentParam);
+    if (requestedSegment) setSegment(requestedSegment);
+  }
   useEffect(() => {
-    if (segmentParam !== 'health' && segmentParam !== 'debts' && segmentParam !== 'freedom') return;
-    setSegment(segmentParam === 'freedom' ? 'FREEDOM' : segmentParam === 'health' ? 'HEALTH' : 'DEBTS');
-    router.setParams({ segment: undefined });
-  }, [segmentParam, router]);
+    if (requestedSegment) router.setParams({ segment: undefined });
+  }, [requestedSegment, router]);
 
   const selectSegment = (next: PlanSegment) => {
     if (next === segment) return;

@@ -22,7 +22,7 @@ interface ImportSummaryModalProps {
 export function ImportSummaryModal({ visible, summary, profileName, onClose }: ImportSummaryModalProps) {
   const { colors } = useTheme();
   const { t, format } = useI18n();
-  const { currencySymbol } = useProfile();
+  const { currencySymbol, currencyDecimals } = useProfile();
 
   const hasNewRows = !!summary && summary.insertedCount > 0;
 
@@ -99,7 +99,7 @@ export function ImportSummaryModal({ visible, summary, profileName, onClose }: I
   }
 
   // What needs a look: statements that are missing or doubled, and files that were left out.
-  const money = (value: number) => format.money(value, currencySymbol, 2);
+  const money = (value: number) => format.money(value, currencySymbol, currencyDecimals);
   const statementLabel = (ref: { year: number; number: number }) =>
     `${ref.year}/${String(ref.number).padStart(3, '0')}`;
   const problemText = (problem: ChainProblem): string => {

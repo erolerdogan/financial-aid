@@ -112,6 +112,15 @@ export const de: Translations = {
   'settings.switchCurrencyMessage':
     'Alle Beträge umrechnen und das Symbol von {from} ({symbol}) auf {to} ändern?',
   'settings.switchCurrencyConfirm': 'Umrechnen und Symbol ändern',
+  'settings.searchCurrency': 'Währung suchen',
+  'settings.noCurrencyFound': 'Keine Währung gefunden',
+  'settings.switchCurrencyRate': '1 {from} = {rate} {to} (Kurs vom {date})',
+  'settings.ratesUnavailableTitle': 'Kein Wechselkurs',
+  'settings.ratesUnavailableMessage':
+    'Der heutige Wechselkurs konnte nicht geladen werden, daher wurde die Währung nicht geändert. Prüfe deine Internetverbindung und versuche es erneut.',
+  'settings.convertFailedMessage':
+    'Die Beträge konnten nicht umgerechnet werden, daher wurde nichts geändert.',
+  'settings.ratesCredit': 'Rates By Exchange Rate API',
   'settings.resetTitle': 'Alle Daten und Profile zurücksetzen',
   'settings.resetMessage':
     'Möchtest du wirklich alle Profile, Umsätze und Einstellungen löschen? Die App wird vollständig zurückgesetzt.',
@@ -136,13 +145,6 @@ export const de: Translations = {
   'licenses.title': 'Open-Source-Lizenzen',
   'licenses.intro': 'Financial Aid nutzt diese Open-Source-Pakete. Tippe auf ein Paket, um seine Lizenz zu lesen.',
   'licenses.packageMeta': 'Version {version} · {license}',
-  'currency.EUR': 'Euro (€)',
-  'currency.USD': 'US-Dollar ($)',
-  'currency.GBP': 'Britisches Pfund (£)',
-  'currency.JPY': 'Japanischer Yen (¥)',
-  'currency.CAD': 'Kanadischer Dollar (CA$)',
-  'currency.AUD': 'Australischer Dollar (A$)',
-  'currency.CHF': 'Schweizer Franken (CHF)',
 
   'notifications.channel': 'Import-Erinnerungen',
   'notifications.title': 'Zeit, Umsätze zu importieren 📊',
@@ -305,6 +307,17 @@ export const de: Translations = {
   'review.categoriseAs': 'Als {category} einordnen',
   'review.choose': 'Kategorie wählen',
   'review.suggested': 'Vorschlag',
+  'quickAdd.button': 'Ohne Kategorie hinzufügen ({count})',
+  'quickAdd.title': 'Zu {category} hinzufügen',
+  'quickAdd.other': 'Weitere Umsätze',
+  'quickAdd.selectAll': 'Alle auswählen',
+  'quickAdd.deselectAll': 'Auswahl aufheben',
+  'quickAdd.remember': 'Diese Händler merken',
+  'quickAdd.rememberNote_one': 'Künftige Umsätze von {count} vollständig ausgewählten Händler kommen in diese Kategorie.',
+  'quickAdd.rememberNote_other': 'Künftige Umsätze von {count} vollständig ausgewählten Händlern kommen in diese Kategorie.',
+  'quickAdd.rememberHelp': 'Gilt für Händler, deren Umsätze alle ausgewählt sind.',
+  'quickAdd.confirm_one': '{count} Umsatz hinzufügen',
+  'quickAdd.confirm_other': '{count} Umsätze hinzufügen',
   'suggest.like': 'wie {merchant}',
   'suggest.learned': 'von dir schon so gewählt',
   'suggest.mentions': 'enthält „{keyword}“',
@@ -537,6 +550,19 @@ export const de: Translations = {
   'debt.form.noneContain': 'Keine Umsätze enthalten {keywords}.',
   'debt.form.notCounted': 'Nicht gezählt: {hints}.',
   'debt.form.delete': 'Schuld löschen',
+  'debt.form.pickFromTransactions': 'Aus Umsätzen wählen',
+  'debt.pick.title': 'Zahlung wählen',
+  'debt.pick.help':
+    'Tippe auf eine Zahlung. Alle Zahlungen an denselben Kreditgeber werden mit ausgewählt; tippe auf eine ausgewählte, um sie wegzulassen.',
+  'debt.pick.search': 'Umsätze suchen',
+  'debt.pick.empty':
+    'Keine Ausgaben zur Auswahl. Importiere zuerst einen Kontoauszug, oder die Zahlungen sind schon mit einer Schuld verknüpft.',
+  'debt.pick.noResults': 'Keine Umsätze gefunden',
+  'debt.pick.noKeywordTitle': 'Zuordnung nicht möglich',
+  'debt.pick.noKeyword':
+    'Dieser Umsatz hat keinen Namen, nach dem die App suchen kann. Füge die Zahlung stattdessen von Hand bei der Schuld hinzu.',
+  'debt.pick.use_one': '{count} Zahlung übernehmen',
+  'debt.pick.use_other': '{count} Zahlungen übernehmen',
 
   'freedom.inTodaysMoney': 'In heutiger Kaufkraft.',
   'freedom.keyboardDone': 'Fertig, Tastatur ausblenden',
@@ -1121,6 +1147,9 @@ export const de: Translations = {
   'health.intro.step3Title': 'Übliche Bereiche je Kategorie',
   'health.intro.step3Text':
     'Jede Kategorie wird mit einem üblichen Bereich verglichen, der sich an deinen Haushalt anpasst. Grün liegt im Rahmen, Gelb etwas außerhalb, Rot deutlich außerhalb. Halte eine Kategorie gedrückt, um dein eigenes Niveau zu übernehmen.',
+  'health.intro.householdTitle': 'Was dein Haushalt ändert',
+  'health.intro.householdText':
+    'Erwachsene und Kinder verschieben die üblichen Bereiche, nicht den Wert. Jedes Kind hebt die Obergrenze von Lebensmittel und von Kinderbetreuung & Kinder um {child} Prozentpunkte; bei nur einem Erwachsenen liegt der Bereich für Lebensmittel {single} Prozentpunkte tiefer. Für Miete und Eigentum gilt derselbe Bereich bei Wohnen. Das Einkommen und das Polster, die du einträgst, ändern den Wert.',
   'health.intro.step4Title': 'Eine Sache zum Angehen',
   'health.intro.step4Text': 'Zum Wert gehört immer die eine Änderung, die die meisten Punkte bringt.',
   'health.intro.step5Title': 'Hinweise nach einem Import',

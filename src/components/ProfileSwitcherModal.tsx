@@ -3,7 +3,8 @@ import { ProfileSetup } from '@/components/profile/ProfileSetup';
 import { SelectableText } from '@/components/SelectableText';
 import { useEntitlement } from '@/contexts/EntitlementContext';
 import { useI18n } from '@/contexts/LanguageContext';
-import { CURRENCY_SYMBOLS, useProfile } from '@/contexts/ProfileContext';
+import { CURRENCY_CODES } from '@/constants/currencies';
+import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { deleteProfile, Profile, saveHousehold } from '@/db/database';
 import { usePaywall } from '@/hooks/usePaywall';
@@ -140,7 +141,7 @@ export function ProfileSwitcherModal({ visible, onClose }: ProfileSwitcherModalP
                   nameRequired
                   initialName=""
                   initialColor={AVATAR_COLORS[0]}
-                  initialCurrency={defaultCurrency(deviceLocales[0]?.currencyCode, Object.keys(CURRENCY_SYMBOLS))}
+                  initialCurrency={defaultCurrency(deviceLocales[0]?.currencyCode, CURRENCY_CODES)}
                   submitLabel={t('profile.save')}
                   onSubmit={handleSetupDone}
                   onCancel={resetForm}

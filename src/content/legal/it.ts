@@ -14,7 +14,7 @@ export const it: LegalCopy = {
     'Gli estratti conto che importi e le categorie, i budget, i debiti, i piani e le impostazioni che crei sono conservati in un database sul tuo dispositivo. L’app non ha account né un server che riceve questi dati.',
   'privacy.s2Title': 'Dati raccolti dall’app',
   'privacy.s2Text':
-    'Nessuno. L’app non contiene analisi, pubblicità o tracciamento e non effettua richieste di rete con i tuoi dati.',
+    'Nessuno. L’app non contiene analisi, pubblicità o tracciamento e non effettua richieste di rete con i tuoi dati. L’unica richiesta che l’app fa: quando cambi la valuta di un profilo, scarica i tassi di cambio del giorno da exchangerate-api.com. Questa richiesta non contiene nessuno dei tuoi dati e non indica quali valute usi; come per ogni richiesta internet, quel servizio vede il tuo indirizzo IP.',
   'privacy.s3Title': 'File che importi, salvi e condividi',
   'privacy.s3Text':
     'Gli estratti conto vengono letti sul dispositivo. I backup, le transazioni esportate e i report in PDF vengono creati sul dispositivo e salvati o condivisi solo dove scegli tu. Se li conservi in un servizio cloud, vale l’informativa sulla privacy di quel servizio.',
@@ -83,7 +83,7 @@ export const it: LegalCopy = {
     'Le date di estinzione, gli interessi e i tassi stimati dei debiti sono calcolati da ciò che inserisci e dai pagamenti che importi. Fanno fede le cifre del tuo creditore.',
   'disclaimer.s5Title': 'Valute',
   'disclaimer.s5Text':
-    'Quando cambi valuta, l’app converte i tuoi importi con tassi di cambio fissi integrati nell’app. Non sono tassi in tempo reale e possono differire da quelli reali.',
+    'Quando cambi valuta, l’app converte i tuoi importi con i tassi di cambio che scarica quel giorno da un servizio pubblico di tassi. Sono tassi indicativi che possono differire dal tasso della tua banca, e gli importi convertiti vengono arrotondati.',
   'disclaimer.s6Title': 'Le tue decisioni',
   'disclaimer.s6Text': 'Sei tu a decidere che cosa fare con il tuo denaro e sei responsabile di queste decisioni.',
 };

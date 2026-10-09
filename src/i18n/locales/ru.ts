@@ -117,6 +117,15 @@ export const ru: Translations = {
   'settings.switchCurrencyMessage':
     'Пересчитать все суммы и заменить символ {from} ({symbol}) на {to}?',
   'settings.switchCurrencyConfirm': 'Пересчитать и сменить символ',
+  'settings.searchCurrency': 'Поиск валюты',
+  'settings.noCurrencyFound': 'Валюта не найдена',
+  'settings.switchCurrencyRate': '1 {from} = {rate} {to} (курс на {date})',
+  'settings.ratesUnavailableTitle': 'Нет курса обмена',
+  'settings.ratesUnavailableMessage':
+    'Не удалось загрузить сегодняшний курс обмена, поэтому валюта не изменена. Проверьте подключение к интернету и повторите попытку.',
+  'settings.convertFailedMessage':
+    'Суммы не удалось пересчитать, поэтому ничего не изменено.',
+  'settings.ratesCredit': 'Rates By Exchange Rate API',
   'settings.resetTitle': 'Сбросить все данные и профили',
   'settings.resetMessage':
     'Удалить все профили, операции и настройки? Приложение полностью вернётся в исходное состояние.',
@@ -142,13 +151,6 @@ export const ru: Translations = {
   'licenses.intro':
     'Financial Aid использует эти пакеты с открытым исходным кодом. Нажмите на пакет, чтобы прочитать его лицензию.',
   'licenses.packageMeta': 'Версия {version} · {license}',
-  'currency.EUR': 'Евро (€)',
-  'currency.USD': 'Доллар США ($)',
-  'currency.GBP': 'Фунт стерлингов (£)',
-  'currency.JPY': 'Японская иена (¥)',
-  'currency.CAD': 'Канадский доллар (CA$)',
-  'currency.AUD': 'Австралийский доллар (A$)',
-  'currency.CHF': 'Швейцарский франк (CHF)',
 
   'notifications.channel': 'Напоминания об импорте',
   'notifications.title': 'Пора импортировать операции 📊',
@@ -320,6 +322,21 @@ export const ru: Translations = {
   'review.categoriseAs': 'Отнести к категории «{category}»',
   'review.choose': 'Выберите категорию',
   'review.suggested': 'Подсказка',
+  'quickAdd.button': 'Добавить без категории ({count})',
+  'quickAdd.title': 'Добавить в «{category}»',
+  'quickAdd.other': 'Прочие операции',
+  'quickAdd.selectAll': 'Выбрать все',
+  'quickAdd.deselectAll': 'Снять выбор',
+  'quickAdd.remember': 'Запомнить этих продавцов',
+  'quickAdd.rememberNote_one': 'Будущие операции {count} полностью выбранного продавца попадут в эту категорию.',
+  'quickAdd.rememberNote_few': 'Будущие операции {count} полностью выбранных продавцов попадут в эту категорию.',
+  'quickAdd.rememberNote_many': 'Будущие операции {count} полностью выбранных продавцов попадут в эту категорию.',
+  'quickAdd.rememberNote_other': 'Будущие операции {count} полностью выбранных продавцов попадут в эту категорию.',
+  'quickAdd.rememberHelp': 'Действует для продавцов, у которых выбраны все операции.',
+  'quickAdd.confirm_one': 'Добавить {count} операцию',
+  'quickAdd.confirm_few': 'Добавить {count} операции',
+  'quickAdd.confirm_many': 'Добавить {count} операций',
+  'quickAdd.confirm_other': 'Добавить {count} операции',
   'suggest.like': 'как {merchant}',
   'suggest.learned': 'вы уже выбирали это раньше',
   'suggest.mentions': 'содержит «{keyword}»',
@@ -569,6 +586,21 @@ export const ru: Translations = {
   'debt.form.noneContain': 'Ни одна операция не содержит: {keywords}.',
   'debt.form.notCounted': 'Не учтено: {hints}.',
   'debt.form.delete': 'Удалить долг',
+  'debt.form.pickFromTransactions': 'Выбрать из операций',
+  'debt.pick.title': 'Выберите платёж',
+  'debt.pick.help':
+    'Нажмите на один платёж. Все платежи тому же кредитору выберутся вместе с ним; нажмите на выбранный, чтобы исключить его.',
+  'debt.pick.search': 'Поиск операций',
+  'debt.pick.empty':
+    'Нет расходов для выбора. Сначала импортируйте выписку; возможно, платежи уже привязаны к долгу.',
+  'debt.pick.noResults': 'Операции не найдены',
+  'debt.pick.noKeywordTitle': 'Не удаётся привязать',
+  'debt.pick.noKeyword':
+    'У этой операции нет названия, по которому приложение может искать. Добавьте платёж вручную в карточке долга.',
+  'debt.pick.use_one': 'Использовать {count} платёж',
+  'debt.pick.use_few': 'Использовать {count} платежа',
+  'debt.pick.use_many': 'Использовать {count} платежей',
+  'debt.pick.use_other': 'Использовать {count} платежа',
 
   'freedom.inTodaysMoney': 'В сегодняшних деньгах.',
   'freedom.keyboardDone': 'Готово, скрыть клавиатуру',
@@ -1181,6 +1213,9 @@ export const ru: Translations = {
   'health.intro.step3Title': 'Обычные диапазоны по категориям',
   'health.intro.step3Text':
     'Каждая категория показана рядом с обычным диапазоном, который подстраивается под ваше домохозяйство. Зелёный: в норме, жёлтый: немного за пределами, красный: заметно за пределами. Удерживайте категорию, чтобы принять свой уровень.',
+  'health.intro.householdTitle': 'На что влияет домохозяйство',
+  'health.intro.householdText':
+    'Взрослые и дети сдвигают обычные диапазоны, а не оценку. Каждый ребёнок поднимает верхнюю границу для групп «Продукты» и «Дети и уход за ними» на {child} п. п.; при одном взрослом диапазон для группы «Продукты» ниже на {single} п. п. Для аренды и своего жилья диапазон «Жильё» один и тот же. А доход и финансовый запас, которые вы указали, меняют оценку.',
   'health.intro.step4Title': 'Одно главное улучшение',
   'health.intro.step4Text': 'Рядом с оценкой всегда указано одно изменение, которое добавит больше всего баллов.',
   'health.intro.step5Title': 'Уведомления после импорта',

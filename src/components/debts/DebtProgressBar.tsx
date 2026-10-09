@@ -1,5 +1,5 @@
 import { useTheme } from '@/contexts/ThemeContext';
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Animated, Easing, StyleSheet, View } from 'react-native';
 
 interface DebtProgressBarProps {
@@ -10,7 +10,7 @@ interface DebtProgressBarProps {
 
 export function DebtProgressBar({ percent, color, height = 10 }: DebtProgressBarProps) {
   const { colors } = useTheme();
-  const anim = useRef(new Animated.Value(0)).current;
+  const [anim] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
     Animated.timing(anim, {

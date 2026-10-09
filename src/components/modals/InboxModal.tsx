@@ -55,7 +55,7 @@ const dayOfMonth = (date: string) => String(parseInt(date.slice(8, 10), 10));
 
 export function InboxModal({ visible, anchor, items, onClose, onAction, onDismissItem }: InboxModalProps) {
   const { colors, isDark } = useTheme();
-  const { currencySymbol } = useProfile();
+  const { currencySymbol, currencyDecimals } = useProfile();
   const { t, format } = useI18n();
 
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
@@ -96,7 +96,7 @@ export function InboxModal({ visible, anchor, items, onClose, onAction, onDismis
                 ? 'information-circle-outline'
                 : 'happy-outline',
           title: t(`health.alertType.${item.alert.type}`),
-          subtitle: alertText(item.alert.message, t, format, currencySymbol),
+          subtitle: alertText(item.alert.message, t, format, currencySymbol, currencyDecimals),
           action: t('common.view'),
           subtitleLines: 4,
         };

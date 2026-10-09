@@ -24,7 +24,7 @@ export const TransactionRow = React.memo(function TransactionRow({
 }: TransactionRowProps) {
   const { colors } = useTheme();
   const { format, categoryName } = useI18n();
-  const { currencySymbol } = useProfile();
+  const { currencySymbol, currencyDecimals } = useProfile();
 
   const isIncome = transaction.amount > 0;
   const title =
@@ -53,7 +53,7 @@ export const TransactionRow = React.memo(function TransactionRow({
       </View>
       <Text style={[styles.rowAmount, { color: isIncome ? '#34C759' : colors.text }]} maxFontSizeMultiplier={1.5}>
         {isIncome ? '+' : '-'}
-        {format.money(Math.abs(transaction.amount), currencySymbol, 2)}
+        {format.money(Math.abs(transaction.amount), currencySymbol, currencyDecimals)}
       </Text>
     </TouchableOpacity>
   );

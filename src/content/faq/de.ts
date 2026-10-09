@@ -49,7 +49,7 @@ export const de: FaqCopy = {
     'Öffne die Transaktion und tippe auf ihre Kategorie. Deine Wahl wird gemerkt und später nicht überschrieben. Sobald du einen Händler mindestens zweimal korrigiert hast, überwiegend gleich, folgen seine neuen Transaktionen deiner Wahl.',
   'faq.categories.review.q': 'Was mache ich mit Transaktionen ohne Kategorie?',
   'faq.categories.review.a':
-    'Der Bildschirm {transactions} zeigt oben, wie viele es sind. Die Prüfliste gruppiert sie nach Händler, die größten zuerst, und schlägt wenn möglich eine Kategorie vor. Eine einmal gewählte Kategorie gilt für alle Transaktionen dieses Händlers und für künftige Importe.',
+    'Der Bildschirm {transactions} zeigt oben, wie viele es sind. Die Prüfliste gruppiert sie nach Händler, die größten zuerst, und schlägt wenn möglich eine Kategorie vor. Eine einmal gewählte Kategorie gilt für alle Transaktionen dieses Händlers und für künftige Importe. Sie können auch eine Kategorie auf {home}, in {health}, in {trends} oder unter {categories} öffnen und dort Transaktionen ohne Kategorie hinzufügen: mehrere auf einmal anhaken; ein vollständig ausgewählter Händler wird für künftige Importe gemerkt.',
   'faq.categories.fixed.q': 'Was sind fixe und flexible Kosten?',
   'faq.categories.fixed.a':
     'Fixkosten sind wiederkehrende Rechnungen wie Miete, Nebenkosten und Abos; der Rest ist flexibel. Die App erkennt sie am Verhalten eines Händlers: ein regelmäßiger Rhythmus, stabile Beträge und Lastschriften. Im Detail einer Transaktion kannst du den Händler als {fixed} oder {flexible} markieren oder mit {resetAuto} zurückgehen.',
@@ -68,7 +68,7 @@ export const de: FaqCopy = {
     'Den Durchschnitt der letzten drei vollständigen Monate mit Einnahmen in deinen Kontoauszügen oder den Betrag, den du selbst eingibst. Solange es keinen Monat mit Einnahmen gibt, wird kein Wert angezeigt. Ein ausgezahlter Kredit oder eine andere große einmalige Zahlung zählt nicht als Einkommen.',
   'faq.plan.debts.q': 'Wie findet die App meine Schuldenzahlungen?',
   'faq.plan.debts.a':
-    'Jede Schuld hat Stichwörter. Nach jedem Import wird eine Transaktion verknüpft, wenn ein Stichwort mit einem ganzen Wort übereinstimmt und der Betrag nahe an der Monatsrate liegt. Knappe Abweichungen stehen als mögliche Treffer in der Liste und lassen sich von Hand hinzufügen; eine verknüpfte Zahlung kannst du wieder lösen.',
+    'Jede Schuld hat Stichwörter. Nach jedem Import wird eine Transaktion verknüpft, wenn ein Stichwort mit einem ganzen Wort übereinstimmt und der Betrag nahe an der Monatsrate liegt. Knappe Abweichungen stehen als mögliche Treffer in der Liste und lassen sich von Hand hinzufügen; eine verknüpfte Zahlung kannst du wieder lösen. Im Schuldformular kannst du auch eine Zahlung aus deinen Umsätzen wählen: Alle Zahlungen an denselben Kreditgeber werden mit ausgewählt, und das Stichwort wird für dich hinzugefügt.',
   'faq.plan.growth.q': 'Was zeigt {growth}?',
   'faq.plan.growth.a':
     'Wie ein Startbetrag und ein monatlicher Beitrag über die Jahre wachsen könnten. Die drei Szenarien rechnen mit einer jährlichen Rendite von 5%, 7% und 9%; du kannst auch deine eigene Rendite, Gebühr und Inflation eingeben. Das Ergebnis ist eine Prognose, kein Versprechen.',
@@ -99,10 +99,10 @@ export const de: FaqCopy = {
     'Getrennte Haushaltsbücher in einer App, zum Beispiel privat, geschäftlich und Haushalt. Jedes Profil hat seine eigenen Transaktionen, Kategorien, Regeln, Budgets und Schulden sowie einen eigenen Namen, eine eigene Farbe und Währung. Ein Kontoauszug wird in das Profil importiert, das gerade aktiv ist.',
   'faq.profiles.currency.q': 'Was passiert, wenn ich die Währung ändere?',
   'faq.profiles.currency.a':
-    'Die Beträge, die schon im Profil gespeichert sind, werden mit festen, in die App eingebauten Kursen umgerechnet, nicht mit aktuellen Wechselkursen. Das Ergebnis ist also ein Näherungswert.',
+    'Die App lädt den Wechselkurs des Tages herunter, zeigt ihn an und rechnet nach deiner Bestätigung die Beträge um, die schon im Profil gespeichert sind (Transaktionen, Budgets, Schulden und Haushaltsbeträge). Pläne unter Zukunftswachstum werden nicht umgerechnet. Die Anfrage enthält keine deiner Daten. Für den Währungswechsel ist eine Internetverbindung nötig. Umgerechnete Beträge werden gerundet, das Ergebnis ist also ein Näherungswert.',
   'faq.profiles.languages.q': 'Welche Währungen und Sprachen gibt es?',
   'faq.profiles.languages.a':
-    'Währungen: EUR, USD, GBP, JPY, CHF, CAD und AUD. Sprachen: Englisch, Niederländisch, Deutsch, Türkisch, Spanisch, Französisch, Italienisch, Portugiesisch und Russisch.',
+    'Währungen: mehr als 150, darunter EUR, USD, GBP, JPY, CHF, CAD und AUD. Sprachen: Englisch, Niederländisch, Deutsch, Türkisch, Spanisch, Französisch, Italienisch, Portugiesisch und Russisch.',
   'faq.profiles.notifications.q': 'Wann sendet die App Mitteilungen?',
   'faq.profiles.notifications.a':
     'Import-Erinnerungen am 15. und 28. jedes Monats, die entfallen, sobald du einen Kontoauszug importierst, und die Hinweise von {health}, die du eingeschaltet hast. Alle werden auf deinem Gerät geplant. Die Erinnerungen schaltest du unter {settings} → {reminders} aus.',

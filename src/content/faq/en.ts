@@ -50,7 +50,7 @@ export const en = {
     'Open the transaction and tap its category. Your choice is remembered and is not overwritten later. Once you have corrected a merchant at least twice, mostly the same way, its new transactions follow your choice.',
   'faq.categories.review.q': 'What do I do with uncategorised transactions?',
   'faq.categories.review.a':
-    'The {transactions} screen shows at the top how many there are. The review list groups them per merchant, largest first, and suggests a category where it can. Picking a category once applies it to all transactions of that merchant and to future imports.',
+    'The {transactions} screen shows at the top how many there are. The review list groups them per merchant, largest first, and suggests a category where it can. Picking a category once applies it to all transactions of that merchant and to future imports. You can also open a category on {home}, in {health}, in {trends} or under {categories} and add uncategorised transactions to it there: tick several at once, and a merchant you select completely is remembered for future imports.',
   'faq.categories.fixed.q': 'What are fixed and flexible costs?',
   'faq.categories.fixed.a':
     'Fixed costs are bills that come back, such as rent, utilities and subscriptions; the rest is flexible. The app detects them from how a merchant behaves: a regular rhythm, stable amounts and direct debits. In the detail of a transaction you can mark its merchant as {fixed} or {flexible}, or go back with {resetAuto}.',
@@ -69,7 +69,7 @@ export const en = {
     'The average of the last three complete months of income in your statements, or the amount you type in yourself. Until there is a month with income, no score is shown. A loan that is paid out, or another large one-off payment, is not counted as income.',
   'faq.plan.debts.q': 'How does the app find my debt payments?',
   'faq.plan.debts.a':
-    'Every debt has keywords. After each import, a transaction is linked when a keyword matches a whole word and the amount is close to the monthly payment. Near-misses are listed as possible matches that you can add by hand, and a linked payment can be unlinked again.',
+    'Every debt has keywords. After each import, a transaction is linked when a keyword matches a whole word and the amount is close to the monthly payment. Near-misses are listed as possible matches that you can add by hand, and a linked payment can be unlinked again. In the debt form you can also choose a payment from your transactions: every payment to the same lender is selected with it, and its keyword is added for you.',
   'faq.plan.growth.q': 'What does {growth} show?',
   'faq.plan.growth.a':
     'How a starting amount and a monthly contribution could grow over the years. The three outlooks use a yearly return of 5%, 7% and 9%; you can also enter your own return, fee and inflation. The result is a projection, not a promise.',
@@ -100,10 +100,10 @@ export const en = {
     'Separate ledgers in one app, for example personal, business and household. Each profile has its own transactions, categories, rules, budgets and debts, and its own name, colour and currency. A statement is imported into the profile that is active.',
   'faq.profiles.currency.q': 'What happens when I change the currency?',
   'faq.profiles.currency.a':
-    'The amounts already stored in the profile are converted with fixed rates built into the app, not with live exchange rates, so the result is approximate.',
+    'The app downloads the exchange rate of the day, shows it and, after you confirm, converts the amounts already stored in the profile (transactions, budgets, debts and household amounts). Future Growth plans are not converted. The request contains none of your data. Changing the currency needs an internet connection. Converted amounts are rounded, so the result is approximate.',
   'faq.profiles.languages.q': 'Which currencies and languages are available?',
   'faq.profiles.languages.a':
-    'Currencies: EUR, USD, GBP, JPY, CHF, CAD and AUD. Languages: English, Dutch, German, Turkish, Spanish, French, Italian, Portuguese and Russian.',
+    'Currencies: more than 150, among them EUR, USD, GBP, JPY, CHF, CAD and AUD. Languages: English, Dutch, German, Turkish, Spanish, French, Italian, Portuguese and Russian.',
   'faq.profiles.notifications.q': 'When does the app send notifications?',
   'faq.profiles.notifications.a':
     'Import reminders on the 15th and 28th of each month, which are cancelled once you import a statement, and the {health} alerts you have switched on. All of them are scheduled on your device. The reminders are turned off under {settings} → {reminders}.',

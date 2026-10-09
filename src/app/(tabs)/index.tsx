@@ -6,6 +6,7 @@ import { RecentActivityCard } from '@/components/dashboard/RecentActivityCard';
 import { SummaryCards } from '@/components/dashboard/SummaryCards';
 import { HeaderActions } from '@/components/HeaderActions';
 import { DateRangeModal } from '@/components/modals/DateRangeModal';
+import { QuickCategoriseSheet } from '@/components/modals/QuickCategoriseSheet';
 import { TransactionDetailModal } from '@/components/modals/TransactionDetailModal';
 import { TransactionListModal } from '@/components/modals/TransactionListModal';
 import { ScreenContainer } from '@/components/ScreenContainer';
@@ -35,6 +36,7 @@ import {
   setMerchantFixedOverride,
   Transaction
 } from '@/db/database';
+import { useQuickCategorise } from '@/hooks/useQuickCategorise';
 import { useStatementImporter } from '@/hooks/useStatementImporter';
 import type { Message, TranslationKey } from '@/i18n';
 import { Ionicons } from '@expo/vector-icons';
@@ -247,6 +249,7 @@ export default function DashboardScreen() {
   useFocusEffect(
     useCallback(() => {
       loadDashboardData();
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- dataVersion is listed on purpose: reload when stored data changes
     }, [loadDashboardData, dataVersion])
   );
 
@@ -298,6 +301,7 @@ export default function DashboardScreen() {
       return;
     }
     setExpanded({ scope: expandedScope, category });
+    quickAdd.reloadCount();
     setExpandedTransactions([]);
     try {
       setLoadingExpanded(true);
@@ -395,6 +399,8 @@ export default function DashboardScreen() {
     }
     await loadDashboardData();
   };
+
+  const quickAdd = useQuickCategorise({ onMoved: () => refreshAfterDetailChange() });
 
   const handleSelectFixedState = async (newState: FixedOverrideState) => {
     if (!db || !selectedTransaction) return;
@@ -547,6 +553,8 @@ export default function DashboardScreen() {
               onCategoryPress={handleCategoryPress}
               onSelectTransaction={handleSelectFromCategory}
               onOpenBudgets={() => router.push('/goals')}
+              uncategorisedCount={quickAdd.canAdd(expandedCategory) ? quickAdd.count : 0}
+              onAddUncategorised={quickAdd.open}
             />
 
             <RecentActivityCard
@@ -573,6 +581,8 @@ export default function DashboardScreen() {
         onClose={() => setListModalVisible(false)}
         onSelectTransaction={handleSelectFromList}
       />
+
+      <QuickCategoriseSheet {...quickAdd.sheetProps} />
 
       <TransactionDetailModal
         visible={selectedTransaction !== null}

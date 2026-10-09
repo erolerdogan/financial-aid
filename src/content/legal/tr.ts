@@ -14,7 +14,7 @@ export const tr: LegalCopy = {
     'İçe aktardığınız ekstreler ile oluşturduğunuz kategoriler, bütçeler, borçlar, planlar ve ayarlar cihazınızdaki bir veritabanında saklanır. Uygulamada hesap yoktur ve bu verileri alan bir sunucu yoktur.',
   'privacy.s2Title': 'Uygulamanın topladığı veriler',
   'privacy.s2Text':
-    'Yok. Uygulamada analitik, reklam ve izleme bulunmaz; uygulama verilerinizle hiçbir ağ isteği yapmaz.',
+    'Yok. Uygulamada analitik, reklam ve izleme bulunmaz; uygulama verilerinizle hiçbir ağ isteği yapmaz. Uygulamanın yaptığı tek istek: bir profilin para birimini değiştirdiğinizde günün döviz kurlarını exchangerate-api.com adresinden indirir. Bu istek verilerinizden hiçbirini içermez ve hangi para birimlerini kullandığınızı belirtmez; her internet isteğinde olduğu gibi bu hizmet IP adresinizi görür.',
   'privacy.s3Title': 'İçe aktardığınız, kaydettiğiniz ve paylaştığınız dosyalar',
   'privacy.s3Text':
     'Ekstre dosyaları cihazda okunur. Yedekler, dışa aktarılan işlemler ve PDF raporlar cihazda oluşturulur ve yalnızca sizin seçtiğiniz yere kaydedilir veya paylaşılır. Bunları bir bulut hizmetinde saklarsanız o hizmetin gizlilik politikası geçerli olur.',
@@ -82,7 +82,7 @@ export const tr: LegalCopy = {
     'Borçların bitiş tarihleri, faizleri ve tahmini faiz oranları, girdiğiniz bilgilerden ve içe aktardığınız ödemelerden hesaplanır. Esas olan, borç verenin rakamlarıdır.',
   'disclaimer.s5Title': 'Para birimleri',
   'disclaimer.s5Text':
-    'Para birimini değiştirdiğinizde uygulama, tutarlarınızı uygulamaya gömülü sabit kurlarla çevirir. Bunlar güncel kurlar değildir ve gerçek kurlardan farklı olabilir.',
+    'Para birimini değiştirdiğinizde uygulama, tutarlarınızı o gün herkese açık bir kur hizmetinden indirdiği döviz kurlarıyla çevirir. Bunlar gösterge niteliğinde kurlardır, bankanızın kurundan farklı olabilir ve dönüştürülen tutarlar yuvarlanır.',
   'disclaimer.s6Title': 'Kararlarınız',
   'disclaimer.s6Text': 'Paranızla ne yapacağınıza siz karar verirsiniz ve bu kararların sorumluluğu size aittir.',
 };

@@ -43,20 +43,15 @@ export default function ReviewScreen() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<UncategorisedGroup | null>(null);
 
-  const load = useCallback(async () => {
-    if (!db) return;
-    try {
-      const [groupRows, categoryRows] = await Promise.all([
-        getUncategorisedGroups(db, profileId),
-        getCategoriesWithStats(db, profileId),
-      ]);
-      setGroups(groupRows);
-      setCategories(categoryRows.filter((c) => c.name !== UNCATEGORISED));
-    } catch (error) {
-      console.error('Failed to load uncategorised transactions:', error);
-    } finally {
-      setLoading(false);
-    }
+  const load = useCallback((): Promise<void> => {
+    if (!db) return Promise.resolve();
+    return Promise.all([getUncategorisedGroups(db, profileId), getCategoriesWithStats(db, profileId)])
+      .then(([groupRows, categoryRows]) => {
+        setGroups(groupRows);
+        setCategories(categoryRows.filter((c) => c.name !== UNCATEGORISED));
+      })
+      .catch((error) => console.error('Failed to load uncategorised transactions:', error))
+      .finally(() => setLoading(false));
   }, [db, profileId]);
 
   useEffect(() => {

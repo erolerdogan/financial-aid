@@ -24,7 +24,7 @@ Purpose: answer "Is our money in good shape, and what's the one thing to fix?"
 - `household_profile` (one row per profile), `category_range_overrides`, `health_alerts` (unique `profile_id, month, type, key`), `alert_settings`.
 - `clearAllData` and `deleteProfile` clear them (`clearHealthTables`).
 - Renaming or deleting a category carries or drops its override.
-- A currency switch converts `net_income_override` and `safety_savings` (`convertHouseholdAmounts`).
+- A currency switch also converts `net_income_override` and `safety_savings` (`convertHouseholdAmounts`, called by `switchProfileCurrency`). Stored alert messages keep the amounts they were written with.
 
 ## Engine
 
@@ -134,6 +134,7 @@ In `src/components/health/`:
 - `src/components/health/HealthIntro.tsx`, same pattern as `FreedomIntro`.
 - Until `app_meta` has `health_intro_seen` (app-wide, not per profile) `HealthScreen` renders the intro instead of the score; "See My Score" sets the key.
 - Afterwards the "How it works" link at the top of the scroll view opens the same content as a page sheet.
+- The "What your household changes" step (`health.intro.householdText`) says what the household answers do: adults and children only move the typical ranges (figures from `CHILD_POINTS` / `SINGLE_ADULT_POINTS`), renting and owning share the Housing range, and only the typed income and savings buffer change the score.
 - The example card's score and improvement line come from `pillarScores` / `healthScore` / `biggestImprovement`.
 - The group prompt waits until the intro has been read.
 

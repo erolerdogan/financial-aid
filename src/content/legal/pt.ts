@@ -14,7 +14,7 @@ export const pt: LegalCopy = {
     'Os extratos que você importa e as categorias, orçamentos, dívidas, planos e ajustes que você cria ficam em um banco de dados no seu aparelho. O app não tem contas nem um servidor que receba esses dados.',
   'privacy.s2Title': 'Dados que o app coleta',
   'privacy.s2Text':
-    'Nenhum. O app não contém análises, publicidade nem rastreamento, e não faz requisições de rede com seus dados.',
+    'Nenhum. O app não contém análises, publicidade nem rastreamento, e não faz requisições de rede com seus dados. A única solicitação que o app faz: quando você troca a moeda de um perfil, ele baixa as taxas de câmbio do dia de exchangerate-api.com. Essa solicitação não contém nenhum dos seus dados e não informa quais moedas você usa; como em qualquer solicitação pela internet, esse serviço vê o seu endereço IP.',
   'privacy.s3Title': 'Arquivos que você importa, salva e compartilha',
   'privacy.s3Text':
     'Os extratos são lidos no aparelho. Backups, transações exportadas e relatórios em PDF são criados no aparelho e salvos ou compartilhados somente onde você escolher. Se você os guardar em um serviço de nuvem, vale a política de privacidade desse serviço.',
@@ -82,7 +82,7 @@ export const pt: LegalCopy = {
     'As datas de quitação, os juros e as taxas estimadas das dívidas são calculados a partir do que você informa e dos pagamentos que importa. Os números que valem são os do seu credor.',
   'disclaimer.s5Title': 'Moedas',
   'disclaimer.s5Text':
-    'Quando você troca a moeda, o app converte seus valores com taxas de câmbio fixas embutidas no app. Não são taxas em tempo real e podem ser diferentes das reais.',
+    'Quando você troca a moeda, o app converte seus valores com as taxas de câmbio que baixa naquele dia de um serviço público de taxas. São taxas indicativas que podem ser diferentes da taxa do seu banco, e os valores convertidos são arredondados.',
   'disclaimer.s6Title': 'Suas decisões',
   'disclaimer.s6Text': 'Você decide o que fazer com o seu dinheiro e é responsável por essas decisões.',
 };

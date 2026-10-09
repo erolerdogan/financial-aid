@@ -70,6 +70,7 @@ npm run site       # writes site-dist/
 - Money coming in is never filed under a spending category by the built-in keywords; it is "Income", or "Financial Transfers" for savings and investment accounts.
 - Your own rules match whole words (or the start of a word for keywords of 5 or more characters); when several match, the longest wins.
 - Review screen: the Transactions screen shows how many transactions are uncategorised at the top of the list. The review list groups them per merchant, largest first; picking a category once applies it to all of that merchant's transactions and to future imports.
+- Quick add: open a category on Home, in Budget Health, in Trends or in Settings → Categories and tap "Add uncategorised" to see every uncategorised transaction grouped per merchant. Tick whole merchants or single transactions, search, or select all, then add them to that category in one tap. With "Remember these merchants" on, a merchant selected completely also gets a rule for future imports.
 - The review list suggests a category where it can (your earlier choices, a similar merchant, a word in the bank text, or a monthly direct debit) and shows why; one tap accepts it.
 - Reads the counterparty IBAN and payment type (direct debit, card, online, transfer) from the bank's columns or from the description text. A merchant is recognised by its IBAN when it has one of its own (not for card payments, iDEAL or payment processors).
 - The built-in keywords are tuned for Dutch banks and merchants, with some English and Turkish terms. The most specific (longest) keyword wins, and short names such as NS or AH only match as whole words.
@@ -146,6 +147,7 @@ npm run site       # writes site-dist/
 - Record the original amount, interest rate, monthly payment, term (in months or years), payment day and start date.
 - With the amount, monthly payment and term filled in, the form estimates the interest rate and offers it under the rate field.
 - Payments are linked automatically from imported transactions by keyword, and can also be added by hand.
+- The debt form can also start from a transaction: choose one payment from the list and every payment to the same lender is selected with it; the keyword is added for you.
 - Keyword matching ignores case, accents, punctuation and spaces, and runs after every import.
 - Only whole-word matches with an amount close to the monthly payment are linked automatically; near-misses are listed as possible matches to add by hand.
 - The debt form previews the statement payments each keyword matches before saving; unwanted ones can be unlinked there or from the payment history.
@@ -202,7 +204,7 @@ npm run site       # writes site-dist/
 
 ### Settings
 
-- Currency: EUR, USD, GBP, JPY, CHF, CAD or AUD. Switching currency converts existing amounts using fixed built-in rates.
+- Currency: more than 150 currencies, picked from a list with search; each is shown with its own decimals (none for yen, three for Kuwaiti dinar). Switching currency downloads the exchange rate of the day, shows it and converts the stored amounts (transactions, budgets, debts, household amounts) after a confirmation; it needs a connection. Rates by [Exchange Rate API](https://www.exchangerate-api.com).
 - Language: English, Dutch, German, Turkish, Spanish, French, Italian, Portuguese and Russian. The app follows the device language until you pick one in Settings → Language; the choice is remembered. Built-in category names, numbers, dates and reminder notifications follow the language. Translations have not been reviewed by native speakers yet.
 - Six colour themes (Aurora, Classic, Midnight Gold, Sunset, Forest Mint, Orchid; Aurora is the default) with gradient accents, each in light and dark; the choice is remembered. Dark mode follows the system until you toggle it.
 - Import reminders: local notifications on the 15th and 28th of each month. Importing a statement cancels the pending reminders.
@@ -241,7 +243,7 @@ npm run site       # writes site-dist/
 
 ## Privacy
 
-The app makes no network calls with user data. Statements are read on the device, and everything is stored in a local SQLite database.
+The app makes no network calls with user data. Statements are read on the device, and everything is stored in a local SQLite database. The only request the app makes is for the exchange rates of the day when a profile switches currency: always the same request, with no user data in it.
 
 ## Tech stack
 

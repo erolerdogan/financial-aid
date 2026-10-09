@@ -88,6 +88,8 @@ export function TabSwipeProvider({ children }: { children: React.ReactNode }) {
     if (far || fast) goRef.current(g.dx < 0 ? 'next' : 'prev');
   }, []);
 
+  // The handlers read the refs when a touch arrives, never while rendering.
+  // eslint-disable-next-line react-hooks/refs
   const [panResponder] = useState(() =>
     PanResponder.create({
       onStartShouldSetPanResponderCapture: unblock,

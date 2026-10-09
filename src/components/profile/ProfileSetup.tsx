@@ -1,12 +1,13 @@
+import { CurrencyPickerSheet } from '@/components/CurrencyPickerSheet';
 import { HouseholdMoneyFields, HouseholdPeopleFields } from '@/components/health/HouseholdFields';
 import { PasscodeModal } from '@/components/modals/PasscodeModal';
 import { SelectableText } from '@/components/SelectableText';
 import { ThemeSwatches } from '@/components/ThemeSwatches';
 import { DEFAULT_HOUSEHOLD, type HousingType } from '@/constants/benchmarks';
+import { currencyInfo } from '@/constants/currencies';
 import { useEntitlement } from '@/contexts/EntitlementContext';
 import { useI18n } from '@/contexts/LanguageContext';
 import { usePasscode } from '@/contexts/PasscodeContext';
-import { CURRENCY_SYMBOLS } from '@/contexts/ProfileContext';
 import { THEMES, useTheme } from '@/contexts/ThemeContext';
 import { usePaywall } from '@/hooks/usePaywall';
 import type { TranslationKey } from '@/i18n';
@@ -58,8 +59,6 @@ const STEP_TEXT: Record<SetupStep, { title: TranslationKey; subtitle: Translatio
   security: { title: 'setup.security.title', subtitle: 'setup.security.subtitle' },
 };
 
-const CURRENCY_CODES = Object.keys(CURRENCY_SYMBOLS);
-
 /**
  * The questions asked once per profile: name, colour, currency, household, income and savings buffer.
  * With `appSteps` the theme and the passcode lock follow; both are saved as they are picked, not by `onSubmit`.
@@ -78,7 +77,7 @@ export function ProfileSetup({
   onCancel,
 }: ProfileSetupProps) {
   const { colors, isDark, toggleTheme, themeName, setThemeName, previewThemeName, setPreviewTheme } = useTheme();
-  const { t } = useI18n();
+  const { t, currencyName } = useI18n();
   const { isPro } = useEntitlement();
   const { openPaywall } = usePaywall();
   const { enabled: passcodeEnabled } = usePasscode();
@@ -87,6 +86,7 @@ export function ProfileSetup({
   // What was active when the questions opened: skipping the appearance step or closing the questions goes back to it.
   const [initialLook] = useState({ themeName, isDark });
   const [passcodeVisible, setPasscodeVisible] = useState(false);
+  const [currencyPickerVisible, setCurrencyPickerVisible] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const [skipped, setSkipped] = useState<ReadonlySet<SetupStep>>(new Set());
   const [name, setName] = useState(nameRequired ? initialName : '');
@@ -113,7 +113,7 @@ export function ProfileSetup({
   const stepInvalid = (step === 'profile' && nameMissing) || (step === 'money' && moneyInvalid);
   // The amounts are typed in the currency picked on the first step, unless that step was skipped.
   const shownCurrency = skipped.has('profile') ? initialCurrency : currency;
-  const currencySymbol = CURRENCY_SYMBOLS[shownCurrency] || CURRENCY_SYMBOLS.EUR;
+  const currencySymbol = currencyInfo(shownCurrency).symbol;
 
   const finish = async (skippedSteps: ReadonlySet<SetupStep>) => {
     if (saving) return;
@@ -282,32 +282,30 @@ export function ProfileSetup({
             </View>
 
             <SelectableText style={[styles.fieldLabel, { color: colors.text }]}>{t('settings.currency')}</SelectableText>
-            <View style={styles.chipRow}>
-              {CURRENCY_CODES.map((code) => {
-                const selected = code === currency;
-                return (
-                  <TouchableOpacity
-                    key={code}
-                    style={[
-                      styles.chip,
-                      { backgroundColor: selected ? colors.accent : colors.surface },
-                    ]}
-                    onPress={() => {
-                      Haptics.selectionAsync().catch(() => {});
-                      setCurrency(code);
-                    }}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected }}
-                    accessibilityLabel={t(`currency.${code}` as TranslationKey)}
-                  >
-                    <Text style={[styles.chipText, { color: selected ? '#FFF' : colors.text }]}>{code}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-            <SelectableText style={[styles.hint, { color: colors.textSecondary }]}>
-              {t(`currency.${currency}` as TranslationKey)}
-            </SelectableText>
+            <TouchableOpacity
+              style={[styles.pickerRow, { backgroundColor: colors.field, borderColor: colors.border }]}
+              onPress={() => {
+                Haptics.selectionAsync().catch(() => {});
+                setCurrencyPickerVisible(true);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={`${t('settings.currency')}: ${currencyName(currency)}, ${currency}`}
+            >
+              <Text style={[styles.pickerCode, { color: colors.text }]}>{currency}</Text>
+              <Text style={[styles.pickerName, { color: colors.textSecondary }]} numberOfLines={1}>
+                {currencyName(currency)}
+              </Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+            </TouchableOpacity>
+            <CurrencyPickerSheet
+              visible={currencyPickerVisible}
+              selected={currency}
+              onSelect={(code) => {
+                setCurrency(code);
+                setCurrencyPickerVisible(false);
+              }}
+              onClose={() => setCurrencyPickerVisible(false)}
+            />
           </>
         )}
 
@@ -434,9 +432,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   colorCircle: { width: 32, height: 32, borderRadius: 16 },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { minHeight: 44, minWidth: 64, paddingHorizontal: 14, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-  chipText: { fontSize: 15, fontWeight: '700' },
+  pickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    height: 48,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+  },
+  pickerCode: { fontSize: 17, fontWeight: '700' },
+  pickerName: { flex: 1, fontSize: 15 },
   hint: { fontSize: 12, lineHeight: 17, marginTop: 8 },
   // The same row as Dark Mode in Settings.
   switchRow: {
