@@ -176,7 +176,7 @@ npm run site       # writes site-dist/
 ### Budget Health
 
 - A health score from 0 to 100 that answers "is our money in good shape, and what is the one thing to fix?". It combines five pillars: savings rate (30%), housing (20%), fixed costs (15%), debt payments without the mortgage (20%) and a safety buffer (15%). Each pillar is compared with a common rule of thumb; a buffer you have not entered is left out and the other pillars share its weight.
-- Net monthly income is the average of the last three complete months of income in your statements, or the figure you type yourself.
+- Net monthly income is the average of the last three complete months of income in your statements, or the figure you type yourself. When you skipped the income question, the household profile shows that average prefilled, ready to adjust.
 - Where it lives: Health is the second segment of the Plan tab (Debts | Health | Future Growth), which opens on Debts. Home is unchanged. Until there is a month with income the segment shows "Import at least one month to see your health score", or asks for your income.
 - The Health segment shows the score ring, how the score moved since the previous month, the single change that would add the most points, the five pillars, and every category against a typical range (as a share of net income) with your own average of the previous three months marked. Green is within the range, yellow up to 20% above, red beyond that; for savings it is the other way round. It follows the month picked on Home.
 - Introduction: the first visit shows a short page explaining the score with a worked example; "How it works" at the top reopens it.

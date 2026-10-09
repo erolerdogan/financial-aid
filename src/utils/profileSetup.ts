@@ -48,6 +48,26 @@ export function buildHousehold(
   };
 }
 
+/**
+ * What the income field of the household sheet starts with when no income was typed (the question was skipped
+ * or left empty): the monthly average found in the statements, in whole units. Empty when there is none.
+ */
+export function incomePrefill(netIncomeOverride: number | null, detectedIncome: number | null): string {
+  if (netIncomeOverride !== null || detectedIncome === null) return '';
+  const rounded = Math.round(detectedIncome);
+  return rounded > 0 ? String(rounded) : '';
+}
+
+/**
+ * The income to save from the household sheet: null (keep following the statements) when the field is empty,
+ * 0, or still the untouched prefill; otherwise the typed figure.
+ */
+export function incomeOverrideToSave(incomeText: string, prefill: string): number | null {
+  if (prefill !== '' && incomeText.trim() === prefill) return null;
+  const income = parseOptionalAmount(incomeText);
+  return income !== null && income > 0 ? income : null;
+}
+
 /** The device region's currency when the app supports it, otherwise the fallback. */
 export function defaultCurrency(
   regionCurrency: string | null | undefined,

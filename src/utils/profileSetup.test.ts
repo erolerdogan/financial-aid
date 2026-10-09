@@ -1,6 +1,15 @@
 // Run with: npx tsx src/utils/profileSetup.test.ts
 import { DEFAULT_HOUSEHOLD } from '../constants/benchmarks';
-import { AVATAR_COLORS, buildHousehold, defaultCurrency, parseOptionalAmount, SETUP_STEPS, setupSteps } from './profileSetup';
+import {
+  AVATAR_COLORS,
+  buildHousehold,
+  defaultCurrency,
+  incomeOverrideToSave,
+  incomePrefill,
+  parseOptionalAmount,
+  SETUP_STEPS,
+  setupSteps,
+} from './profileSetup';
 
 let failures = 0;
 
@@ -16,6 +25,15 @@ check('a decimal comma is read', parseOptionalAmount('3200,50') === 3200.5);
 check('zero is a valid amount', parseOptionalAmount('0') === 0);
 check('a negative amount is rejected', Number.isNaN(parseOptionalAmount('-5')));
 check('text is rejected', Number.isNaN(parseOptionalAmount('abc')));
+
+// Income prefill of the household sheet
+check('no typed income starts with the detected average, rounded', incomePrefill(null, 3187.6) === '3188');
+check('a typed income is never replaced', incomePrefill(2500, 3187.6) === '');
+check('nothing detected leaves the field empty', incomePrefill(null, null) === '' && incomePrefill(null, 0.2) === '');
+check('an untouched prefill is not saved as typed', incomeOverrideToSave('3188', '3188') === null);
+check('a changed figure is saved', incomeOverrideToSave('3300', '3188') === 3300);
+check('an empty or zero income is not saved', incomeOverrideToSave('', '3188') === null && incomeOverrideToSave('0', '') === null);
+check('a typed figure without a prefill is saved', incomeOverrideToSave('3188', '') === 3188);
 
 // Household
 const skipped = buildHousehold({});
