@@ -24,6 +24,7 @@ import {
 } from '@/utils/budgetHealth';
 import { todayKey } from '@/utils/debt';
 import { alertText } from '@/utils/healthAlertText';
+import { forecastNextMonth, type HealthForecast } from '@/utils/healthForecast';
 import {
   buildHealthAlerts,
   enabledAlertTypes,
@@ -53,6 +54,8 @@ export interface HealthSnapshot {
   /** The month before it that has a score, for the "↑4" on the card. */
   previous: HealthHistoryPoint | null;
   history: HealthHistoryPoint[];
+  /** Next month as a typical month; it does not depend on the month asked for. Null with too little data. */
+  forecast: HealthForecast | null;
   input: HealthInput;
 }
 
@@ -62,7 +65,7 @@ export async function loadHealth(db: SQLiteDatabase, profileId: number, month?: 
   const index = indexMonths(input);
   const months = Array.from(index.keys()).sort().reverse();
   const target = month && index.has(month) ? month : months[0];
-  if (!target) return { months, result: null, previous: null, history: [], input };
+  if (!target) return { months, result: null, previous: null, history: [], forecast: null, input };
 
   const result = computeHealth(input, target, index);
   const history = healthHistory(input, target, 12, index);
@@ -74,7 +77,7 @@ export async function loadHealth(db: SQLiteDatabase, profileId: number, month?: 
     if (earlier.score !== null) previous = { month: previousMonth, score: earlier.score };
   }
 
-  return { months, result, previous, history, input };
+  return { months, result, previous, history, forecast: forecastNextMonth(input, index), input };
 }
 
 /** Alerts of the latest month that the user has not answered yet. */

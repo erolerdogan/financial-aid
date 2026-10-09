@@ -65,7 +65,7 @@ export const de: FaqCopy = {
     'Der Wert reicht von 0 bis 100 und verbindet fünf Säulen: Sparquote (30%), Wohnen (20%), Fixkosten (15%), Schuldenzahlungen ohne die Hypothek (20%) und ein Sicherheitspolster (15%). Jede Säule wird mit einer gängigen Faustregel verglichen. Ein Polster, das du nicht eingetragen hast, bleibt außen vor; die anderen Säulen teilen sich sein Gewicht.',
   'faq.plan.income.q': 'Welches Einkommen verwendet der Gesundheitswert?',
   'faq.plan.income.a':
-    'Den Durchschnitt der letzten drei vollständigen Monate mit Einnahmen in deinen Kontoauszügen oder den Betrag, den du selbst eingibst. Solange es keinen Monat mit Einnahmen gibt, wird kein Wert angezeigt.',
+    'Den Durchschnitt der letzten drei vollständigen Monate mit Einnahmen in deinen Kontoauszügen oder den Betrag, den du selbst eingibst. Solange es keinen Monat mit Einnahmen gibt, wird kein Wert angezeigt. Ein ausgezahlter Kredit oder eine andere große einmalige Zahlung zählt nicht als Einkommen.',
   'faq.plan.debts.q': 'Wie findet die App meine Schuldenzahlungen?',
   'faq.plan.debts.a':
     'Jede Schuld hat Stichwörter. Nach jedem Import wird eine Transaktion verknüpft, wenn ein Stichwort mit einem ganzen Wort übereinstimmt und der Betrag nahe an der Monatsrate liegt. Knappe Abweichungen stehen als mögliche Treffer in der Liste und lassen sich von Hand hinzufügen; eine verknüpfte Zahlung kannst du wieder lösen.',

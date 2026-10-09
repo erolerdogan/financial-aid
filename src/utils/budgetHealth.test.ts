@@ -425,6 +425,26 @@ check('last month is complete', !isPartialMonth('2026-09', TODAY));
   check('a future month is partial and has no score', future.partial && future.score === null);
 }
 
+// --- One-off money in ------------------------------------------------------
+{
+  const plain = FULL_MONTHS.flatMap((month) => monthRows(month));
+  const loan = makeInput({ transactions: [...plain, tx('2026-08-14', 12000, 'Income', false, 'Credit Bank')] });
+  near('a loan paid out is not income', detectNetIncome(loan, '2026-09').value, 4000);
+  check('the loan is counted as a one-off', indexMonths(loan).get('2026-08')?.oneOffs === 1);
+
+  const bonus = makeInput({ transactions: [...plain, tx('2026-08-20', 12000, 'Income', false, 'Employer')] });
+  near('a bonus from a known source is income', detectNetIncome(bonus, '2026-09').value, 8000);
+
+  const small = makeInput({ transactions: [...plain, tx('2026-08-14', 600, 'Income', false, 'Aunt')] });
+  near('a small one-off is income', detectNetIncome(small, '2026-09').value, 4200);
+
+  const debtGroup = makeInput({ transactions: [...plain, tx('2026-08-14', 900, 'Loan & Insurance', false, 'Credit Bank')] });
+  near('money in under a debt category is not income', detectNetIncome(debtGroup, '2026-09').value, 4000);
+
+  const first = makeInput({ transactions: [...monthRows('2026-09'), tx('2026-09-14', 12000, 'Income', false, 'Credit Bank')] });
+  near('one month alone cannot tell a one-off', detectNetIncome(first, '2026-09').value, 16000);
+}
+
 // --- History -------------------------------------------------------------
 {
   const input = makeInput({}, { '2026-08': { housing: 1800 } });

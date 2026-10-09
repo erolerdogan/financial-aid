@@ -66,7 +66,7 @@ export const fr: FaqCopy = {
     'Le score va de 0 à 100 et réunit cinq piliers : taux d’épargne (30 %), logement (20 %), dépenses fixes (15 %), remboursements de dettes hors crédit immobilier (20 %) et épargne de précaution (15 %). Chaque pilier est comparé à un repère courant. Une épargne de précaution que vous n’avez pas saisie est laissée de côté, et les autres piliers se partagent son poids.',
   'faq.plan.income.q': 'Quel revenu le score de santé utilise-t-il ?',
   'faq.plan.income.a':
-    'La moyenne des trois derniers mois complets de revenus dans vos relevés, ou le montant que vous saisissez vous-même. Tant qu’il n’y a pas de mois avec des revenus, aucun score n’est affiché.',
+    'La moyenne des trois derniers mois complets de revenus dans vos relevés, ou le montant que vous saisissez vous-même. Tant qu’il n’y a pas de mois avec des revenus, aucun score n’est affiché. Un prêt versé ou un autre versement ponctuel important n’est pas compté comme revenu.',
   'faq.plan.debts.q': 'Comment l’application trouve-t-elle mes remboursements de dettes ?',
   'faq.plan.debts.a':
     'Chaque dette a des mots-clés. Après chaque import, une transaction est associée quand un mot-clé correspond à un mot entier et que le montant est proche de la mensualité. Les cas approchants sont listés comme correspondances possibles à ajouter à la main, et un paiement associé peut être dissocié.',
