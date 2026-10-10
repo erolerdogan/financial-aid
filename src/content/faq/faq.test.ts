@@ -69,7 +69,7 @@ for (const { code } of LANGUAGES) {
   }
 }
 check('translate fills the bank list', faqTranslate('en', 'faq.import.banks.a', params).includes('ING, bunq'));
-check('translate fills an app label', faqTranslate('en', 'faq.privacy.delete.a', params).startsWith('Settings → Reset'));
+check('translate fills an app label', faqTranslate('en', 'faq.privacy.delete.a', params).startsWith('You → Reset'));
 check('translate keeps unknown placeholders', faqTranslate('en', 'faq.import.banks.a').includes('{banks}'));
 
 if (failures > 0) {

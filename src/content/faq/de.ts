@@ -40,6 +40,9 @@ export const de: FaqCopy = {
   'faq.import.coverage.a':
     'Der Auszugshinweis auf {home} zeigt, wie viel vom gewählten Monat deine Kontoauszüge abdecken: noch keine Daten, der laufende Monat, ein vergangener Monat mit fehlenden Tagen oder der ganze Monat. Ein vergangener Monat mit fehlenden Tagen steht außerdem unter {forYou}.',
 
+  'faq.import.manual.q': 'Kann ich eine Transaktion von Hand hinzufügen?',
+  'faq.import.manual.a':
+    'Ja. Tippe auf das + in der Mitte der Tableiste und wähle Ausgabe oder Einnahme; gib dann Betrag, Beschreibung, Datum und Kategorie ein. Eine selbst eingegebene Transaktion kannst du in ihrer Detailansicht löschen. Importierst du später einen Kontoauszug mit derselben Zahlung, kommt sie ein zweites Mal hinzu; lösche dann deinen eigenen Eintrag.',
   'faq.categories.title': 'Kategorien und Budgets',
   'faq.categories.how.q': 'Wie werden Transaktionen kategorisiert?',
   'faq.categories.how.a':
@@ -79,7 +82,10 @@ export const de: FaqCopy = {
   'faq.privacy.title': 'Datenschutz und Backups',
   'faq.privacy.where.q': 'Wo werden meine Daten gespeichert?',
   'faq.privacy.where.a':
-    'In einer Datenbank auf deinem Gerät. Es gibt kein Konto und keinen Server, der deine Daten erhält, und die App enthält weder Analyse noch Werbung.',
+    'In einer Datenbank auf deinem Gerät. Kein Server erhält deine Finanzdaten, und die App enthält weder Analyse noch Werbung.',
+  'faq.privacy.account.q': 'Brauche ich ein Konto?',
+  'faq.privacy.account.a':
+    'Nein. Die App funktioniert ohne Konto. Ein Konto ist nur für einen Kauf in der App nötig, damit dir der Kauf auf einem neuen Handy erhalten bleibt. Es speichert deine E-Mail-Adresse, eine Konto-ID und das Erstellungsdatum; deine Finanzdaten verlassen dein Handy nie. Das Konto löschst du unter {settings} → {account}.',
   'faq.privacy.lost.q': 'Was, wenn ich mein Telefon verliere oder die App lösche?',
   'faq.privacy.lost.a':
     'Deine Daten gibt es nur auf deinem Gerät, ohne Backup lassen sie sich also nicht wiederherstellen. Erstelle regelmäßig ein Backup und bewahre es sicher auf; die App erinnert dich nach 30 Tagen daran.',

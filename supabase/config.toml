@@ -1,0 +1,6 @@
+# Settings of the edge functions (docs/account.md). The project itself is configured in the Supabase
+# dashboard; link this folder to it with `supabase link --project-ref <ref>`.
+
+[functions.delete-account]
+# The platform rejects a request without a valid user token before the function runs.
+verify_jwt = true

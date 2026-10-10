@@ -5,16 +5,19 @@ export const tr: LegalCopy = {
 
   'privacy.title': 'Gizlilik politikası',
   'privacy.description':
-    'Financial Aid verilerinizi cihazınızda saklar ve toplamaz. Bu sayfa bunun ne anlama geldiğini açıklar.',
+    'Financial Aid finansal verilerinizi cihazınızda saklar ve toplamaz. Bu sayfa bunun ne anlama geldiğini açıklar.',
   'privacy.updated': 'Son güncelleme: {date}',
   'privacy.summary':
     'Kısacası: Financial Aid finansal verilerinizi toplamaz, yüklemez ve paylaşmaz. Veriler cihazınızda kalır.',
   'privacy.s1Title': 'Uygulamanın sakladığı veriler',
   'privacy.s1Text':
-    'İçe aktardığınız ekstreler ile oluşturduğunuz kategoriler, bütçeler, borçlar, planlar ve ayarlar cihazınızdaki bir veritabanında saklanır. Uygulamada hesap yoktur ve bu verileri alan bir sunucu yoktur.',
+    'İçe aktardığınız ekstreler ile oluşturduğunuz kategoriler, bütçeler, borçlar, planlar ve ayarlar cihazınızdaki bir veritabanında saklanır. Hesabınız olsun veya olmasın, bu verileri hiçbir sunucu almaz.',
   'privacy.s2Title': 'Uygulamanın topladığı veriler',
   'privacy.s2Text':
-    'Yok. Uygulamada analitik, reklam ve izleme bulunmaz; uygulama verilerinizle hiçbir ağ isteği yapmaz. Uygulamanın yaptığı tek istek: bir profilin para birimini değiştirdiğinizde günün döviz kurlarını exchangerate-api.com adresinden indirir. Bu istek verilerinizden hiçbirini içermez ve hangi para birimlerini kullandığınızı belirtmez; her internet isteğinde olduğu gibi bu hizmet IP adresinizi görür.',
+    'Finansal veri toplanmaz. Uygulamada analitik, reklam ve izleme bulunmaz; uygulama finansal verilerinizle hiçbir ağ isteği yapmaz. İki tür istek yapar. Bir profilin para birimini değiştirdiğinizde günün döviz kurlarını exchangerate-api.com adresinden indirir; bu istek verilerinizden hiçbirini içermez ve hangi para birimlerini kullandığınızı belirtmez. Aşağıda açıklanan isteğe bağlı hesabı oluşturursanız, giriş sırasında e-posta adresiniz veya Apple ya da Google’ın giriş belirteci hesap hizmetine gönderilir. Her internet isteğinde olduğu gibi, bu hizmetler IP adresinizi görür.',
+  'privacy.s9Title': 'İsteğe bağlı hesap',
+  'privacy.s9Text':
+    'Uygulamayı hesap olmadan kullanabilirsiniz. Hesap yalnızca uygulama içi satın alma için gerekir; böylece satın alım başka bir cihazda geri yüklenebilir. Hesap oluşturursanız e-posta adresinizi, bir hesap kimliğini ve hesabın oluşturulduğu tarihi saklarız, başka hiçbir şeyi saklamayız. Apple ile, Google ile veya e-posta adresinize gönderilen bir bağlantıyla giriş yaparsınız; Apple ve Google kim olduğunuzu doğrular ve uygulamadan hiçbir veri almaz. Hesap, onu bizim adımıza işleyen bir barındırma hizmeti olan Supabase’te saklanır. Finansal verileriniz hiçbir zaman hesabın parçası olmaz ve cihazınızdan asla çıkmaz.',
   'privacy.s3Title': 'İçe aktardığınız, kaydettiğiniz ve paylaştığınız dosyalar',
   'privacy.s3Text':
     'Ekstre dosyaları cihazda okunur. Yedekler, dışa aktarılan işlemler ve PDF raporlar cihazda oluşturulur ve yalnızca sizin seçtiğiniz yere kaydedilir veya paylaşılır. Bunları bir bulut hizmetinde saklarsanız o hizmetin gizlilik politikası geçerli olur.',
@@ -22,7 +25,7 @@ export const tr: LegalCopy = {
   'privacy.s4Text': 'İçe aktarma hatırlatıcıları ve uyarılar cihazda planlanır. Bir sunucudan gönderilmezler.',
   'privacy.s5Title': 'Verilerinizi silme',
   'privacy.s5Text':
-    'Ayarlar’da tüm verileri ve profilleri sıfırlama seçeneği vardır. Uygulamayı silmek veritabanını cihazdan kaldırır. Başka bir yere kaydettiğiniz yedek dosyalarını sizin silmeniz gerekir.',
+    '“Siz” sekmesinde tüm verileri ve profilleri sıfırlama seçeneği vardır. Uygulamayı silmek veritabanını cihazdan kaldırır. Başka bir yere kaydettiğiniz yedek dosyalarını sizin silmeniz gerekir. Hesabınızı Siz → Hesap bölümünden silebilirsiniz; bu işlem e-posta adresinizi hesap hizmetinden kaldırır ve cihazınızdaki verilere dokunmaz.',
   'privacy.s6Title': 'Bu web sitesi',
   'privacy.s6Text':
     'Bu web sitesi çerez ve analitik kullanmaz. Site GitHub Pages üzerinde barındırılır; GitHub, IP adresi gibi teknik verileri kaydedebilir. Ayrıntılar için: {link}.',
@@ -49,13 +52,13 @@ export const tr: LegalCopy = {
   'terms.s3Link': 'sorumluluk reddi',
   'terms.s4Title': 'Verileriniz ve yedekleriniz',
   'terms.s4Text':
-    'Verileriniz, {link} sayfasında açıklandığı gibi yalnızca cihazınızda saklanır. Onları göremeyiz, geri yükleyemeyiz veya kurtaramayız. Yedek almak ve yedekleri güvende tutmak sizin sorumluluğunuzdadır. Bir yedeğe koyduğunuz parola sıfırlanamaz: parola olmadan yedek açılamaz.',
+    'Finansal verileriniz, {link} sayfasında açıklandığı gibi yalnızca cihazınızda saklanır. Onları göremeyiz, geri yükleyemeyiz veya kurtaramayız. Yedek almak ve yedekleri güvende tutmak sizin sorumluluğunuzdadır. Bir yedeğe koyduğunuz parola sıfırlanamaz: parola olmadan yedek açılamaz.',
   'terms.s4Link': 'gizlilik politikası',
   'terms.s5Title': 'Doğruluk',
   'terms.s5Text':
     'Uygulama birçok bankanın dosyasını okur ve işlemleri otomatik olarak sınıflandırır. Tutarlar, kategoriler, eşleştirilen borç ödemeleri ve toplamlar yanlış veya eksik olabilir. Önemli rakamları bankanızın ekstreleriyle karşılaştırın; esas olan onlardır.',
   'terms.s6Title': 'Açık kaynak yazılım',
-  'terms.s6Text': 'Uygulama açık kaynak yazılım içerir. Lisanslar uygulamada Ayarlar altında listelenir.',
+  'terms.s6Text': 'Uygulama açık kaynak yazılım içerir. Lisanslar uygulamada “Siz” sekmesinde listelenir.',
   'terms.s7Title': 'Garanti verilmez',
   'terms.s7Text':
     'Yasaların izin verdiği ölçüde uygulama, hiçbir garanti verilmeden olduğu gibi sunulur. Hatasız olduğunu, her dosyayı okuyacağını veya her zaman kullanılabilir kalacağını taahhüt etmiyoruz.',

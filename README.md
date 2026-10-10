@@ -24,6 +24,8 @@ Built with React Native, Expo SDK 57, TypeScript, Expo Router and expo-sqlite.
    npx expo start
    ```
 
+The optional account needs the keys of an account service: copy `.env.example` to `.env` and follow `docs/account.md`. Without them the app builds and runs with no account screens.
+
 Other commands:
 
 ```bash
@@ -32,11 +34,11 @@ npx tsc --noEmit   # type check (also run in CI)
 npm test           # every src/**/*.test.ts with tsx; "npm test -- freedom" runs matching files
 ```
 
-The first launch opens with a short animated intro (about 23 seconds, tap to move on, "Skip" at any time) that says what the app is for; it plays once and "Replay intro" on the welcome screen shows it again. The welcome screen then offers two paths: "Get started" asks a few optional questions about the profile (name, colour, currency, household, net monthly income, savings buffer), lets you pick a colour theme with light or dark mode and set a passcode lock, and ends on a step where you pick your first statement, "Explore With Demo" opens the demo workspace to explore the app with sample data. A backup from another device or an earlier install can be restored from the same screen.
+The first launch opens with a short animated intro (about 23 seconds, tap to move on, "Skip" at any time) that says what the app is for; it plays once and "Replay intro" on the welcome screen shows it again. The welcome screen then offers two paths: "Get started" asks a few optional questions about the profile (name, colour, currency, household, net monthly income, savings buffer), lets you pick a colour theme with light or dark mode and set a passcode lock, shows what Pro adds (skippable), offers an optional account, and ends on a step where you pick your first statement, "Explore With Demo" opens the demo workspace to explore the app with sample data. A backup from another device or an earlier install can be restored from the same screen.
 
 ### Website
 
-The app has a static website in the same nine languages: a home page, a page per feature (statement import, Budget Health, debts, Future Growth, backup), the bank export guides (one page per bank per language, for search traffic), FAQ, support, privacy policy, terms of use, disclaimer and changelog. The guide pages are generated from the same data and translations as the in-app guides, and the FAQ is the text the app shows under Settings → About (`src/content/faq/`); the rest of the text is in `src/content/site/`.
+The app has a static website in the same nine languages: a home page, a page per feature (statement import, Budget Health, debts, Future Growth, backup), the bank export guides (one page per bank per language, for search traffic), FAQ, support, privacy policy, terms of use, disclaimer and changelog. The guide pages are generated from the same data and translations as the in-app guides, and the FAQ is the text the app shows under You → Help & about (`src/content/faq/`); the rest of the text is in `src/content/site/`.
 
 ```bash
 npm run site       # writes site-dist/
@@ -56,7 +58,7 @@ npm run site       # writes site-dist/
 - Import from the share sheet: export the statement in your bank app, choose Share and pick Financial Aid. The file is imported into the active profile, the same way as a picked file.
 - Recognises the export layouts of ING, ABN AMRO, Rabobank, bunq, Revolut, Wise and N26 from the header row and reads each with its own column map: pending, reverted and cancelled rows are left out, fees are included in the amount, and day-first dates are not flagged. The summary sheet names the recognised bank. Files from other banks are read by guessing the columns from their headers.
 - Reads text files in UTF-8, UTF-16 or Windows-1252.
-- Export guides: "Statement help" on the welcome screen and "How do I get my statement?" on the empty Home screen and in Settings open a short, numbered guide per bank (ING, Rabobank, ABN AMRO, bunq, Revolut, N26, Wise, plus general steps for any other bank) showing where the bank keeps its CSV or Excel download. The bank's menu names are shown as the bank spells them. The "File Not Supported" and "No Transactions Found" alerts link to the same guides.
+- Export guides: "Statement help" on the welcome screen and "How do I get my statement?" on the empty Home screen and in the You tab open a short, numbered guide per bank (ING, Rabobank, ABN AMRO, bunq, Revolut, N26, Wise, plus general steps for any other bank) showing where the bank keeps its CSV or Excel download. The bank's menu names are shown as the bank spells them. The "File Not Supported" and "No Transactions Found" alerts link to the same guides.
 - Skips duplicates, so importing overlapping statements is safe.
 - Shows a summary sheet after each import: transactions added, date range covered, income and spending totals, duplicates skipped, dates that need checking and debt payments linked.
 - Builds a readable merchant name per transaction: prefers the counterparty name, strips payment processor prefixes, card and terminal codes, reference numbers, IBANs and dates, and shows well-known shops under one name (for example "Albert Heijn" for every store). A row with nothing readable gets its payment type as title instead of a code.
@@ -70,7 +72,7 @@ npm run site       # writes site-dist/
 - Money coming in is never filed under a spending category by the built-in keywords; it is "Income", or "Financial Transfers" for savings and investment accounts.
 - Your own rules match whole words (or the start of a word for keywords of 5 or more characters); when several match, the longest wins.
 - Review screen: the Transactions screen shows how many transactions are uncategorised at the top of the list. The review list groups them per merchant, largest first; picking a category once applies it to all of that merchant's transactions and to future imports.
-- Quick add: open a category on Home, in Budget Health, in Trends or in Settings → Categories and tap "Add uncategorised" to see every uncategorised transaction grouped per merchant. Tick whole merchants or single transactions, search, or select all, then add them to that category in one tap. With "Remember these merchants" on, a merchant selected completely also gets a rule for future imports.
+- Quick add: open a category on Home, in Budget Health, in Trends or in You → Categories and tap "Add uncategorised" to see every uncategorised transaction grouped per merchant. Tick whole merchants or single transactions, search, or select all, then add them to that category in one tap. With "Remember these merchants" on, a merchant selected completely also gets a rule for future imports.
 - The review list suggests a category where it can (your earlier choices, a similar merchant, a word in the bank text, or a monthly direct debit) and shows why; one tap accepts it.
 - Reads the counterparty IBAN and payment type (direct debit, card, online, transfer) from the bank's columns or from the description text. A merchant is recognised by its IBAN when it has one of its own (not for card payments, iDEAL or payment processors).
 - The built-in keywords are tuned for Dutch banks and merchants, with some English and Turkish terms. The most specific (longest) keyword wins, and short names such as NS or AH only match as whole words.
@@ -92,7 +94,7 @@ npm run site       # writes site-dist/
   - **In Progress**: the current month, partway through.
   - **Partial Statement**: a past month with incomplete date coverage.
   - **Full Statement**: the whole month is covered.
-- Profile switcher, "For You" bell and settings in the header of every tab; transaction search in the header of Home and Trends.
+- The same calm header on every tab: the active profile's avatar on the left (tap to switch profile, or "Manage profiles"), transaction search and the "For You" bell on the right.
 
 ### For You (bell)
 
@@ -103,7 +105,7 @@ npm run site       # writes site-dist/
 
 ### Transactions
 
-- Opened from the search icon in the Home or Trends header (the search field is ready to type in), from "See all" on Home, or from "Review" after an import. It is a screen with a back button, not a tab.
+- Opened from the search icon in any tab header (the search field is ready to type in), from "See all" on Home, or from "Review" after an import. It is a screen with a back button, not a tab.
 - Live search by merchant, description or category; results update while typing.
 - Filter by date range and by category chips.
 - The month or range you pick is shared with Home.
@@ -138,7 +140,7 @@ npm run site       # writes site-dist/
 
 ### Budgets
 
-- Set a monthly spending limit per category (Home → Budgets, or Settings).
+- Set a monthly spending limit per category (Home → Budgets, or You → Budgets).
 - Progress bars show spent versus limit, on the Budgets screen and on Home.
 
 ### Debts
@@ -192,8 +194,8 @@ npm run site       # writes site-dist/
 
 ### Swipe between tabs
 
-- Swipe left or right anywhere on a screen to move to the next or previous tab: Home, Trends, Plan. On the Plan tab the swipe steps through Debts, Health and Future Growth first.
-- Areas with their own horizontal gesture keep it: the Trends chart, the category filter rows and the debt cards.
+- Swipe left or right anywhere on a screen to move to the next or previous tab: Home, Trends, Plan, You. The add button in the middle of the tab bar is not a tab and is skipped. On the Plan tab the swipe steps through Debts, Health and Future Growth first.
+- Areas with their own horizontal gesture keep it: the Trends chart, the category filter rows, the debt cards and the theme swatches.
 
 ### Profiles
 
@@ -202,13 +204,24 @@ npm run site       # writes site-dist/
 - Each profile has its own name, avatar colour and currency.
 - A new profile starts with a short questionnaire: name, colour, currency, household, net monthly income and savings buffer. Every step can be skipped.
 
-### Settings
+### Add button
 
+- The round "+" in the middle of the tab bar opens a short menu: Add expense, Add income, Import statement.
+- Add expense / Add income: type an amount, a description, a date (not in the future) and pick a category; the category is suggested from the description by the same rules as an import. The transaction counts everywhere an imported one does.
+- A transaction entered by hand is marked "Added by hand" in its detail sheet and can be deleted there; imported transactions cannot be deleted one by one.
+- A statement imported later that contains the same payment adds it a second time, because the bank's text differs from yours. Delete the hand-entered one then.
+- Import statement opens the same file picker as everywhere else (CSV, Excel, and PDF with Pro).
+
+### You tab
+
+- Everything that used to be in Settings, in six groups: Profiles & household, Account & subscription, Preferences, Security & privacy, Data & storage (import, backup, reset), Help & about.
+- Profiles & household: switch, add, rename and delete profiles, edit the household answers (adults, children, rent or own, income, savings buffer) and change the currency.
+- Help & about: watch the intro again, the FAQ, "Contact support" (opens your mail app; only the app version and platform are filled in), Terms of Use and the version.
 - Currency: more than 150 currencies, picked from a list with search; each is shown with its own decimals (none for yen, three for Kuwaiti dinar). Switching currency downloads the exchange rate of the day, shows it and converts the stored amounts (transactions, budgets, debts, household amounts) after a confirmation; it needs a connection. Rates by [Exchange Rate API](https://www.exchangerate-api.com).
-- Language: English, Dutch, German, Turkish, Spanish, French, Italian, Portuguese and Russian. The app follows the device language until you pick one in Settings → Language; the choice is remembered. Built-in category names, numbers, dates and reminder notifications follow the language. Translations have not been reviewed by native speakers yet.
+- Language: English, Dutch, German, Turkish, Spanish, French, Italian, Portuguese and Russian. The app follows the device language until you pick one in You → Language; the choice is remembered. Built-in category names, numbers, dates and reminder notifications follow the language. Translations have not been reviewed by native speakers yet.
 - Six colour themes (Aurora, Classic, Midnight Gold, Sunset, Forest Mint, Orchid; Aurora is the default) with gradient accents, each in light and dark; the choice is remembered. Dark mode follows the system until you toggle it.
 - Import reminders: local notifications on the 15th and 28th of each month. Importing a statement cancels the pending reminders.
-- Passcode lock: an optional six-digit passcode (Settings → Security), asked every time the app is opened or brought back to the front; the app's content is hidden in the app switcher on iOS. After five wrong tries the app makes you wait, from one minute up to an hour. Only a salted hash is stored, on the device and outside backups. A forgotten passcode cannot be recovered: reinstall the app and restore a backup.
+- Passcode lock: an optional six-digit passcode (You → Data), asked every time the app is opened or brought back to the front; the app's content is hidden in the app switcher on iOS. After five wrong tries the app makes you wait, from one minute up to an hour. Only a salted hash is stored, on the device and outside backups. A forgotten passcode cannot be recovered: reinstall the app and restore a backup.
 - Reset all data and profiles.
 - Copy text: long-press a text that is not a button or a tappable row (a merchant name, an amount, the bank description, an export guide step, the legal texts, a result figure, the app version) to copy it.
 - About: Frequently asked questions answers how the app works in six groups (getting started, importing statements, categories and budgets, the Plan tab, privacy and backups, profiles and settings); tap a question to open its answer. Personal Data & Privacy explains in a few lines what is stored on the device, that nothing is collected, where saved files go and how to delete everything. The same screen holds the legal documents: Privacy Policy, Terms of Use and Disclaimer open inside the app, in the app's language and without a connection, and Open-Source Licenses lists the packages the app is built with and their license texts. Rate the App and Write a Review open the app's page in the App Store or Google Play. The app version is the last row. The welcome screen links to the terms and the privacy policy.
@@ -222,8 +235,18 @@ npm run site       # writes site-dist/
 - Always free: backup and restore, export, deleting, the passcode lock, all languages and categorisation.
 - Nothing is removed without Pro. Profiles, budgets and debts beyond the free limits stay visible and can be deleted; they are read-only, marked "Renew to edit".
 - Pro features stay visible with a "Pro" badge; a tap shows what Pro adds. The app offers Pro unasked once, after the first import, and as a quiet item under the bell that can be dismissed.
-- Settings → Subscription shows the plan, "See Pro" and "Restore purchases".
-- No account and no tracking, also with Pro.
+- You → Account & subscription shows the plan, "See Pro" and "Restore purchases".
+- No tracking, also with Pro. Buying or restoring Pro asks you to sign in first, so the purchase stays with you on a new phone.
+
+### Account (optional)
+
+- The app works without an account. An account is needed only to buy or restore Pro.
+- Sign in with Apple (iOS), with Google, or with a link sent to your email address. There are no passwords.
+- The account stores your email address, an account ID and the date it was created. Your financial data never leaves your phone.
+- Offered once after the first-launch questions ("Continue without account" skips it), right before a purchase, and under You → Account.
+- A signed-in user stays signed in offline. Signing out leaves the data on the phone as it is.
+- You → Account → Delete Account removes the account from the server. The data on the phone stays, unless you choose "Delete Account and Erase Data".
+- A build made without the account service keys has no account screens.
 
 ### Demo workspace
 
@@ -233,7 +256,7 @@ npm run site       # writes site-dist/
 
 ### Backup and restore
 
-- Settings → Backup & Restore saves one file with all profiles (transactions, categories, rules, goals, debts). You choose where it goes (Files, iCloud Drive, AirDrop); the app does not upload it.
+- You → Backup & Restore saves one file with all profiles (transactions, categories, rules, goals, debts). You choose where it goes (Files, iCloud Drive, AirDrop); the app does not upload it.
 - A backup can be protected with a password (at least 8 characters): the file (`.fabackup`) is then encrypted with AES-256-GCM, the key derived from the password with scrypt. A forgotten password cannot be recovered. Without a password the backup is a plain, unencrypted `.db` file.
 - "Restore backup" is also on the welcome screen, so a new or reinstalled device needs no statement import first.
 - Restore replaces all data on the device with the backup; nothing is merged. Before anything changes, the app shows what is in the backup, what is on the device, and whether the device has newer transactions that would be removed.
@@ -243,7 +266,7 @@ npm run site       # writes site-dist/
 
 ## Privacy
 
-The app makes no network calls with user data. Statements are read on the device, and everything is stored in a local SQLite database. The only request the app makes is for the exchange rates of the day when a profile switches currency: always the same request, with no user data in it.
+The app makes no network calls with financial data. Statements are read on the device, and everything is stored in a local SQLite database. Two things use the network. The exchange rates of the day are downloaded when a profile switches currency: always the same request, with no user data in it. And the optional account sends your email address, or the sign-in token of Apple or Google, to the account service (Supabase), which stores the email address, an account ID and a creation date; nothing from the database is ever part of it.
 
 ## Tech stack
 
@@ -259,28 +282,31 @@ The app makes no network calls with user data. Statements are read on the device
 | Notifications | expo-notifications |
 | PDF report | expo-print, expo-sharing |
 | Languages | expo-localization, own dictionary in `src/i18n` |
-| State | React Context (`ProfileContext`, `ThemeContext`, `LanguageContext`) |
+| Account | @supabase/supabase-js (auth only), expo-secure-store, expo-apple-authentication, @react-native-google-signin/google-signin |
+| State | React Context (`ProfileContext`, `ThemeContext`, `LanguageContext`, `AuthContext`) |
 
 ## Project structure
 
 ```
 src/
   app/            Routes (Expo Router)
-    (tabs)/       Home, Trends, Plan (Debts | Health | Future Growth)
+    (tabs)/       Home, Trends, Plan (Debts | Health | Future Growth), You
     transactions.tsx  Transactions (pushed screen)
     welcome.tsx   First-launch screen
-    settings.tsx  Settings (modal)
+    add-transaction.tsx  Manual entry (modal)
+    settings.tsx  Redirect to the You tab
     goals.tsx     Budgets (modal)
     categories.tsx  Categories (modal)
     health-report.tsx  Monthly health report (modal)
   components/     Shared components, dashboard cards and modals
-  contexts/       Profile, period, theme and language contexts
+  contexts/       Profile, period, theme, language and account contexts
   db/             Schema, queries and demo seed data
-  services/       Statement import
+  services/       Statement import, exchange rates, account, purchases
   hooks/          Shared hooks
   i18n/           Translations (`locales/*.ts`), number and date formatting
   utils/          Parsing, notifications and debt helpers
-docs/             How each feature works inside (import, classifier, debts, freedom, health, backup, navigation, i18n, website)
+docs/             How each feature works inside (import, classifier, debts, freedom, health, backup, navigation, i18n, account, website)
+supabase/         Edge function that deletes an account (Deno)
 scripts/          Website build (`build-site.ts`, `site/`), test runner
 site/             Images for the website (social preview, screenshots)
 ```

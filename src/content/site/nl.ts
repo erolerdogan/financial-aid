@@ -24,8 +24,8 @@ export const nl: SiteCopy = {
   'home.lead':
     'Importeer het afschrift dat je bij je bank kunt downloaden. Financial Aid sorteert de transacties, houdt budgetten en schulden bij en bewaart alles op je telefoon.',
   'home.screen': 'Startscherm',
-  'home.point1Title': 'Geen account',
-  'home.point1Text': 'Open de app en begin. Je hoeft je nergens voor aan te melden.',
+  'home.point1Title': 'Geen account nodig',
+  'home.point1Text': 'Open de app en begin. Een account aanmaken is optioneel.',
   'home.point2Title': 'Geen koppeling met je bank',
   'home.point2Text': 'Je importeert zelf een CSV- of Excel-bestand. De app vraagt nooit om je bankgegevens.',
   'home.point3Title': 'Niets geüpload',

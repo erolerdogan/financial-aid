@@ -24,8 +24,8 @@ export const tr: SiteCopy = {
   'home.lead':
     'Bankanızdan indirebildiğiniz ekstreyi içe aktarın. Financial Aid işlemleri sıralar, bütçeleri ve borçları takip eder ve her şeyi telefonunuzda tutar.',
   'home.screen': 'Ana ekran',
-  'home.point1Title': 'Hesap yok',
-  'home.point1Text': 'Uygulamayı açın ve başlayın. Kaydolmanız gereken bir yer yok.',
+  'home.point1Title': 'Hesap gerekmez',
+  'home.point1Text': 'Uygulamayı açın ve başlayın. Hesap oluşturmak isteğe bağlıdır.',
   'home.point2Title': 'Banka bağlantısı yok',
   'home.point2Text':
     'CSV veya Excel dosyasını kendiniz içe aktarırsınız. Uygulama banka giriş bilgilerinizi asla istemez.',

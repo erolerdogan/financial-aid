@@ -5,16 +5,19 @@ export const es: LegalCopy = {
 
   'privacy.title': 'Política de privacidad',
   'privacy.description':
-    'Financial Aid guarda tus datos en tu dispositivo y no los recopila. Esta página explica qué significa eso.',
+    'Financial Aid guarda tus datos financieros en tu dispositivo y no los recopila. Esta página explica qué significa eso.',
   'privacy.updated': 'Última actualización: {date}',
   'privacy.summary':
     'En resumen: Financial Aid no recopila, sube ni comparte tus datos financieros. Se quedan en tu dispositivo.',
   'privacy.s1Title': 'Datos que guarda la app',
   'privacy.s1Text':
-    'Los extractos que importas y las categorías, presupuestos, deudas, planes y ajustes que creas se guardan en una base de datos en tu dispositivo. La app no tiene cuentas ni un servidor que reciba estos datos.',
+    'Los extractos que importas y las categorías, presupuestos, deudas, planes y ajustes que creas se guardan en una base de datos en tu dispositivo. Ningún servidor recibe estos datos, tengas cuenta o no.',
   'privacy.s2Title': 'Datos que recopila la app',
   'privacy.s2Text':
-    'Ninguno. La app no contiene analíticas, publicidad ni seguimiento, y no hace peticiones de red con tus datos. La única solicitud que hace la app: cuando cambias la moneda de un perfil, descarga los tipos de cambio del día de exchangerate-api.com. Esta solicitud no contiene ninguno de tus datos ni indica qué monedas usas; como en cualquier solicitud de internet, ese servicio ve tu dirección IP.',
+    'Ningún dato financiero. La app no contiene analíticas, publicidad ni seguimiento, y no hace peticiones de red con tus datos financieros. Hace dos tipos de peticiones. Cuando cambias la moneda de un perfil, descarga los tipos de cambio del día de exchangerate-api.com; esta petición no contiene ninguno de tus datos ni indica qué monedas usas. Y si creas la cuenta opcional que se describe más abajo, al iniciar sesión se envía tu correo electrónico o el token de acceso de Apple o Google al servicio de cuentas. Como en cualquier petición de internet, estos servicios ven tu dirección IP.',
+  'privacy.s9Title': 'La cuenta opcional',
+  'privacy.s9Text':
+    'Puedes usar la app sin cuenta. La cuenta solo hace falta para una compra dentro de la app, para que la compra pueda restaurarse en otro dispositivo. Si creas una, guardamos tu correo electrónico, un identificador de cuenta y la fecha en que se creó la cuenta, y nada más. Inicias sesión con Apple, con Google o con un enlace enviado a tu correo electrónico; Apple y Google confirman quién eres y no reciben ningún dato de la app. La cuenta se guarda en Supabase, un servicio de alojamiento que la trata por encargo nuestro. Tus datos financieros nunca forman parte de la cuenta y nunca salen de tu dispositivo.',
   'privacy.s3Title': 'Archivos que importas, guardas y compartes',
   'privacy.s3Text':
     'Los extractos se leen en el dispositivo. Las copias de seguridad, las transacciones exportadas y los informes en PDF se crean en el dispositivo y solo se guardan o comparten donde tú elijas. Si los guardas en un servicio en la nube, se aplica la política de privacidad de ese servicio.',
@@ -23,7 +26,7 @@ export const es: LegalCopy = {
     'Los recordatorios de importación y los avisos se programan en el dispositivo. No se envían desde un servidor.',
   'privacy.s5Title': 'Eliminar tus datos',
   'privacy.s5Text':
-    'En Ajustes hay una opción para restablecer todos los datos y perfiles. Al eliminar la app se borra su base de datos del dispositivo. Las copias de seguridad que hayas guardado en otro lugar tienes que borrarlas tú.',
+    'En la pestaña «Tú» hay una opción para restablecer todos los datos y perfiles. Al eliminar la app se borra su base de datos del dispositivo. Las copias de seguridad que hayas guardado en otro lugar tienes que borrarlas tú. Puedes eliminar tu cuenta en Tú → Cuenta; así se borra tu correo electrónico del servicio de cuentas y los datos de tu dispositivo se quedan como están.',
   'privacy.s6Title': 'Este sitio web',
   'privacy.s6Text':
     'Este sitio web no usa cookies ni analíticas. Está alojado en GitHub Pages, que puede registrar datos técnicos como las direcciones IP; consulta la {link}.',
@@ -49,13 +52,13 @@ export const es: LegalCopy = {
   'terms.s3Link': 'aviso legal',
   'terms.s4Title': 'Tus datos y copias de seguridad',
   'terms.s4Text':
-    'Tus datos se guardan solo en tu dispositivo, como se explica en la {link}. No podemos verlos, restaurarlos ni recuperarlos. Hacer copias de seguridad y guardarlas en un lugar seguro depende de ti. La contraseña que pongas a una copia no se puede restablecer: sin ella, la copia no se puede abrir.',
+    'Tus datos financieros se guardan solo en tu dispositivo, como se explica en la {link}. No podemos verlos, restaurarlos ni recuperarlos. Hacer copias de seguridad y guardarlas en un lugar seguro depende de ti. La contraseña que pongas a una copia no se puede restablecer: sin ella, la copia no se puede abrir.',
   'terms.s4Link': 'política de privacidad',
   'terms.s5Title': 'Exactitud',
   'terms.s5Text':
     'La app lee archivos de muchos bancos y clasifica los movimientos automáticamente. Los importes, las categorías, los pagos de deudas vinculados y los totales pueden ser incorrectos o estar incompletos. Comprueba las cifras importantes con los extractos de tu banco, que son los que valen.',
   'terms.s6Title': 'Software de código abierto',
-  'terms.s6Text': 'La app incluye software de código abierto. Sus licencias aparecen en la app, en Ajustes.',
+  'terms.s6Text': 'La app incluye software de código abierto. Sus licencias aparecen en la app, en la pestaña «Tú».',
   'terms.s7Title': 'Sin garantía',
   'terms.s7Text':
     'En la medida en que la ley lo permita, la app se ofrece tal cual, sin garantía de ningún tipo. No prometemos que no tenga errores, que lea todos los archivos ni que siga estando disponible.',

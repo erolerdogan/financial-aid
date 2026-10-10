@@ -115,7 +115,7 @@ In `src/components/health/`:
 - `ForecastCard`: "Next month · est." between the score card and the pillars (see Forecast): income, fixed costs, flexible, left over, the months it is based on, the suggestions. Hidden while there is no forecast.
 - `PillarRow`, `CategoryRangeRow`, `HouseholdSheet`, `BenchmarkGroupSheet`, `ScoreHistoryChart`.
 - `HouseholdFields`: the people steppers with rent / own, and the income and savings inputs, shared by `HouseholdSheet` and the profile questions.
-- `HealthOptions` / `HealthOptionsSheet`: the bottom sheet opened from the ⋯ button in the top row of the segment (right of "How it works"): household profile, a switch per alert type, "Reset all range overrides". The household row closes the sheet before `HouseholdSheet` is presented. Budget Health has nothing in Settings.
+- `HealthOptions` / `HealthOptionsSheet`: the bottom sheet opened from the ⋯ button in the top row of the segment (right of "How it works"): household profile, a switch per alert type, "Reset all range overrides". The household row closes the sheet before `HouseholdSheet` is presented. The same `HouseholdSheet` is also opened from the You tab (Profiles & household → Household profile); Budget Health has nothing else there.
 
 ## Placement
 

@@ -45,10 +45,11 @@ export const LEGAL_DOCUMENTS: Record<LegalPage, LegalDocument> = {
   privacy: {
     title: 'privacy.title',
     summary: 'privacy.summary',
-    updated: '2026-10-09',
+    updated: '2026-10-10',
     sections: [
       { title: 'privacy.s1Title', text: 'privacy.s1Text' },
       { title: 'privacy.s2Title', text: 'privacy.s2Text' },
+      { title: 'privacy.s9Title', text: 'privacy.s9Text' },
       { title: 'privacy.s3Title', text: 'privacy.s3Text' },
       { title: 'privacy.s4Title', text: 'privacy.s4Text' },
       { title: 'privacy.s5Title', text: 'privacy.s5Text' },
@@ -60,7 +61,7 @@ export const LEGAL_DOCUMENTS: Record<LegalPage, LegalDocument> = {
   terms: {
     title: 'terms.title',
     summary: 'terms.summary',
-    updated: '2026-10-08',
+    updated: '2026-10-10',
     sections: [
       { title: 'terms.s1Title', text: 'terms.s1Text' },
       { title: 'terms.s2Title', text: 'terms.s2Text' },

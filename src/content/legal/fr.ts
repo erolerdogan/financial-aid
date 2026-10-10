@@ -5,16 +5,19 @@ export const fr: LegalCopy = {
 
   'privacy.title': 'Politique de confidentialité',
   'privacy.description':
-    'Financial Aid stocke vos données sur votre appareil et ne les collecte pas. Cette page explique ce que cela signifie.',
+    'Financial Aid stocke vos données financières sur votre appareil et ne les collecte pas. Cette page explique ce que cela signifie.',
   'privacy.updated': 'Dernière mise à jour : {date}',
   'privacy.summary':
     'En bref : Financial Aid ne collecte pas, n’envoie pas et ne partage pas vos données financières. Elles restent sur votre appareil.',
   'privacy.s1Title': 'Données stockées par l’application',
   'privacy.s1Text':
-    'Les relevés que vous importez ainsi que les catégories, budgets, dettes, plans et réglages que vous créez sont stockés dans une base de données sur votre appareil. L’application n’a ni comptes ni serveur qui reçoit ces données.',
+    'Les relevés que vous importez ainsi que les catégories, budgets, dettes, plans et réglages que vous créez sont stockés dans une base de données sur votre appareil. Aucun serveur ne reçoit ces données, que vous ayez un compte ou non.',
   'privacy.s2Title': 'Données collectées par l’application',
   'privacy.s2Text':
-    'Aucune. L’application ne contient ni mesure d’audience, ni publicité, ni suivi, et n’effectue aucune requête réseau avec vos données. La seule requête que fait l’application : lorsque vous changez la devise d’un profil, elle télécharge les taux de change du jour auprès d’exchangerate-api.com. Cette requête ne contient aucune de vos données et n’indique pas quelles devises vous utilisez ; comme pour toute requête internet, ce service voit votre adresse IP.',
+    'Aucune donnée financière. L’application ne contient ni mesure d’audience, ni publicité, ni suivi, et ne fait aucune requête réseau avec vos données financières. Elle fait deux types de requêtes. Lorsque vous changez la devise d’un profil, elle télécharge les taux de change du jour depuis exchangerate-api.com ; cette requête ne contient aucune de vos données et n’indique pas quelles devises vous utilisez. Et si vous créez le compte facultatif décrit ci-dessous, la connexion envoie votre adresse e-mail ou le jeton de connexion d’Apple ou de Google au service de comptes. Comme pour toute requête internet, ces services voient votre adresse IP.',
+  'privacy.s9Title': 'Le compte facultatif',
+  'privacy.s9Text':
+    'Vous pouvez utiliser l’application sans compte. Un compte n’est nécessaire que pour un achat dans l’application, afin que l’achat puisse être restauré sur un autre appareil. Si vous en créez un, nous enregistrons votre adresse e-mail, un identifiant de compte et la date de création du compte, et rien d’autre. Vous vous connectez avec Apple, avec Google ou avec un lien envoyé à votre adresse e-mail ; Apple et Google confirment votre identité et ne reçoivent aucune donnée de l’application. Le compte est conservé chez Supabase, un service d’hébergement qui le traite pour notre compte. Vos données financières ne font jamais partie du compte et ne quittent jamais votre appareil.',
   'privacy.s3Title': 'Fichiers que vous importez, enregistrez et partagez',
   'privacy.s3Text':
     'Les relevés sont lus sur l’appareil. Les sauvegardes, les transactions exportées et les rapports PDF sont créés sur l’appareil et ne sont enregistrés ou partagés que là où vous le choisissez. Si vous les conservez dans un service en ligne, la politique de confidentialité de ce service s’applique.',
@@ -23,7 +26,7 @@ export const fr: LegalCopy = {
     'Les rappels d’import et les alertes sont programmés sur l’appareil. Ils ne sont pas envoyés depuis un serveur.',
   'privacy.s5Title': 'Supprimer vos données',
   'privacy.s5Text':
-    'Les Réglages proposent une option pour réinitialiser toutes les données et tous les profils. Supprimer l’application efface sa base de données de l’appareil. Les sauvegardes que vous avez enregistrées ailleurs doivent être supprimées par vos soins.',
+    'L’onglet « Vous » propose une option pour réinitialiser toutes les données et tous les profils. Supprimer l’application efface sa base de données de l’appareil. Les sauvegardes que vous avez enregistrées ailleurs doivent être supprimées par vos soins. Vous pouvez supprimer votre compte dans Vous → Compte ; votre adresse e-mail est alors effacée du service de comptes et les données de votre appareil restent telles quelles.',
   'privacy.s6Title': 'Ce site web',
   'privacy.s6Text':
     'Ce site n’utilise ni cookies ni mesure d’audience. Il est hébergé sur GitHub Pages, qui peut enregistrer des données techniques telles que les adresses IP ; voir la {link}.',
@@ -51,14 +54,14 @@ export const fr: LegalCopy = {
   'terms.s3Link': 'avertissement',
   'terms.s4Title': 'Vos données et vos sauvegardes',
   'terms.s4Text':
-    'Vos données sont stockées uniquement sur votre appareil, comme l’explique la {link}. Nous ne pouvons ni les consulter, ni les restaurer, ni les récupérer. Faire des sauvegardes et les conserver en lieu sûr relève de votre responsabilité. Le mot de passe d’une sauvegarde ne peut pas être réinitialisé : sans lui, la sauvegarde ne peut pas être ouverte.',
+    'Vos données financières sont stockées uniquement sur votre appareil, comme l’explique la {link}. Nous ne pouvons ni les consulter, ni les restaurer, ni les récupérer. Faire des sauvegardes et les conserver en lieu sûr relève de votre responsabilité. Le mot de passe d’une sauvegarde ne peut pas être réinitialisé : sans lui, la sauvegarde ne peut pas être ouverte.',
   'terms.s4Link': 'politique de confidentialité',
   'terms.s5Title': 'Exactitude',
   'terms.s5Text':
     'L’application lit les fichiers de nombreuses banques et classe les opérations automatiquement. Les montants, les catégories, les paiements de dettes associés et les totaux peuvent être erronés ou incomplets. Vérifiez les chiffres importants avec les relevés de votre banque, qui font foi.',
   'terms.s6Title': 'Logiciels open source',
   'terms.s6Text':
-    'L’application contient des logiciels open source. Leurs licences sont listées dans l’application, dans les Réglages.',
+    'L’application contient des logiciels open source. Leurs licences sont listées dans l’application, dans l’onglet « Vous ».',
   'terms.s7Title': 'Absence de garantie',
   'terms.s7Text':
     'Dans la mesure permise par la loi, l’application est fournie en l’état, sans garantie d’aucune sorte. Nous ne promettons pas qu’elle soit exempte d’erreurs, qu’elle lise tous les fichiers ni qu’elle reste disponible.',

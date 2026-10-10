@@ -738,12 +738,7 @@ export default function TrendsScreen() {
           />
         }
       >
-        {/* Header Bar with Active Profile Pill & Settings */}
-        <View style={styles.headerRow}>
-          <SelectableText style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1} maxFontSizeMultiplier={1.4}>{t('tabs.trends')}</SelectableText>
-
-          <HeaderActions />
-        </View>
+        <HeaderActions title={t('tabs.trends')} />
 
         <View style={[styles.directionSwitch, { backgroundColor: colors.track }]} accessibilityRole="tablist">
           {DIRECTIONS.map(({ key, label }) => {
@@ -1403,13 +1398,6 @@ export default function TrendsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: 20, paddingTop: 0, paddingBottom: 40 },
-  headerRow: {
-    marginTop: 8,
-    marginBottom: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
   directionSwitch: { flexDirection: 'row', borderRadius: 10, padding: 2, marginBottom: 12 },
   directionBtn: { flex: 1, paddingVertical: 7, paddingHorizontal: 4, alignItems: 'center', borderRadius: 8 },
   directionBtnActive: {
@@ -1421,11 +1409,6 @@ const styles = StyleSheet.create({
   },
   directionText: { fontSize: 13, fontWeight: '500' },
   directionTextActive: { fontWeight: '700' },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    letterSpacing: -0.5,
-  },
   /* Sticky Anchor Layout */
   stickyBarContainer: {
     flexDirection: 'row',

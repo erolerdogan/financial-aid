@@ -41,6 +41,9 @@ export const fr: FaqCopy = {
   'faq.import.coverage.a':
     'L’indication de relevé sur {home} montre quelle part du mois sélectionné vos relevés couvrent : pas encore de données, le mois en cours, un mois passé où il manque des jours, ou le mois entier. Un mois passé où il manque des jours figure aussi dans {forYou}.',
 
+  'faq.import.manual.q': 'Puis-je ajouter une transaction à la main ?',
+  'faq.import.manual.a':
+    'Oui. Touchez le + au milieu de la barre d’onglets et choisissez une dépense ou un revenu, puis saisissez un montant, une description, une date et une catégorie. Une transaction que vous avez saisie vous-même peut être supprimée depuis son détail. Si vous importez plus tard un relevé qui contient le même paiement, il est ajouté une seconde fois ; supprimez alors votre propre saisie.',
   'faq.categories.title': 'Catégories et budgets',
   'faq.categories.how.q': 'Comment les transactions sont-elles classées ?',
   'faq.categories.how.a':
@@ -80,7 +83,10 @@ export const fr: FaqCopy = {
   'faq.privacy.title': 'Confidentialité et sauvegardes',
   'faq.privacy.where.q': 'Où mes données sont-elles stockées ?',
   'faq.privacy.where.a':
-    'Dans une base de données sur votre appareil. Il n’y a ni compte ni serveur qui reçoit vos données, et l’application ne contient ni mesure d’audience ni publicité.',
+    'Dans une base de données sur votre appareil. Aucun serveur ne reçoit vos données financières, et l’application ne contient ni mesure d’audience ni publicité.',
+  'faq.privacy.account.q': 'Ai-je besoin d’un compte ?',
+  'faq.privacy.account.a':
+    'Non. L’application fonctionne sans compte. Un compte n’est nécessaire que pour un achat dans l’application, afin de conserver l’achat sur un nouveau téléphone. Il enregistre votre adresse e-mail, un identifiant de compte et sa date de création ; vos données financières ne quittent jamais votre téléphone. Vous pouvez supprimer le compte dans {settings} → {account}.',
   'faq.privacy.lost.q': 'Et si je perds mon téléphone ou si je supprime l’application ?',
   'faq.privacy.lost.a':
     'Vos données n’existent que sur votre appareil ; sans sauvegarde, elles ne peuvent donc pas être récupérées. Faites régulièrement une sauvegarde et conservez-la en lieu sûr ; l’application vous le rappelle au bout de 30 jours.',

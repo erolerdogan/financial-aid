@@ -5,16 +5,19 @@ export const nl: LegalCopy = {
 
   'privacy.title': 'Privacybeleid',
   'privacy.description':
-    'Financial Aid bewaart je gegevens op je toestel en verzamelt ze niet. Op deze pagina lees je wat dat betekent.',
+    'Financial Aid bewaart je financiële gegevens op je toestel en verzamelt ze niet. Op deze pagina lees je wat dat betekent.',
   'privacy.updated': 'Laatst bijgewerkt: {date}',
   'privacy.summary':
     'In het kort: Financial Aid verzamelt, uploadt of deelt je financiële gegevens niet. Ze blijven op je toestel.',
   'privacy.s1Title': 'Gegevens die de app bewaart',
   'privacy.s1Text':
-    'De afschriften die je importeert en de categorieën, budgetten, schulden, plannen en instellingen die je aanmaakt, worden bewaard in een database op je toestel. De app heeft geen accounts en geen server die deze gegevens ontvangt.',
+    'De afschriften die je importeert en de categorieën, budgetten, schulden, plannen en instellingen die je aanmaakt, worden bewaard in een database op je toestel. Geen enkele server ontvangt deze gegevens, of je nu een account hebt of niet.',
   'privacy.s2Title': 'Gegevens die de app verzamelt',
   'privacy.s2Text':
-    'Geen. De app bevat geen analytics, geen advertenties en geen tracking, en doet geen netwerkverzoeken met je gegevens. Het enige verzoek dat de app doet: als je de valuta van een profiel wijzigt, downloadt hij de wisselkoersen van de dag bij exchangerate-api.com. Dit verzoek bevat geen gegevens van jou en zegt niet welke valuta’s je gebruikt; zoals bij elk internetverzoek ziet die dienst je IP-adres.',
+    'Geen financiële gegevens. De app bevat geen analytics, geen advertenties en geen tracking, en doet geen netwerkverzoeken met je financiële gegevens. De app doet twee soorten verzoeken. Als je de valuta van een profiel wijzigt, downloadt hij de wisselkoersen van de dag bij exchangerate-api.com; dit verzoek bevat geen gegevens van jou en zegt niet welke valuta’s je gebruikt. En als je het optionele account aanmaakt dat hieronder wordt beschreven, wordt bij het inloggen je e-mailadres of het inlogtoken van Apple of Google naar de accountdienst gestuurd. Zoals bij elk internetverzoek zien deze diensten je IP-adres.',
+  'privacy.s9Title': 'Het optionele account',
+  'privacy.s9Text':
+    'Je kunt de app zonder account gebruiken. Een account is alleen nodig voor een aankoop in de app, zodat de aankoop op een ander toestel kan worden hersteld. Als je er een aanmaakt, bewaren wij je e-mailadres, een account-ID en de datum waarop het account is aangemaakt, en verder niets. Je logt in met Apple, met Google of met een link die naar je e-mailadres wordt gestuurd; Apple en Google bevestigen wie je bent en ontvangen geen gegevens uit de app. Het account wordt bewaard bij Supabase, een hostingdienst die het namens ons verwerkt. Je financiële gegevens maken nooit deel uit van het account en verlaten je toestel nooit.',
   'privacy.s3Title': 'Bestanden die je importeert, opslaat en deelt',
   'privacy.s3Text':
     'Afschriften worden op het toestel gelezen. Back-ups, geëxporteerde transacties en pdf-rapporten worden op het toestel gemaakt en alleen opgeslagen of gedeeld waar jij dat kiest. Bewaar je ze in een clouddienst, dan geldt het privacybeleid van die dienst.',
@@ -23,7 +26,7 @@ export const nl: LegalCopy = {
     'Herinneringen om te importeren en meldingen worden op het toestel ingepland. Ze worden niet vanaf een server verstuurd.',
   'privacy.s5Title': 'Je gegevens verwijderen',
   'privacy.s5Text':
-    'In Instellingen kun je alle gegevens en profielen wissen. Als je de app verwijdert, verdwijnt de database van het toestel. Back-ups die je elders hebt opgeslagen, moet je zelf verwijderen.',
+    'Op het tabblad Jij kun je alle gegevens en profielen wissen. Als je de app verwijdert, verdwijnt de database van het toestel. Back-ups die je elders hebt opgeslagen, moet je zelf verwijderen. Je account verwijder je via Jij → Account; daarmee wordt je e-mailadres bij de accountdienst verwijderd en blijven de gegevens op je toestel zoals ze zijn.',
   'privacy.s6Title': 'Deze website',
   'privacy.s6Text':
     'Deze website gebruikt geen cookies en geen analytics. De site wordt gehost op GitHub Pages, dat technische gegevens zoals IP-adressen kan vastleggen; zie de {link}.',
@@ -50,13 +53,13 @@ export const nl: LegalCopy = {
   'terms.s3Link': 'disclaimer',
   'terms.s4Title': 'Je gegevens en back-ups',
   'terms.s4Text':
-    'Je gegevens staan alleen op je toestel, zoals beschreven in het {link}. Wij kunnen ze niet inzien, terugzetten of herstellen. Back-ups maken en veilig bewaren doe je zelf. Een wachtwoord dat je op een back-up zet, kan niet worden hersteld: zonder dat wachtwoord kan de back-up niet worden geopend.',
+    'Je financiële gegevens staan alleen op je toestel, zoals beschreven in het {link}. Wij kunnen ze niet inzien, terugzetten of herstellen. Back-ups maken en veilig bewaren doe je zelf. Een wachtwoord dat je op een back-up zet, kan niet worden hersteld: zonder dat wachtwoord kan de back-up niet worden geopend.',
   'terms.s4Link': 'privacybeleid',
   'terms.s5Title': 'Juistheid',
   'terms.s5Text':
     'De app leest bestanden van veel banken en deelt transacties automatisch in. Bedragen, categorieën, gekoppelde schuldbetalingen en totalen kunnen onjuist of onvolledig zijn. Controleer belangrijke cijfers met de afschriften van je bank; die blijven leidend.',
   'terms.s6Title': 'Opensourcesoftware',
-  'terms.s6Text': 'De app bevat opensourcesoftware. De licenties staan in de app onder Instellingen.',
+  'terms.s6Text': 'De app bevat opensourcesoftware. De licenties staan in de app op het tabblad Jij.',
   'terms.s7Title': 'Geen garantie',
   'terms.s7Text':
     'Voor zover de wet dat toestaat, wordt de app geleverd zoals hij is, zonder enige garantie. We beloven niet dat de app foutloos is, elk bestand kan lezen of beschikbaar blijft.',

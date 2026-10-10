@@ -1,6 +1,6 @@
 # Backup, restore and transaction export
 
-`src/services/backupService.ts` + `src/components/modals/BackupRestoreModal.tsx`, opened from Settings (and from the For You backup reminder through `InboxHost`).
+`src/services/backupService.ts` + `src/components/modals/BackupRestoreModal.tsx`, opened from the You tab (Data → Backup & Restore; and from the For You backup reminder through `InboxHost`).
 
 ## Backup
 

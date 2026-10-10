@@ -1,6 +1,7 @@
 import { PasscodeLockHost } from '@/components/passcode/PasscodeLockHost';
 import { PdfTextHost } from '@/components/PdfTextHost';
 import { SharedImportHost } from '@/components/SharedImportHost';
+import { AuthProvider } from '@/contexts/AuthContext';
 import { EntitlementProvider } from '@/contexts/EntitlementContext';
 import { ImportResultProvider } from '@/contexts/ImportResultContext';
 import { LanguageProvider } from '@/contexts/LanguageContext';
@@ -75,8 +76,10 @@ function AppInitializer() {
       />
       <Stack.Screen name="transactions" options={{ headerShown: false }} />
       <Stack.Screen name="debt-plan" options={{ headerShown: false }} />
+      {/* Redirects to the You tab. */}
+      <Stack.Screen name="settings" options={{ headerShown: false, animation: 'none' }} />
       <Stack.Screen
-        name="settings"
+        name="add-transaction"
         options={{
           headerShown: false,
           presentation: 'modal',
@@ -146,6 +149,13 @@ function AppInitializer() {
         }}
       />
       <Stack.Screen
+        name="account"
+        options={{
+          headerShown: false,
+          presentation: 'modal',
+        }}
+      />
+      <Stack.Screen
         name="licenses"
         options={{
           headerShown: false,
@@ -171,13 +181,15 @@ export default function RootLayout() {
             <ThemeProvider>
               <PasscodeProvider>
                 <ProfileProvider>
-                  <EntitlementProvider>
-                    <PeriodProvider>
-                      <ImportResultProvider>
-                        <AppInitializer />
-                      </ImportResultProvider>
-                    </PeriodProvider>
-                  </EntitlementProvider>
+                  <AuthProvider>
+                    <EntitlementProvider>
+                      <PeriodProvider>
+                        <ImportResultProvider>
+                          <AppInitializer />
+                        </ImportResultProvider>
+                      </PeriodProvider>
+                    </EntitlementProvider>
+                  </AuthProvider>
                 </ProfileProvider>
               </PasscodeProvider>
             </ThemeProvider>

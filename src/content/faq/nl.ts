@@ -40,6 +40,9 @@ export const nl: FaqCopy = {
   'faq.import.coverage.a':
     'Het afschriftlabel op {home} laat zien hoeveel van de gekozen maand je afschriften dekken: nog geen gegevens, de lopende maand, een voorbije maand waarin dagen ontbreken, of de hele maand. Een voorbije maand waarin dagen ontbreken staat ook onder {forYou}.',
 
+  'faq.import.manual.q': 'Kan ik een transactie met de hand toevoegen?',
+  'faq.import.manual.a':
+    'Ja. Tik op de + in het midden van de tabbalk en kies een uitgave of inkomsten; vul daarna een bedrag, een omschrijving, een datum en een categorie in. Een transactie die je zelf hebt ingevoerd, kun je in het detail verwijderen. Importeer je later een afschrift met dezelfde betaling, dan komt die er een tweede keer bij; verwijder dan je eigen invoer.',
   'faq.categories.title': 'Categorieën en budgetten',
   'faq.categories.how.q': 'Hoe worden transacties ingedeeld?',
   'faq.categories.how.a':
@@ -79,7 +82,10 @@ export const nl: FaqCopy = {
   'faq.privacy.title': 'Privacy en back-ups',
   'faq.privacy.where.q': 'Waar worden mijn gegevens bewaard?',
   'faq.privacy.where.a':
-    'In een database op je toestel. Er is geen account en geen server die je gegevens ontvangt, en de app bevat geen analytics of advertenties.',
+    'In een database op je toestel. Geen enkele server ontvangt je financiële gegevens, en de app bevat geen analytics of advertenties.',
+  'faq.privacy.account.q': 'Heb ik een account nodig?',
+  'faq.privacy.account.a':
+    'Nee. De app werkt zonder account. Een account is alleen nodig voor een aankoop in de app, zodat je de aankoop houdt op een nieuwe telefoon. Het bewaart je e-mailadres, een account-ID en de datum waarop het is aangemaakt; je financiële gegevens verlaten je telefoon nooit. Je verwijdert het account via {settings} → {account}.',
   'faq.privacy.lost.q': 'Wat als ik mijn telefoon kwijtraak of de app verwijder?',
   'faq.privacy.lost.a':
     'Je gegevens staan alleen op je toestel en zijn zonder back-up dus niet terug te halen. Maak regelmatig een back-up en bewaar die op een veilige plek; de app herinnert je er na 30 dagen aan.',

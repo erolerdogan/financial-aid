@@ -23,6 +23,8 @@ interface DateRangeModalProps {
   initialTo: string | null;
   onApply: (from: string, to: string) => void;
   onClose: () => void;
+  /** Picks one day instead of a range: a tap selects it, and `onApply` gets it as both ends. */
+  single?: boolean;
 }
 
 const toKey = (d: Date): string =>
@@ -46,6 +48,7 @@ export function DateRangeModal({
   initialTo,
   onApply,
   onClose,
+  single = false,
 }: DateRangeModalProps) {
   const { colors } = useTheme();
   const { t, format } = useI18n();
@@ -143,7 +146,10 @@ export function DateRangeModal({
     if (isDisabledDay(key)) return;
     Haptics.selectionAsync().catch(() => {});
 
-    if (!start || (start && end)) {
+    if (single) {
+      setStart(key);
+      setEnd(key);
+    } else if (!start || (start && end)) {
       setStart(key);
       setEnd(null);
     } else if (key < start) {
@@ -202,6 +208,8 @@ export function DateRangeModal({
 
   const summaryText = !start
     ? t('range.selectStart')
+    : single
+    ? formatKey(start)
     : !end
     ? t('range.selectEnd', { start: formatKey(start) })
     : `${formatKey(start)} – ${formatKey(end)}`;
@@ -221,13 +229,13 @@ export function DateRangeModal({
           >
             <View style={styles.header}>
               <View style={[styles.handle, { backgroundColor: colors.border }]} />
-              <SelectableText style={[styles.title, { color: colors.text }]}>{t('range.title')}</SelectableText>
+              <SelectableText style={[styles.title, { color: colors.text }]}>{t(single ? 'manual.date' : 'range.title')}</SelectableText>
               <SelectableText style={[styles.summary, { color: start ? colors.accent : colors.textSecondary }]}>
                 {summaryText}
               </SelectableText>
             </View>
 
-            <View style={styles.presetRow}>
+            {!single && <View style={styles.presetRow}>
               {presets.map((preset) => (
                 <TouchableOpacity
                   key={preset.label}
@@ -239,7 +247,7 @@ export function DateRangeModal({
                   <Text style={[styles.presetText, { color: colors.text }]}>{preset.label}</Text>
                 </TouchableOpacity>
               ))}
-            </View>
+            </View>}
 
             <View style={styles.monthNav}>
               <TouchableOpacity

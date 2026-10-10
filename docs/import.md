@@ -9,10 +9,11 @@ Categorisation of the imported rows is in [classifier.md](classifier.md). Debt p
 - Custom rules and learned categories are passed to the parser at import (`useStatementImporter` → `readStatementFile`).
 - `readStatementFile` returns `{ kind: 'table', parsed }` for CSV / Excel or `{ kind: 'pdf', statement }` for a PDF statement (see [PDF statements](#pdf-statements)).
 - The picker allows several files. `runImport` reads them one after the other, then makes one `processBatchImport` call and shows one summary. With one file an error is an alert, as before; with several, a file that fails is left out and listed in the summary (`ImportResultSummary.failedFiles`, reasons from `src/utils/importFailure.ts`).
-- While several files are read, `ImportProgressOverlay` shows "Reading statement 12 of 45" (`progress` in `ImportResultContext`). It is a `View`, rendered by `ImportSummaryHost` (tabs, Settings) and by Welcome and the export guide.
+- While several files are read, `ImportProgressOverlay` shows "Reading statement 12 of 45" (`progress` in `ImportResultContext`). It is a `View`, rendered by `ImportSummaryHost` (tabs) and by Welcome and the export guide.
 - `parseCSVContent` / `parseExcelContent` return `{ transactions, bank }`. The bank ends up on `ImportResultSummary.bank` and as a "Recognised as" row in `ImportSummaryModal` (`BANK_LABELS`, not translated).
 - After the rows are stored, `runImport` calls `cancelCurrentMonthReminders()`, then `runHealthAlerts(db, profileId)`, then `refreshProfiles()` (so Home reloads with the alerts stored). `syncDebtPayments` also runs after import.
-- `ImportSummaryHost` is mounted in the tabs layout and in Settings.
+- `ImportSummaryHost` is mounted in the tabs layout.
+- The picker is opened from the add button of the tab bar ("Import statement"), You → Data & storage, the empty Home card, the For You row of a partial month, Welcome and the export guide.
 - Import reminders: `src/utils/notifications.ts`.
 
 ## Dedup
@@ -29,6 +30,12 @@ Categorisation of the imported rows is in [classifier.md](classifier.md). Debt p
 - Amounts are read with the decimals of the profile currency (`readStatementFile(…, { decimals })` → `parseLocaleAmount`). Only 3 changes anything (BHD, JOD, KWD, LYD, OMR, TND): one separator followed by three digits is then a decimal part (`1,234` is 1.234), amounts keep three places, and the dedup key in `generateTransactionHash` is written with three. Currencies with 0 or 2 decimals take the old path, so their stored keys are unchanged. PDF statements are not affected.
 - Not handled: two bookings in a CSV with the same date, amount and text are stored once (the dedup key cannot tell them apart; PDF rows are numbered for this). A CSV imported after the PDF statement of the same period is stored again, because only PDF rows carry `crossKeys`. A date with a two-digit year is not read.
 - PDF rows carry `crossKeys` (see [PDF statements](#pdf-statements)): a PDF row that misses the exact key is still skipped when a stored row has the same date and amount and the same counterparty IBAN, card terminal reference (`NR:…`) or card time stamp. These are counted apart, as `possibleDuplicateCount` ("N possible duplicates skipped").
+
+### Rows entered by hand
+
+- A transaction typed in (`insertManualTransaction`, `txType = 'MANUAL'`; see [navigation.md](navigation.md), Manual entry) is in the same table and under the same unique index, with the typed description as `rawDescription`.
+- It does not change how an import reads or keys its rows. A statement imported later that contains the same payment is not recognised as a duplicate: the bank's text differs from the typed one, so both rows are stored. The entry screen says so, and the hand-entered row can be deleted from its detail sheet.
+- A typed row that happens to equal a statement row exactly (day, amount, text) makes the import skip that statement row, as for any duplicate.
 
 ## Unsupported files
 
@@ -108,7 +115,7 @@ Known limits:
 - Steps are taken from the bank's help page in `sourceUrl`; `verified` is the month they were checked. Never write steps from memory.
 - A step is a shared sentence key (`guide.step.*`) plus `labels`: placeholder → entry in the guide's `labels`, the bank's own menu names per language. Lookup order: reader's language → English → the bank's language; a note says so when it is not the reader's.
 - `stepParts` returns the sentence in pieces so the names render bold.
-- Screen: `src/app/export-guide.tsx` (modal route; list with search → steps → import button; the optional `bank` param is a slug). Opened from Welcome, the empty Home card, Settings and the "File Not Supported" / "No Transactions Found" alerts (`wrongFileButtons` in `useStatementImporter`).
+- Screen: `src/app/export-guide.tsx` (modal route; list with search → steps → import button; the optional `bank` param is a slug). Opened from Welcome, the empty Home card, the You tab (Data & storage) and the "File Not Supported" / "No Transactions Found" alerts (`wrongFileButtons` in `useStatementImporter`).
 - Tests: `npx tsx src/content/bankGuides.test.ts`.
 
 ## Website
@@ -122,5 +129,5 @@ Known limits:
 - Demo seed: `src/db/demoSeeder.ts`. Demo mode lives in `src/contexts/ProfileContext.tsx`.
 - Nothing is imported into the demo workspace, so it gets no health alerts, no backup reminder and no partial-month row in For You (`getInboxItems` with `isDemo`).
 - Import is blocked in `useStatementImporter` itself: `importStatement` returns, `importSharedFile` (share sheet) shows an alert. The hook returns `importDisabled`; every Import button uses it to gray out.
-- Also off in demo mode (grayed, opacity 0.4, with `settings.demoNote` under the Data card): Settings rows Import, Backup & Restore, Reset, the active profile row and the Import Reminders switch; the profile pill in `HeaderActions`. Reminders are not scheduled at launch. The export guide stays readable.
+- Also off in demo mode (grayed, opacity 0.4): in the You tab the rows Import (with `settings.demoNote` under its card), Backup & Restore, Reset, the active profile row and the Import Reminders switch; the avatar in `HeaderActions`; the three rows of the add sheet and the save button of manual entry (`add.demoNote`). Reminders are not scheduled at launch. The export guide stays readable.
 - Why profiles and Reset are off: the demo profile is found by its name, a profile added there would be a real one inside demo mode, and Reset would leave `isDemoMode` on. "Exit Demo" is the only way out. It removes the demo profile and its data only; the user's own profiles are kept ([navigation.md](navigation.md)).

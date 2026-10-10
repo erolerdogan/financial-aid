@@ -40,6 +40,9 @@ export const pt: FaqCopy = {
   'faq.import.coverage.a':
     'A etiqueta de extrato em {home} mostra quanto do mês selecionado os seus extratos cobrem: ainda sem dados, o mês em andamento, um mês passado com dias faltando ou o mês inteiro. Um mês passado com dias faltando também aparece em {forYou}.',
 
+  'faq.import.manual.q': 'Posso adicionar uma transação à mão?',
+  'faq.import.manual.a':
+    'Sim. Toque no + no meio da barra de abas e escolha despesa ou receita; depois digite um valor, uma descrição, uma data e uma categoria. Uma transação que você mesmo lançou pode ser apagada no detalhe dela. Se depois você importar um extrato com o mesmo pagamento, ele é adicionado pela segunda vez; apague então o seu lançamento.',
   'faq.categories.title': 'Categorias e orçamentos',
   'faq.categories.how.q': 'Como as transações são categorizadas?',
   'faq.categories.how.a':
@@ -79,7 +82,10 @@ export const pt: FaqCopy = {
   'faq.privacy.title': 'Privacidade e backups',
   'faq.privacy.where.q': 'Onde meus dados ficam guardados?',
   'faq.privacy.where.a':
-    'Em um banco de dados no seu aparelho. Não há conta nem servidor que receba seus dados, e o app não contém análises nem anúncios.',
+    'Em um banco de dados no seu aparelho. Nenhum servidor recebe seus dados financeiros, e o app não contém análises nem anúncios.',
+  'faq.privacy.account.q': 'Preciso de uma conta?',
+  'faq.privacy.account.a':
+    'Não. O app funciona sem conta. A conta só é necessária para uma compra no app, para que a compra continue com você em um celular novo. Ela guarda seu e-mail, um ID de conta e a data de criação; seus dados financeiros nunca saem do seu celular. Você pode excluir a conta em {settings} → {account}.',
   'faq.privacy.lost.q': 'E se eu perder o celular ou apagar o app?',
   'faq.privacy.lost.a':
     'Seus dados existem apenas no seu aparelho, então sem um backup eles não podem ser recuperados. Faça backup regularmente e guarde-o em um lugar seguro; o app lembra você depois de 30 dias.',

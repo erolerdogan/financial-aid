@@ -5,16 +5,19 @@ export const de: LegalCopy = {
 
   'privacy.title': 'Datenschutzerklärung',
   'privacy.description':
-    'Financial Aid speichert deine Daten auf deinem Gerät und erhebt sie nicht. Diese Seite erklärt, was das bedeutet.',
+    'Financial Aid speichert deine Finanzdaten auf deinem Gerät und erhebt sie nicht. Diese Seite erklärt, was das bedeutet.',
   'privacy.updated': 'Zuletzt aktualisiert: {date}',
   'privacy.summary':
     'Kurz gesagt: Financial Aid erhebt deine Finanzdaten nicht, lädt sie nicht hoch und gibt sie nicht weiter. Sie bleiben auf deinem Gerät.',
   'privacy.s1Title': 'Daten, die die App speichert',
   'privacy.s1Text':
-    'Die Kontoauszüge, die du importierst, und die Kategorien, Budgets, Schulden, Pläne und Einstellungen, die du anlegst, werden in einer Datenbank auf deinem Gerät gespeichert. Die App hat keine Konten und keinen Server, der diese Daten erhält.',
+    'Die Kontoauszüge, die du importierst, und die Kategorien, Budgets, Schulden, Pläne und Einstellungen, die du anlegst, werden in einer Datenbank auf deinem Gerät gespeichert. Kein Server erhält diese Daten, ob du ein Konto hast oder nicht.',
   'privacy.s2Title': 'Daten, die die App erhebt',
   'privacy.s2Text':
-    'Keine. Die App enthält keine Analyse, keine Werbung und kein Tracking und stellt keine Netzwerkanfragen mit deinen Daten. Die einzige Anfrage, die die App stellt: Wenn du die Währung eines Profils wechselst, lädt sie die Wechselkurse des Tages von exchangerate-api.com herunter. Diese Anfrage enthält keine deiner Daten und verrät nicht, welche Währungen du verwendest; wie bei jeder Internetanfrage sieht dieser Dienst deine IP-Adresse.',
+    'Keine Finanzdaten. Die App enthält keine Analyse, keine Werbung und kein Tracking und stellt keine Netzwerkanfragen mit deinen Finanzdaten. Sie stellt zwei Arten von Anfragen. Wenn du die Währung eines Profils wechselst, lädt sie die Wechselkurse des Tages von exchangerate-api.com herunter; diese Anfrage enthält keine deiner Daten und verrät nicht, welche Währungen du verwendest. Und wenn du das unten beschriebene optionale Konto erstellst, wird bei der Anmeldung deine E-Mail-Adresse oder das Anmeldetoken von Apple oder Google an den Kontodienst gesendet. Wie bei jeder Internetanfrage sehen diese Dienste deine IP-Adresse.',
+  'privacy.s9Title': 'Das optionale Konto',
+  'privacy.s9Text':
+    'Du kannst die App ohne Konto verwenden. Ein Konto ist nur für einen Kauf in der App nötig, damit der Kauf auf einem anderen Gerät wiederhergestellt werden kann. Wenn du eines erstellst, speichern wir deine E-Mail-Adresse, eine Konto-ID und das Datum, an dem das Konto erstellt wurde, und sonst nichts. Du meldest dich mit Apple, mit Google oder mit einem Link an, der an deine E-Mail-Adresse gesendet wird; Apple und Google bestätigen, wer du bist, und erhalten keine Daten aus der App. Das Konto wird bei Supabase gespeichert, einem Hosting-Dienst, der es in unserem Auftrag verarbeitet. Deine Finanzdaten sind nie Teil des Kontos und verlassen dein Gerät nie.',
   'privacy.s3Title': 'Dateien, die du importierst, speicherst und teilst',
   'privacy.s3Text':
     'Kontoauszüge werden auf dem Gerät gelesen. Backups, exportierte Transaktionen und PDF-Berichte werden auf dem Gerät erstellt und nur dort gespeichert oder geteilt, wo du es wählst. Wenn du sie in einem Cloud-Dienst ablegst, gilt die Datenschutzerklärung dieses Dienstes.',
@@ -23,7 +26,7 @@ export const de: LegalCopy = {
     'Import-Erinnerungen und Hinweise werden auf dem Gerät geplant. Sie werden nicht von einem Server gesendet.',
   'privacy.s5Title': 'Deine Daten löschen',
   'privacy.s5Text':
-    'In den Einstellungen kannst du alle Daten und Profile zurücksetzen. Wenn du die App löschst, wird ihre Datenbank vom Gerät entfernt. Backups, die du woanders gespeichert hast, musst du selbst löschen.',
+    'Im Tab „Du“ kannst du alle Daten und Profile zurücksetzen. Wenn du die App löschst, wird ihre Datenbank vom Gerät entfernt. Backups, die du woanders gespeichert hast, musst du selbst löschen. Dein Konto löschst du unter Du → Konto; dabei wird deine E-Mail-Adresse beim Kontodienst entfernt, und die Daten auf deinem Gerät bleiben, wie sie sind.',
   'privacy.s6Title': 'Diese Website',
   'privacy.s6Text':
     'Diese Website verwendet keine Cookies und keine Analyse. Sie wird auf GitHub Pages gehostet, das technische Daten wie IP-Adressen protokollieren kann; siehe die {link}.',
@@ -51,13 +54,13 @@ export const de: LegalCopy = {
   'terms.s3Link': 'Haftungsausschluss',
   'terms.s4Title': 'Deine Daten und Backups',
   'terms.s4Text':
-    'Deine Daten werden nur auf deinem Gerät gespeichert, wie in der {link} beschrieben. Wir können sie nicht einsehen, zurückspielen oder wiederherstellen. Für Backups und ihre sichere Aufbewahrung bist du selbst verantwortlich. Ein Passwort, das du für ein Backup festlegst, lässt sich nicht zurücksetzen: Ohne das Passwort kann das Backup nicht geöffnet werden.',
+    'Deine Finanzdaten werden nur auf deinem Gerät gespeichert, wie in der {link} beschrieben. Wir können sie nicht einsehen, zurückspielen oder wiederherstellen. Für Backups und ihre sichere Aufbewahrung bist du selbst verantwortlich. Ein Passwort, das du für ein Backup festlegst, lässt sich nicht zurücksetzen: Ohne das Passwort kann das Backup nicht geöffnet werden.',
   'terms.s4Link': 'Datenschutzerklärung',
   'terms.s5Title': 'Genauigkeit',
   'terms.s5Text':
     'Die App liest Dateien vieler Banken und ordnet Buchungen automatisch zu. Beträge, Kategorien, zugeordnete Schuldenzahlungen und Summen können falsch oder unvollständig sein. Prüfe wichtige Zahlen anhand der Kontoauszüge deiner Bank; maßgeblich bleiben diese.',
   'terms.s6Title': 'Open-Source-Software',
-  'terms.s6Text': 'Die App enthält Open-Source-Software. Die Lizenzen findest du in der App unter Einstellungen.',
+  'terms.s6Text': 'Die App enthält Open-Source-Software. Die Lizenzen findest du in der App im Tab „Du“.',
   'terms.s7Title': 'Keine Gewährleistung',
   'terms.s7Text':
     'Soweit gesetzlich zulässig, wird die App so bereitgestellt, wie sie ist, ohne jede Gewährleistung. Wir versprechen nicht, dass sie fehlerfrei ist, jede Datei lesen kann oder verfügbar bleibt.',

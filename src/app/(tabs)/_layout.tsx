@@ -1,3 +1,4 @@
+import { AppTabBar } from '@/components/navigation/AppTabBar';
 import { ReadOnlySheetHost } from '@/components/pro/ReadOnlySheet';
 import { ImportSummaryHost } from '@/contexts/ImportResultContext';
 import { InboxHost, InboxProvider } from '@/contexts/InboxContext';
@@ -7,27 +8,20 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { Easing, Platform, useWindowDimensions } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Easing, useWindowDimensions } from 'react-native';
 
 export default function TabLayout() {
   const { colors } = useTheme();
   const { t } = useI18n();
-  const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-
-  const bottomInset = Math.max(insets.bottom, 0);
-  const baseTabBarHeight = 50;
-  const tabBarHeight =
-    Platform.OS === 'ios'
-      ? baseTabBarHeight + bottomInset
-      : 56 + bottomInset;
 
   return (
     <InboxProvider>
     <TabSwipeProvider>
     <Tabs
       initialRouteName="index"
+      // Home, Trends, [+], Plan, You: the bar draws the add button between the routes.
+      tabBar={(props) => <AppTabBar {...props} />}
       screenOptions={{
         headerShown: false,
         lazy: false,
@@ -47,24 +41,7 @@ export default function TabLayout() {
             ],
           },
         }),
-        tabBarHideOnKeyboard: Platform.OS === 'android',
         sceneStyle: { backgroundColor: colors.background },
-        tabBarActiveTintColor: colors.accent,
-        tabBarInactiveTintColor: colors.textSecondary,
-        tabBarStyle: {
-          display: 'flex',
-          backgroundColor: colors.card,
-          borderTopWidth: 0.5,
-          borderTopColor: colors.border,
-          elevation: 0,
-          height: tabBarHeight,
-          paddingBottom: Platform.OS === 'ios' ? bottomInset : bottomInset + 8,
-          paddingTop: 6,
-        },
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600',
-        },
       }}
     >
       <Tabs.Screen
@@ -101,6 +78,19 @@ export default function TabLayout() {
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
               name={focused ? 'trending-up' : 'trending-up-outline'}
+              size={22}
+              color={color}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="you"
+        options={{
+          title: t('tabs.you'),
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? 'person-circle' : 'person-circle-outline'}
               size={22}
               color={color}
             />

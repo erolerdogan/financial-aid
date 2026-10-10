@@ -40,6 +40,9 @@ export const it: FaqCopy = {
   'faq.import.coverage.a':
     'L’etichetta dell’estratto conto in {home} mostra quanta parte del mese selezionato è coperta dai tuoi estratti conto: ancora nessun dato, il mese in corso, un mese passato a cui mancano dei giorni oppure il mese intero. Un mese passato a cui mancano dei giorni compare anche in {forYou}.',
 
+  'faq.import.manual.q': 'Posso aggiungere una transazione a mano?',
+  'faq.import.manual.a':
+    'Sì. Tocca il + al centro della barra delle schede e scegli una spesa o un’entrata, poi inserisci importo, descrizione, data e categoria. Una transazione che hai inserito tu si può eliminare dal suo dettaglio. Se in seguito importi un estratto conto che contiene lo stesso pagamento, viene aggiunto una seconda volta; in quel caso elimina la tua voce.',
   'faq.categories.title': 'Categorie e budget',
   'faq.categories.how.q': 'Come vengono categorizzate le transazioni?',
   'faq.categories.how.a':
@@ -79,7 +82,10 @@ export const it: FaqCopy = {
   'faq.privacy.title': 'Privacy e backup',
   'faq.privacy.where.q': 'Dove vengono conservati i miei dati?',
   'faq.privacy.where.a':
-    'In un database sul tuo dispositivo. Non c’è nessun account e nessun server che riceve i tuoi dati, e l’app non contiene analisi né pubblicità.',
+    'In un database sul tuo dispositivo. Nessun server riceve i tuoi dati finanziari, e l’app non contiene analisi né pubblicità.',
+  'faq.privacy.account.q': 'Mi serve un account?',
+  'faq.privacy.account.a':
+    'No. L’app funziona senza account. Un account serve solo per un acquisto nell’app, così conservi l’acquisto su un nuovo telefono. Salva il tuo indirizzo email, un ID account e la data di creazione; i tuoi dati finanziari non lasciano mai il tuo telefono. Puoi eliminare l’account in {settings} → {account}.',
   'faq.privacy.lost.q': 'E se perdo il telefono o elimino l’app?',
   'faq.privacy.lost.a':
     'I tuoi dati esistono solo sul tuo dispositivo, quindi senza un backup non possono essere recuperati. Fai un backup regolarmente e conservalo in un posto sicuro; l’app te lo ricorda dopo 30 giorni.',

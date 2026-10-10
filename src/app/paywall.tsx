@@ -1,9 +1,11 @@
+import { SignInSheet } from '@/components/account/SignInSheet';
 import { SelectableText } from '@/components/SelectableText';
 import { FEATURES, isPaywallFeature, type PaywallFeature } from '@/constants/features';
 import { BENEFIT_GROUPS, DEFAULT_PLAN, PRIVACY_URL, TERMS_URL, type PlanId } from '@/constants/paywall';
 import { useEntitlement } from '@/contexts/EntitlementContext';
 import { useI18n } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useRequireAccount } from '@/hooks/useRequireAccount';
 import { getOfferings, purchase, restore, type Offering } from '@/services/purchases';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -24,6 +26,8 @@ export default function PaywallScreen() {
   const { t, format } = useI18n();
   const { source, refresh } = useEntitlement();
   const insets = useSafeAreaInsets();
+  // A purchase belongs to an account: without one, the sign-in sheet comes first.
+  const { requireAccount, sheet: signInSheet } = useRequireAccount();
 
   const [offerings, setOfferings] = useState<Offering[]>([]);
   const [selected, setSelected] = useState<PlanId>(DEFAULT_PLAN);
@@ -227,7 +231,7 @@ export default function PaywallScreen() {
               <TouchableOpacity
                 style={[styles.primaryBtn, { backgroundColor: colors.accent }, busy && styles.busy]}
                 activeOpacity={0.85}
-                onPress={handlePurchase}
+                onPress={() => requireAccount(handlePurchase)}
                 disabled={busy || !selectedOffering}
                 accessibilityRole="button"
                 accessibilityState={{ disabled: busy || !selectedOffering, busy }}
@@ -235,7 +239,7 @@ export default function PaywallScreen() {
                 {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryText}>{primaryLabel}</Text>}
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.plainBtn} onPress={handleRestore} disabled={busy} accessibilityRole="button">
+              <TouchableOpacity style={styles.plainBtn} onPress={() => requireAccount(handleRestore)} disabled={busy} accessibilityRole="button">
                 <Text style={[styles.plainText, { color: colors.accent }]}>{t('paywall.restore')}</Text>
               </TouchableOpacity>
             </>
@@ -311,6 +315,7 @@ export default function PaywallScreen() {
           </Text>
         </TouchableOpacity>
       </View>
+      <SignInSheet {...signInSheet} />
     </View>
   );
 }

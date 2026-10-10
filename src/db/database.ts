@@ -24,6 +24,7 @@ import { DEFAULT_DEBT_PLAN, sanitizeDebtPlan, type DebtPlan } from '@/utils/debt
 import { convertAmount } from '@/utils/exchangeRates';
 import { type FreedomInput, type GoalType } from '@/utils/freedom';
 import type { AlertStatus, AlertType, HealthAlert } from '@/utils/healthAlerts';
+import { MANUAL_TX_TYPE } from '@/utils/manualEntry';
 import {
   buildMerchantIndex,
   type CategorySuggestion,
@@ -537,22 +538,40 @@ export async function deleteProfile(
   `);
 
   // Everything the profile owns goes with it; what stays would also travel in every backup.
-  await db.withTransactionAsync(async () => {
-    await db.runAsync(`DELETE FROM transactions WHERE profileId = ?;`, [id]);
-    await db.runAsync(`DELETE FROM category_goals WHERE profileId = ?;`, [id]);
-    await db.runAsync(`DELETE FROM category_rules WHERE profileId = ?;`, [id]);
-    await db.runAsync(`DELETE FROM fixed_cost_rules WHERE profileId = ?;`, [id]);
-    await db.runAsync(`DELETE FROM categories WHERE profileId = ?;`, [id]);
-    await db.runAsync(`DELETE FROM debt_payments WHERE profileId = ?;`, [id]);
-    await db.runAsync(`DELETE FROM debt_rules WHERE profileId = ?;`, [id]);
-    await db.runAsync(`DELETE FROM debts WHERE profileId = ?;`, [id]);
-    await db.runAsync(`DELETE FROM freedom_plans WHERE profile_id = ?;`, [id]);
-    await db.runAsync(`DELETE FROM debt_plan WHERE profile_id = ?;`, [id]);
-    await clearHealthTables(db, id);
+  await withBulkDelete(db, async (txn) => {
+    await deleteProfileRows(txn, id);
     // Per-profile settings are stored as `<name>:<profileId>` (dismissed inbox items and suggestions, shown prompts).
-    await db.runAsync(`DELETE FROM app_meta WHERE key LIKE '%:' || ?;`, [String(id)]);
-    await db.runAsync(`DELETE FROM profiles WHERE id = ?;`, [id]);
+    await txn.runAsync(`DELETE FROM app_meta WHERE key LIKE '%:' || ?;`, [String(id)]);
+    await txn.runAsync(`DELETE FROM profiles WHERE id = ?;`, [id]);
   });
+}
+
+/**
+ * Runs a delete of many rows in a transaction on a connection of its own. On the shared connection
+ * a loader that has read only its first row (expo-sqlite steps a query in separate native calls)
+ * would continue over rows that are gone, and SQLite reports that as "database disk image is
+ * malformed". With WAL the loader keeps reading the rows as they were.
+ */
+async function withBulkDelete(db: SQLiteDatabase, task: (txn: SQLiteDatabase) => Promise<void>): Promise<void> {
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    // The new connection starts without the timeout that `initDatabase` sets.
+    await txn.execAsync(`PRAGMA busy_timeout = 5000;`);
+    await task(txn);
+  });
+}
+
+async function deleteProfileRows(db: SQLiteDatabase, profileId: number): Promise<void> {
+  await db.runAsync(`DELETE FROM transactions WHERE profileId = ?;`, [profileId]);
+  await db.runAsync(`DELETE FROM category_goals WHERE profileId = ?;`, [profileId]);
+  await db.runAsync(`DELETE FROM category_rules WHERE profileId = ?;`, [profileId]);
+  await db.runAsync(`DELETE FROM fixed_cost_rules WHERE profileId = ?;`, [profileId]);
+  await db.runAsync(`DELETE FROM categories WHERE profileId = ?;`, [profileId]);
+  await db.runAsync(`DELETE FROM debt_payments WHERE profileId = ?;`, [profileId]);
+  await db.runAsync(`DELETE FROM debt_rules WHERE profileId = ?;`, [profileId]);
+  await db.runAsync(`DELETE FROM debts WHERE profileId = ?;`, [profileId]);
+  await db.runAsync(`DELETE FROM freedom_plans WHERE profile_id = ?;`, [profileId]);
+  await db.runAsync(`DELETE FROM debt_plan WHERE profile_id = ?;`, [profileId]);
+  await clearHealthTables(db, profileId);
 }
 const RANGE_KEY_PATTERN = /^(\d{4}-\d{2}-\d{2})\.\.(\d{4}-\d{2}-\d{2})$/;
 
@@ -875,6 +894,53 @@ export async function insertTransactions(
   return { insertedCount, skippedCount };
 }
 
+/**
+ * A transaction typed in by hand. It is the user's own entry, so no rule reclassifies it
+ * (`userOverridden = 1`). 'duplicate': the profile already has a row with this day, amount and text.
+ */
+export async function insertManualTransaction(
+  db: SQLiteDatabase,
+  profileId: number,
+  entry: { date: string; amount: number; description: string; category: string }
+): Promise<'inserted' | 'duplicate'> {
+  const result = await db.runAsync(
+    `INSERT OR IGNORE INTO transactions
+       (profileId, date, amount, rawDescription, merchant, category, monthName, userOverridden, txType)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?);`,
+    [
+      profileId,
+      entry.date,
+      entry.amount,
+      entry.description,
+      entry.description,
+      entry.category,
+      entry.date.slice(0, 7),
+      MANUAL_TX_TYPE,
+    ]
+  );
+  return result.changes > 0 ? 'inserted' : 'duplicate';
+}
+
+/** Removes one hand-entered transaction and its debt payment link. Imported rows are never deleted this way. */
+export async function deleteManualTransaction(db: SQLiteDatabase, profileId: number, id: number): Promise<boolean> {
+  const row = await db.getFirstAsync<{ id: number }>(
+    `SELECT id FROM transactions WHERE id = ? AND profileId = ? AND txType = ?;`,
+    [id, profileId, MANUAL_TX_TYPE]
+  );
+  if (!row) return false;
+
+  const linked = await db.getAllAsync<{ debtId: number }>(
+    `SELECT DISTINCT debtId FROM debt_payments WHERE transactionId = ? AND profileId = ?;`,
+    [id, profileId]
+  );
+  await db.withTransactionAsync(async () => {
+    await db.runAsync(`DELETE FROM debt_payments WHERE transactionId = ? AND profileId = ?;`, [id, profileId]);
+    await db.runAsync(`DELETE FROM transactions WHERE id = ? AND profileId = ?;`, [id, profileId]);
+  });
+  for (const { debtId } of linked) await recomputeDebtPayments(db, debtId);
+  return true;
+}
+
 export async function updateTransactionCategory(
   db: SQLiteDatabase,
   id: number,
@@ -1106,19 +1172,7 @@ export async function clearAllData(
   if (!db) return;
 
   if (profileId !== undefined) {
-    await db.withTransactionAsync(async () => {
-      await db.runAsync(`DELETE FROM transactions WHERE profileId = ?;`, [profileId]);
-      await db.runAsync(`DELETE FROM category_goals WHERE profileId = ?;`, [profileId]);
-      await db.runAsync(`DELETE FROM category_rules WHERE profileId = ?;`, [profileId]);
-      await db.runAsync(`DELETE FROM fixed_cost_rules WHERE profileId = ?;`, [profileId]);
-      await db.runAsync(`DELETE FROM categories WHERE profileId = ?;`, [profileId]);
-      await db.runAsync(`DELETE FROM debt_payments WHERE profileId = ?;`, [profileId]);
-      await db.runAsync(`DELETE FROM debt_rules WHERE profileId = ?;`, [profileId]);
-      await db.runAsync(`DELETE FROM debts WHERE profileId = ?;`, [profileId]);
-      await db.runAsync(`DELETE FROM freedom_plans WHERE profile_id = ?;`, [profileId]);
-      await db.runAsync(`DELETE FROM debt_plan WHERE profile_id = ?;`, [profileId]);
-      await clearHealthTables(db, profileId);
-    });
+    await withBulkDelete(db, (txn) => deleteProfileRows(txn, profileId));
   } else {
     await db.execAsync(`
       DROP TABLE IF EXISTS transactions;

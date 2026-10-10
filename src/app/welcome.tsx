@@ -1,16 +1,21 @@
 import { ImportProgressOverlay } from '@/components/ImportProgressOverlay';
 import { BackupRestoreModal } from '@/components/modals/BackupRestoreModal';
+import { AccountStep } from '@/components/profile/AccountStep';
+import { OfferStep } from '@/components/profile/OfferStep';
 import { FirstStatementStep } from '@/components/profile/FirstStatementStep';
 import { ProfileSetup } from '@/components/profile/ProfileSetup';
 import { SelectableText } from '@/components/SelectableText';
 import { WelcomeIntro } from '@/components/welcome/WelcomeIntro';
+import { useAuth } from '@/contexts/AuthContext';
+import { useEntitlement } from '@/contexts/EntitlementContext';
 import { useI18n } from '@/contexts/LanguageContext';
 import { CURRENCY_CODES } from '@/constants/currencies';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { getAppMeta, getHousehold, saveHousehold, setAppMeta } from '@/db/database';
 import { useStatementImporter } from '@/hooks/useStatementImporter';
-import { AVATAR_COLORS, buildHousehold, defaultCurrency, setupSteps, type SetupAnswers } from '@/utils/profileSetup';
+import { PRO_OFFER_SHOWN_KEY } from '@/utils/entitlement';
+import { AVATAR_COLORS, buildHousehold, defaultCurrency, isProfileNameTaken, setupSteps, type SetupAnswers } from '@/utils/profileSetup';
 import { WELCOME_INTRO_SEEN_KEY } from '@/utils/welcomeIntro';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -34,8 +39,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const APP_ICON = require('../../assets/images/icon.png');
-// The questions of the first launch, and the import step after them.
-const SETUP_STEP_COUNT = setupSteps(true).length + 1;
+const QUESTION_COUNT = setupSteps(true).length;
 
 export default function WelcomeScreen() {
   const db = useSQLiteContext();
@@ -49,12 +53,23 @@ export default function WelcomeScreen() {
     updateCurrency,
     loadingProfiles,
     dataVersion,
+    isDemoMode,
   } = useProfile();
   const deviceLocales = useLocales();
   const { colors } = useTheme();
   const { t } = useI18n();
+  const { user, available: accountAvailable } = useAuth();
+  const { source } = useEntitlement();
   const [restoreVisible, setRestoreVisible] = useState(false);
-  const [stage, setStage] = useState<'welcome' | 'questions' | 'import'>('welcome');
+  const [stage, setStage] = useState<'welcome' | 'questions' | 'offer' | 'account' | 'import'>('welcome');
+  // The account step follows the questions once: decided when they open, so the dots do not change
+  // when the user signs in on that step. Never for a user who is signed in or a build without accounts.
+  const [accountStep, setAccountStep] = useState(false);
+  // The Pro offer follows the questions, before the account step, for a user who has no Pro; decided
+  // together with the account step for the same reason.
+  const [offerStep, setOfferStep] = useState(false);
+  // The questions, the offer and account steps when they are offered, and the import step.
+  const setupStepCount = QUESTION_COUNT + (offerStep ? 1 : 0) + (accountStep ? 1 : 0) + 1;
   // Whether the profile questions were answered (a household row exists): "Get started" then opens the import step.
   const [setupDone, setSetupDone] = useState(false);
   // The questions stay mounted behind the import step, so going back finds the answers as they were typed.
@@ -120,6 +135,8 @@ export default function WelcomeScreen() {
     Haptics.selectionAsync().catch(() => {});
     const ask = !setupDone && setupProfileId !== undefined;
     setQuestionsOpen(ask);
+    setAccountStep(ask && accountAvailable && !user);
+    setOfferStep(ask && source === 'free' && !isDemoMode);
     setStage(ask ? 'questions' : 'import');
   };
 
@@ -140,9 +157,15 @@ export default function WelcomeScreen() {
         console.error('Failed to save the profile setup:', error);
       }
     }
-    // On to the last step; the picker opens only when its button is tapped.
+    // On to the next step; the picker of the last one opens only when its button is tapped.
     setSetupDone(true);
-    setStage('import');
+    if (offerStep) {
+      // Shown here, so the paywall that follows the first import does not repeat it.
+      setAppMeta(db, PRO_OFFER_SHOWN_KEY, '1').catch((error) => console.error('Failed to save the offer flag:', error));
+      setStage('offer');
+    } else {
+      setStage(accountStep && !user ? 'account' : 'import');
+    }
   };
 
   const handleDemoMode = async () => {
@@ -189,30 +212,57 @@ export default function WelcomeScreen() {
       {introSeen === true && stage === 'import' && (
         <SafeAreaView style={styles.setup}>
           <FirstStatementStep
-            current={SETUP_STEP_COUNT}
-            total={SETUP_STEP_COUNT}
+            current={setupStepCount}
+            total={setupStepCount}
             importing={importing}
             onImport={importStatement}
             onHelp={() => router.push('/export-guide')}
             onDemo={handleDemoMode}
             onRestore={handleOpenRestore}
             onClose={handleCloseSetup}
-            onBack={questionsOpen ? () => setStage('questions') : undefined}
+            onBack={
+              questionsOpen
+                ? () => setStage(accountStep && !user ? 'account' : offerStep ? 'offer' : 'questions')
+                : undefined
+            }
           />
         </SafeAreaView>
       )}
-      {introSeen === true && (stage === 'questions' || (stage === 'import' && questionsOpen)) && (
-        <SafeAreaView style={[styles.setup, stage === 'import' && styles.hidden]}>
+      {introSeen === true && stage === 'account' && (
+        <SafeAreaView style={styles.setup}>
+          <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <AccountStep
+              current={setupStepCount - 1}
+              total={setupStepCount}
+              onDone={() => setStage('import')}
+              onBack={() => setStage(offerStep ? 'offer' : 'questions')}
+            />
+          </KeyboardAvoidingView>
+        </SafeAreaView>
+      )}
+      {introSeen === true && stage === 'offer' && (
+        <SafeAreaView style={styles.setup}>
+          <OfferStep
+            current={QUESTION_COUNT + 1}
+            total={setupStepCount}
+            onDone={() => setStage(accountStep && !user ? 'account' : 'import')}
+            onBack={() => setStage('questions')}
+          />
+        </SafeAreaView>
+      )}
+      {introSeen === true && (stage === 'questions' || (stage !== 'welcome' && questionsOpen)) && (
+        <SafeAreaView style={[styles.setup, stage !== 'questions' && styles.hidden]}>
           <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <ProfileSetup
               fill
               appSteps
+              isNameTaken={(name) => isProfileNameTaken(name, profiles, (activeProfile ?? profiles[0])?.id)}
               initialName={(activeProfile ?? profiles[0])?.name || t('profile.defaultName')}
               initialColor={(activeProfile ?? profiles[0])?.avatarColor || AVATAR_COLORS[0]}
               initialCurrency={defaultCurrency(deviceLocales[0]?.currencyCode, CURRENCY_CODES)}
               submitLabel={t('common.continue')}
-              extraSteps={1}
-              paused={stage === 'import'}
+              extraSteps={setupStepCount - QUESTION_COUNT}
+              paused={stage !== 'questions'}
               onSubmit={handleSetupDone}
               onCancel={handleCloseSetup}
             />

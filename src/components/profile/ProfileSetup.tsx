@@ -24,6 +24,8 @@ interface ProfileSetupProps {
   initialCurrency: string;
   /** The profile step cannot be skipped and needs a name (a profile that does not exist yet). */
   nameRequired?: boolean;
+  /** True when another profile already has this name; the profile step then cannot be left. */
+  isNameTaken?: (name: string) => boolean;
   /** Also asks the app-wide settings, theme and passcode lock (first launch only). */
   appSteps?: boolean;
   /** Label of the button on the last step. */
@@ -68,6 +70,7 @@ export function ProfileSetup({
   initialColor,
   initialCurrency,
   nameRequired = false,
+  isNameTaken,
   appSteps = false,
   submitLabel,
   fill = false,
@@ -110,7 +113,8 @@ export function ProfileSetup({
   const nameMissing = nameRequired && name.trim() === '';
   const moneyInvalid =
     Number.isNaN(parseOptionalAmount(incomeText) ?? 0) || Number.isNaN(parseOptionalAmount(savingsText) ?? 0);
-  const stepInvalid = (step === 'profile' && nameMissing) || (step === 'money' && moneyInvalid);
+  const nameTaken = isNameTaken?.(name) ?? false;
+  const stepInvalid = (step === 'profile' && (nameMissing || nameTaken)) || (step === 'money' && moneyInvalid);
   // The amounts are typed in the currency picked on the first step, unless that step was skipped.
   const shownCurrency = skipped.has('profile') ? initialCurrency : currency;
   const currencySymbol = currencyInfo(shownCurrency).symbol;
@@ -258,6 +262,11 @@ export function ProfileSetup({
               returnKeyType="done"
               accessibilityLabel={t('profile.namePlaceholder')}
             />
+            {nameTaken && (
+              <SelectableText style={styles.nameError} accessibilityRole="alert">
+                {t('profile.nameTaken')}
+              </SelectableText>
+            )}
 
             <SelectableText style={[styles.fieldLabel, { color: colors.text }]}>{t('profile.avatarColor')}</SelectableText>
             <View style={styles.colorRow}>
@@ -412,6 +421,7 @@ const styles = StyleSheet.create({
   content: { paddingTop: 12, paddingBottom: 8 },
   title: { fontSize: 24, fontWeight: '800', letterSpacing: -0.4 },
   subtitle: { fontSize: 14, lineHeight: 20, marginTop: 6, marginBottom: 18 },
+  nameError: { color: '#FF3B30', fontSize: 13, marginTop: 6 },
   fieldLabel: { fontSize: 15, fontWeight: '600', marginTop: 18, marginBottom: 8 },
   input: {
     height: 48,

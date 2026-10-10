@@ -7,6 +7,7 @@ import {
   defaultCurrency,
   incomeOverrideToSave,
   incomePrefill,
+  isProfileNameTaken,
   parseOptionalAmount,
   SETUP_STEPS,
   setupSteps,
@@ -71,6 +72,14 @@ check(
   setupSteps(true).join() === 'profile,household,money,appearance,security'
 );
 check('six avatar colours, blue first', AVATAR_COLORS.length === 6 && AVATAR_COLORS[0] === '#007AFF');
+
+// Unique profile names
+const existing = [{ id: 1, name: 'Personal' }, { id: 2, name: 'Work' }];
+check('the same name is taken', isProfileNameTaken('Work', existing));
+check('case and surrounding spaces are ignored', isProfileNameTaken('  personal ', existing));
+check('a new name is free', !isProfileNameTaken('Family', existing));
+check('a profile keeps its own name', !isProfileNameTaken('Work', existing, 2));
+check('an empty name is not reported as taken', !isProfileNameTaken('  ', existing));
 
 if (failures > 0) {
   console.error(`\n${failures} check(s) failed.`);

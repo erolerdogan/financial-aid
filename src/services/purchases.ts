@@ -1,7 +1,8 @@
 // The only file that talks to the store. Today it is a stub: no payment SDK is installed.
 // RevenueCat plugs in here later (entitlement "pro"; products monthly, yearly with a 7-day trial,
 // lifetime), and `EntitlementContext` then reads the tier from it instead of the developer switch.
-// No account and no user data: a purchase is tied to the store account only.
+// A purchase belongs to the account (`AuthContext`): the store is told the user id and nothing else,
+// so Pro follows the user to another device. The screens ask for an account before buying or restoring.
 
 import { PLACEHOLDER_CURRENCY_SYMBOL, PLANS, type PlanDefinition, type PlanId } from '@/constants/paywall';
 import { setAppMeta } from '@/db/database';
@@ -31,4 +32,19 @@ export async function purchase(db: SQLiteDatabase, plan: PlanId): Promise<Purcha
 /** Brings back an earlier purchase. Nothing can have been bought yet. */
 export async function restore(): Promise<RestoreResult> {
   return __DEV__ ? 'nothingToRestore' : 'comingSoon';
+}
+
+/**
+ * Tells the store which account buys and owns purchases. Called at launch with a stored session and
+ * after every sign-in. Only the user id is passed, never the email address.
+ */
+export async function identify(userId: string): Promise<void> {
+  // TODO(payments): await Purchases.logIn(userId), then let `EntitlementContext` read the tier again.
+  if (__DEV__) console.log(`Purchase stub: identify ${userId}`);
+}
+
+/** The account was left (sign-out, deleted account): the store goes back to an anonymous customer. */
+export async function reset(): Promise<void> {
+  // TODO(payments): await Purchases.logOut(), then let `EntitlementContext` read the tier again.
+  if (__DEV__) console.log('Purchase stub: reset');
 }

@@ -24,8 +24,8 @@ export const it: SiteCopy = {
   'home.lead':
     'Importa l’estratto conto che la tua banca ti permette di scaricare. Financial Aid ordina le transazioni, segue budget e debiti e tiene tutto sul tuo telefono.',
   'home.screen': 'Schermata Home',
-  'home.point1Title': 'Nessun account',
-  'home.point1Text': 'Apri l’app e inizia. Non c’è niente a cui iscriversi.',
+  'home.point1Title': 'Non serve un account',
+  'home.point1Text': 'Apri l’app e inizia. Creare un account è facoltativo.',
   'home.point2Title': 'Nessun collegamento con la banca',
   'home.point2Text':
     'Importi tu un file CSV o Excel. L’app non chiede mai le credenziali della tua banca.',

@@ -5,6 +5,7 @@ import { useI18n } from '@/contexts/LanguageContext';
 import { useProfile } from '@/contexts/ProfileContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import {
+  deleteManualTransaction,
   FixedOverrideState,
   getCategoriesWithStats,
   Transaction,
@@ -12,12 +13,14 @@ import {
 } from '@/db/database';
 import { useProfileAccess } from '@/hooks/useProfileAccess';
 import type { Message } from '@/i18n';
+import { MANUAL_TX_TYPE } from '@/utils/manualEntry';
 import { INCOME_CATEGORY, UNCATEGORISED } from '@/utils/parser';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSQLiteContext } from 'expo-sqlite';
 import React, { useEffect, useState } from 'react';
 import {
+  Alert,
   Animated,
   Dimensions,
   Modal,
@@ -31,6 +34,8 @@ import {
 } from 'react-native';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+// The system red the app uses for destructive actions in both modes.
+const DANGER = '#FF3B30';
 
 interface TransactionDetailModalProps {
   visible: boolean;
@@ -61,7 +66,7 @@ export function TransactionDetailModal({
   const handleDismissAction = onDismiss ?? onClose;
   const { colors, isDark } = useTheme();
   const { t, format, categoryName, describe } = useI18n();
-  const { currencySymbol, currencyDecimals, activeProfile } = useProfile();
+  const { currencySymbol, currencyDecimals, activeProfile, refreshProfiles } = useProfile();
   const db = useSQLiteContext();
   const profileId = activeProfile?.id ?? 1;
   // A profile beyond the free limit: the transaction is shown, its category and classification are fixed.
@@ -157,6 +162,30 @@ export function TransactionDetailModal({
   }, [visible, translateY, overlayOpacity]);
 
   if (!transaction) return null;
+
+  // Only a row that was typed in can be removed; an imported one would come back with its statement.
+  const isManual = transaction.txType === MANUAL_TX_TYPE;
+  const handleDelete = () => {
+    Alert.alert(t('manual.deleteTitle'), t('manual.deleteMessage', { name: transaction.rawDescription }), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('common.delete'),
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteManualTransaction(db, profileId, transaction.id);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+            handleDismissAnimation(handleDismissAction);
+            // Reloads the screens underneath.
+            await refreshProfiles();
+          } catch (error) {
+            console.error('Failed to delete the transaction:', error);
+            Alert.alert(t('common.error'), t('manual.deleteFailed'));
+          }
+        },
+      },
+    ]);
+  };
 
   const isIncome = transaction.amount > 0;
   const isAuto = fixedState === 'AUTO';
@@ -341,7 +370,19 @@ export function TransactionDetailModal({
           <View style={styles.rawDescContainer}>
             <SelectableText style={[styles.rawDescLabel, { color: colors.textSecondary }]}>{t('detail.rawDescription')}</SelectableText>
             <SelectableText style={[styles.rawDescValue, { color: colors.text }]}>{transaction.rawDescription}</SelectableText>
+            {isManual && (
+              <SelectableText style={[styles.rawDescLabel, styles.manualNote, { color: colors.textSecondary }]}>
+                {t('manual.badge')}
+              </SelectableText>
+            )}
           </View>
+
+          {isManual && !readOnly && (
+            <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete} activeOpacity={0.7} accessibilityRole="button">
+              <Ionicons name="trash-outline" size={16} color={DANGER} />
+              <Text style={[styles.deleteText, { color: DANGER }]}>{t('manual.deleteTitle')}</Text>
+            </TouchableOpacity>
+          )}
         </Animated.View>
       </View>
     </Modal>
@@ -349,6 +390,16 @@ export function TransactionDetailModal({
 }
 
 const styles = StyleSheet.create({
+  manualNote: { marginTop: 8 },
+  deleteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    minHeight: 44,
+    marginTop: 4,
+  },
+  deleteText: { fontSize: 15, fontWeight: '600' },
   autoHint: {
     fontSize: 12,
     marginTop: 10,

@@ -5,16 +5,19 @@ export const it: LegalCopy = {
 
   'privacy.title': 'Informativa sulla privacy',
   'privacy.description':
-    'Financial Aid conserva i tuoi dati sul tuo dispositivo e non li raccoglie. Questa pagina spiega che cosa significa.',
+    'Financial Aid conserva i tuoi dati finanziari sul tuo dispositivo e non li raccoglie. Questa pagina spiega che cosa significa.',
   'privacy.updated': 'Ultimo aggiornamento: {date}',
   'privacy.summary':
     'In breve: Financial Aid non raccoglie, non carica e non condivide i tuoi dati finanziari. Restano sul tuo dispositivo.',
   'privacy.s1Title': 'Dati conservati dall’app',
   'privacy.s1Text':
-    'Gli estratti conto che importi e le categorie, i budget, i debiti, i piani e le impostazioni che crei sono conservati in un database sul tuo dispositivo. L’app non ha account né un server che riceve questi dati.',
+    'Gli estratti conto che importi e le categorie, i budget, i debiti, i piani e le impostazioni che crei sono conservati in un database sul tuo dispositivo. Nessun server riceve questi dati, che tu abbia un account o no.',
   'privacy.s2Title': 'Dati raccolti dall’app',
   'privacy.s2Text':
-    'Nessuno. L’app non contiene analisi, pubblicità o tracciamento e non effettua richieste di rete con i tuoi dati. L’unica richiesta che l’app fa: quando cambi la valuta di un profilo, scarica i tassi di cambio del giorno da exchangerate-api.com. Questa richiesta non contiene nessuno dei tuoi dati e non indica quali valute usi; come per ogni richiesta internet, quel servizio vede il tuo indirizzo IP.',
+    'Nessun dato finanziario. L’app non contiene analisi, pubblicità né tracciamento e non effettua richieste di rete con i tuoi dati finanziari. Effettua due tipi di richieste. Quando cambi la valuta di un profilo, scarica i tassi di cambio del giorno da exchangerate-api.com; questa richiesta non contiene nessuno dei tuoi dati e non indica quali valute usi. E se crei l’account facoltativo descritto più sotto, l’accesso invia il tuo indirizzo email o il token di accesso di Apple o Google al servizio degli account. Come per ogni richiesta internet, questi servizi vedono il tuo indirizzo IP.',
+  'privacy.s9Title': 'L’account facoltativo',
+  'privacy.s9Text':
+    'Puoi usare l’app senza account. Un account serve solo per un acquisto nell’app, così che l’acquisto possa essere ripristinato su un altro dispositivo. Se ne crei uno, conserviamo il tuo indirizzo email, un ID account e la data di creazione dell’account, e nient’altro. Accedi con Apple, con Google o con un link inviato al tuo indirizzo email; Apple e Google confermano chi sei e non ricevono alcun dato dall’app. L’account è conservato presso Supabase, un servizio di hosting che lo tratta per nostro conto. I tuoi dati finanziari non fanno mai parte dell’account e non lasciano mai il tuo dispositivo.',
   'privacy.s3Title': 'File che importi, salvi e condividi',
   'privacy.s3Text':
     'Gli estratti conto vengono letti sul dispositivo. I backup, le transazioni esportate e i report in PDF vengono creati sul dispositivo e salvati o condivisi solo dove scegli tu. Se li conservi in un servizio cloud, vale l’informativa sulla privacy di quel servizio.',
@@ -23,7 +26,7 @@ export const it: LegalCopy = {
     'I promemoria di importazione e gli avvisi vengono programmati sul dispositivo. Non vengono inviati da un server.',
   'privacy.s5Title': 'Eliminare i tuoi dati',
   'privacy.s5Text':
-    'Nelle Impostazioni c’è un’opzione per azzerare tutti i dati e i profili. Eliminando l’app, il suo database viene rimosso dal dispositivo. I backup che hai salvato altrove devi eliminarli tu.',
+    'Nella scheda «Tu» c’è un’opzione per azzerare tutti i dati e i profili. Eliminando l’app, il suo database viene rimosso dal dispositivo. I backup che hai salvato altrove devi eliminarli tu. Puoi eliminare il tuo account in Tu → Account; in questo modo il tuo indirizzo email viene rimosso dal servizio degli account e i dati sul tuo dispositivo restano come sono.',
   'privacy.s6Title': 'Questo sito web',
   'privacy.s6Text':
     'Questo sito non usa cookie né analisi. È ospitato su GitHub Pages, che può registrare dati tecnici come gli indirizzi IP; vedi l’{link}.',
@@ -50,13 +53,13 @@ export const it: LegalCopy = {
   'terms.s3Link': 'avvertenze',
   'terms.s4Title': 'I tuoi dati e i backup',
   'terms.s4Text':
-    'I tuoi dati sono salvati solo sul tuo dispositivo, come descritto nell’{link}. Non possiamo vederli, ripristinarli né recuperarli. Fare i backup e conservarli al sicuro spetta a te. La password impostata su un backup non può essere reimpostata: senza, il backup non si può aprire.',
+    'I tuoi dati finanziari sono salvati solo sul tuo dispositivo, come descritto nell’{link}. Non possiamo vederli, ripristinarli né recuperarli. Fare i backup e conservarli al sicuro spetta a te. La password impostata su un backup non può essere reimpostata: senza, il backup non si può aprire.',
   'terms.s4Link': 'informativa sulla privacy',
   'terms.s5Title': 'Accuratezza',
   'terms.s5Text':
     'L’app legge file di molte banche e classifica i movimenti automaticamente. Importi, categorie, pagamenti dei debiti collegati e totali possono essere errati o incompleti. Controlla le cifre importanti con gli estratti conto della tua banca, che restano il riferimento.',
   'terms.s6Title': 'Software open source',
-  'terms.s6Text': 'L’app include software open source. Le licenze sono elencate nell’app, nelle Impostazioni.',
+  'terms.s6Text': 'L’app include software open source. Le licenze sono elencate nell’app, nella scheda «Tu».',
   'terms.s7Title': 'Nessuna garanzia',
   'terms.s7Text':
     'Nei limiti consentiti dalla legge, l’app è fornita così com’è, senza garanzie di alcun tipo. Non promettiamo che sia priva di errori, che legga ogni file o che resti disponibile.',

@@ -1,6 +1,6 @@
 # Free and Pro
 
-Two tiers, one entitlement (`pro`). There is no payment SDK yet: the paywall is real, buying is a stub. Still 100% local: no account, no login, no analytics.
+Two tiers, one entitlement (`pro`). There is no payment SDK yet: the paywall is real, buying is a stub. No analytics, and no financial data leaves the device. Buying or restoring Pro needs the optional account ([account.md](account.md)); using the app does not.
 
 ## Product rules
 
@@ -20,7 +20,7 @@ Two tiers, one entitlement (`pro`). There is no payment SDK yet: the paywall is 
 - `src/utils/entitlement.ts` (pure, tested in `entitlement.test.ts`): `resolveSource`, `can`, `limit`, `canAdd`, `editableIds`, `isItemReadOnly`, `isProfileReadOnly`, `isThemeLocked`, `shouldOfferPro`.
 - `src/contexts/EntitlementContext.tsx`: `useEntitlement()` gives `isPro`, `can(flag)`, `limit(key)`, `source` (`free | pro | dev`), `setDevOverride`, `refresh`, and the read-only notice (`showReadOnly`, `hideReadOnly`). The provider sits inside `ProfileProvider` (it needs `isDemoMode`).
 - Today the tier is the Pro testing switch: `app_meta` key `pro_dev_override`, read synchronously like the theme. **It counts only when `PRO_TESTING_ENABLED` is true** (`src/constants/buildConfig.ts`: `__DEV__`, or a release build bundled with `EXPO_PUBLIC_PRO_TESTING=1`; see Testing Pro in a release build). In any other build the provider does not read the key and `resolveSource` returns `free` whatever is stored. `app_meta` travels inside backups and stays on the device across an update, so a value left by a test build, or restored from a backup made by one, can never unlock Pro in a production build.
-- `isPro` includes the demo; `source` does not. Use `source` for "what did the user buy" (Settings status, the paywall, the offers).
+- `isPro` includes the demo; `source` does not. Use `source` for "what did the user buy" (the plan row of the You tab, the paywall, the offers).
 
 ## Building blocks
 
@@ -30,7 +30,7 @@ Two tiers, one entitlement (`pro`). There is no payment SDK yet: the paywall is 
 - `src/components/pro/`:
   - `ProBadge`: the "Pro" pill.
   - `ProGate`: wraps a Pro feature. Without Pro the children are dimmed, a badge sits on top and a tap anywhere opens the paywall. It never renders nothing.
-  - `ReadOnlySheetHost`: the sheet with "See Pro" / "Not now" (and "Remove budget" for a budget). Like `ImportSummaryHost`, it is rendered inside each screen that can be on top and only while focused: a sheet mounted at the root cannot present over a native modal screen. It is in the tabs layout, Settings, Budgets, Categories, Review and the export guide. A new screen with a guarded write needs it too.
+  - `ReadOnlySheetHost`: the sheet with "See Pro" / "Not now" (and "Remove budget" for a budget). Like `ImportSummaryHost`, it is rendered inside each screen that can be on top and only while focused: a sheet mounted at the root cannot present over a native modal screen. It is in the tabs layout (which covers the You tab), Budgets, Categories, Review, manual entry and the export guide. A new screen with a guarded write needs it too.
   - `ReadOnlyNote`: the inline note for controls inside an RN `Modal`, where the sheet cannot present. Those controls are disabled instead.
   - `ReadOnlyBanner`: shown by `ScreenContainer` while the active profile is read-only.
 - A screen (the paywall) cannot present while a `Modal` is still closing. Callers close their sheet first and open the paywall after about 300 ms.
@@ -59,7 +59,8 @@ Removing an old item makes the next one editable.
 | Read-only profile: debts | `(tabs)/debts.tsx`, `DebtDetailModal`, `InboxHost` | Read-only sheet; the detail sheet has no Edit, no payment form, no remove buttons. Delete stays |
 | Read-only profile: Future Growth | `FreedomScreen` | Inputs take no focus; a tap shows the sheet; nothing is saved |
 | Read-only profile: Budget Health | `HealthScreen` (household, long-press actions), `HealthOptions` | Read-only sheet; options off with the inline note |
-| Read-only profile: currency | `settings.tsx` | Read-only sheet |
+| Read-only profile: currency, household | `(tabs)/you.tsx` | Read-only sheet |
+| Read-only profile: manual entry | `AppTabBar.tsx` (before the screen opens), `add-transaction.tsx` (on save) | Read-only sheet |
 | Budgets beyond 3 | `goals.tsx`, Trends inline budget | A fourth budget opens the paywall. Extra budgets show a lock and "Renew to edit"; the sheet offers "Remove budget" |
 | Debts beyond 2 | `(tabs)/debts.tsx` (add button, empty state, suggestion cards), `InboxHost` (single suggestion, payment matches) | A third debt opens the paywall. Extra debts show a lock; swipe keeps Delete only |
 | PDF import | `readStatementFile(..., { allowPdf })` → `ProRequiredError`, caught in `runImport` | The PDF is not read; CSV / Excel files of the same pick are imported; the paywall opens, then the summary. Picker and share sheet |
@@ -71,7 +72,7 @@ Removing an old item makes the next one editable.
 | Future Growth (whole segment, `futureGrowth`) | `FreedomScreen`; lock on the segment label in `(tabs)/debts.tsx` | Always the full screen, read-only. No saved plan for the profile: the default plan as an example, with the note `pro.locked.examplePlan`. A saved plan (`getSavedFreedomPlan`): the full screen, read-only, with the note on top; a tap on an input opens the paywall and nothing is saved. The Home card only exists for a saved plan |
 | Budget Health (whole segment, `budgetHealth`) | `HealthScreen`, `HealthOptions`; lock on the segment label | Always the full screen, read-only, so the score is visible for free. No household saved: the note reads `pro.locked.note`. With or without a household: read-only (household, long-press actions and options off) |
 | Budget Health alerts | `runImport` in `useStatementImporter` | `runHealthAlerts` is not called, so no alert rows and no notifications are created. Alerts stored earlier stay under the bell |
-| Themes | `src/components/ThemeSwatches.tsx` (Settings → Appearance; in the appearance step of the first-launch questions a locked theme is previewed, not saved, and "Next" becomes "See Pro") | Lock on every theme except Aurora, Classic and Sunset. A Pro theme that is still active stays until another one is picked |
+| Themes | `src/components/ThemeSwatches.tsx` (You → Preferences; in the appearance step of the first-launch questions a locked theme is previewed, not saved, and "Next" becomes "See Pro") | Lock on every theme except Aurora, Classic and Sunset. A Pro theme that is still active stays until another one is picked |
 
 Not gated yet (placeholder flags): Health score history (`healthFull`) and the report's "Export PDF" (`reportPdf`); both carry a `TODO(pro)`.
 
@@ -80,11 +81,12 @@ Not gated yet (placeholder flags): Health score history (`healthFull`) and the r
 - `src/app/paywall.tsx`, a modal route with the optional param `feature`. The group of benefits that answers the feature comes first and is outlined; a line on top says why the paywall opened.
 - Content: `src/constants/paywall.ts` (`PLANS` with placeholder prices, `DEFAULT_PLAN` yearly, `BENEFIT_GROUPS`, `TERMS_URL`, `PRIVACY_URL`). The two links are placeholders (`example.com`): replace them before the paywall goes live.
 - With `source !== 'free'` the screen shows "You have Pro" and no plans.
-- Settings → Subscription: plan (Free / Pro / Developer), "See Pro", "Restore purchases", and with `PRO_TESTING_ENABLED` the "Pro (testing)" switch. Such a build also shows a "TEST BUILD" label at the bottom of Settings.
+- You → Account & subscription: plan (Free / Pro / Developer), "See Pro", "Restore purchases", and with `PRO_TESTING_ENABLED` the "Pro (testing)" switch. Such a build also shows a "TEST BUILD" label at the bottom of the You tab.
 
 ## Purchases
 
-- `src/services/purchases.ts` is the only file that talks to the store: `getOfferings()`, `purchase(db, plan)`, `restore()`.
+- `src/services/purchases.ts` is the only file that talks to the store: `getOfferings()`, `purchase(db, plan)`, `restore()`, and `identify(userId)` / `reset()`, which tell the store whose purchases these are (called by `AuthProvider`; no-ops until RevenueCat `logIn` / `logOut` go there).
+- A purchase belongs to an account. The paywall's buy and restore buttons and You → "Restore purchases" go through `useRequireAccount()`: without a user the sign-in sheet opens first and the action continues after signing in. A build without the account service skips this.
 - Today: in `__DEV__`, `purchase` turns the developer switch on and returns `success`; in a release build it returns `comingSoon`. `restore` finds nothing.
 - Later RevenueCat goes into this file, and `EntitlementProvider` takes the tier from it (`source: 'pro'`) instead of the developer switch. The real entitlement must not be stored in `app_meta` (backups).
 
@@ -101,7 +103,7 @@ Not gated yet (placeholder flags): Health score history (`healthFull`) and the r
 - Pass the flag on the command line. Do not put `EXPO_PUBLIC_PRO_TESTING=1` in `.env`: Expo CLI loads that file for every build, a production one included. `eas.json` sets no `env`, so an EAS build is a normal build unless the variable is added to a profile.
 - `metro.config.js` puts the flag into Metro's `cacheVersion`. Metro caches each transformed file and its cache key does not include the inlined value, so without this a build reused `buildConfig.ts` from the previous build: the flag did nothing after a normal build, and a normal build after a test build kept the switch. Keep that line as long as the flag exists; a new build-time `EXPO_PUBLIC_` flag needs the same.
 - The flag must be in the environment of the command that bundles. A build started from the Xcode or Android Studio window does not see a variable set in a terminal.
-- Check before shipping: Settings shows no "TEST BUILD" label.
+- Check before shipping: the You tab shows no "TEST BUILD" label.
 - The purchase stub still follows `__DEV__`: in a test release build "Buy" answers "coming soon", and Pro is turned on with the switch.
 
 ## Offers
@@ -109,6 +111,7 @@ Not gated yet (placeholder flags): Health score history (`healthFull`) and the r
 Shown to free users only; never in the demo, never on a read-only profile, never at launch.
 
 - **One-time paywall.** `useStatementImporter` counts imports that stored at least one row (`app_meta` `pro_offer_imports`). When an import summary is closed (`ImportSummaryHost`) and `shouldOfferPro` is true (at least one such import, `PRO_OFFER_AFTER_IMPORTS`, and not shown before), `pro_offer_shown` is written and the paywall opens with `feature: 'offer'`. Both keys are app-wide and survive "Reset". In a development build, turning the "Pro (developer)" switch off clears `pro_offer_shown`, so the offer can be tested again.
+- **First-launch offer.** `OfferStep` (`src/components/profile/`) is a Welcome stage (`offer`) right after the profile questions, before the account step and the import step. It is decided with the account step when "Get started" opens the questions (`offerStep`: questions are asked, `source === 'free'`, not the demo), so it is not shown again when the questions were answered earlier. It lists one benefit per `BENEFIT_GROUPS` group; "See Pro plans" opens the paywall with `feature: 'offer'` (buying, restoring and the account gate are the paywall's), "Continue with Free" moves on. Showing it writes `pro_offer_shown`, so the one-time paywall after the first import does not repeat it.
 - **For You item.** `PRO_OFFER` in `getInboxItems` (`options.offerPro`), last in the list and quiet (a dot, not a count), once the profile has transactions. Dismissing it stores `pro-offer` in the `inbox_dismissed:<profileId>` map and it does not come back for that profile.
 
 ## Not done

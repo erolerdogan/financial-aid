@@ -9,7 +9,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { deleteProfile, Profile, saveHousehold } from '@/db/database';
 import { usePaywall } from '@/hooks/usePaywall';
 import { canAdd, isProfileReadOnly } from '@/utils/entitlement';
-import { AVATAR_COLORS, buildHousehold, defaultCurrency, type SetupAnswers } from '@/utils/profileSetup';
+import { AVATAR_COLORS, buildHousehold, defaultCurrency, isProfileNameTaken, type SetupAnswers } from '@/utils/profileSetup';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocales } from 'expo-localization';
 import { router } from 'expo-router';
@@ -61,8 +61,10 @@ export function ProfileSwitcherModal({ visible, onClose }: ProfileSwitcherModalP
   const [nameInput, setNameInput] = useState('');
   const [selectedColor, setSelectedColor] = useState(AVATAR_COLORS[0]);
 
+  const nameTaken = isProfileNameTaken(nameInput, profiles, selectedForEdit?.id);
+
   const handleSave = async () => {
-    if (!nameInput.trim()) return;
+    if (!nameInput.trim() || nameTaken) return;
 
     if (selectedForEdit) {
       await editProfile(selectedForEdit.id, nameInput, selectedColor);
@@ -139,6 +141,7 @@ export function ProfileSwitcherModal({ visible, onClose }: ProfileSwitcherModalP
               {isEditing && !selectedForEdit ? (
                 <ProfileSetup
                   nameRequired
+                  isNameTaken={(name) => isProfileNameTaken(name, profiles)}
                   initialName=""
                   initialColor={AVATAR_COLORS[0]}
                   initialCurrency={defaultCurrency(deviceLocales[0]?.currencyCode, CURRENCY_CODES)}
@@ -177,6 +180,7 @@ export function ProfileSwitcherModal({ visible, onClose }: ProfileSwitcherModalP
                     onChangeText={setNameInput}
                     autoFocus
                   />
+                  {nameTaken && <Text style={styles.nameError}>{t('profile.nameTaken')}</Text>}
                   <SelectableText style={[styles.colorLabel, { color: colors.textSecondary }]}>{t('profile.avatarColor')}</SelectableText>
                   <View style={styles.colorRow}>
                     {AVATAR_COLORS.map((col, index) => (
@@ -297,6 +301,7 @@ const styles = StyleSheet.create({
   addText: { fontSize: 14, fontWeight: '600' },
   formContainer: { gap: 14 },
   input: { height: 46, borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, paddingHorizontal: 14, fontSize: 15, fontWeight: '600' },
+  nameError: { color: '#FF3B30', fontSize: 13 },
   colorLabel: { fontSize: 12, fontWeight: '600', marginTop: 4 },
   colorRow: { flexDirection: 'row', gap: 12, marginBottom: 8 },
   colorCircle: { width: 32, height: 32, borderRadius: 16 },

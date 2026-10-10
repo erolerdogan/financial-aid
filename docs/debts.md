@@ -11,7 +11,7 @@ Debt math and payment linking: bottom of `src/db/database.ts`. UI helpers and `p
 
 ## Free and Pro
 
-- Free has two debts ([subscription.md](subscription.md)). `guardAdd` in `debts.tsx` covers the add button, the empty state and the suggestion cards; `InboxHost` applies the same check to its shortcuts.
+- Free has two debts ([subscription.md](subscription.md)). `guardAdd` in `debts.tsx` covers the add button ("Add debt" under the debt cards of the Debts segment; the tab header has no icon for it), the empty state and the suggestion cards; `InboxHost` applies the same check to its shortcuts.
 - Debts beyond the limit (the list is by `id`, oldest first) show a lock: no edit, no payment form, no linking; delete stays. `DebtDetailModal` takes `readOnly`.
 
 ## Covered

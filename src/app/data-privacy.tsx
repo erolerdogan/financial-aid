@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 const FACTS: { icon: keyof typeof Ionicons.glyphMap; title: LegalKey; text: LegalKey }[] = [
   { icon: 'phone-portrait-outline', title: 'privacy.s1Title', text: 'privacy.s1Text' },
   { icon: 'eye-off-outline', title: 'privacy.s2Title', text: 'privacy.s2Text' },
+  { icon: 'person-circle-outline', title: 'privacy.s9Title', text: 'privacy.s9Text' },
   { icon: 'share-outline', title: 'privacy.s3Title', text: 'privacy.s3Text' },
   { icon: 'trash-outline', title: 'privacy.s5Title', text: 'privacy.s5Text' },
 ];

@@ -24,8 +24,8 @@ export const fr: SiteCopy = {
   'home.lead':
     'Importez le relevé que votre banque vous permet de télécharger. Financial Aid classe les transactions, suit vos budgets et vos dettes, et garde tout sur votre téléphone.',
   'home.screen': 'Écran d’accueil',
-  'home.point1Title': 'Pas de compte',
-  'home.point1Text': 'Ouvrez l’application et commencez. Il n’y a aucune inscription.',
+  'home.point1Title': 'Pas besoin de compte',
+  'home.point1Text': 'Ouvrez l’application et commencez. La création d’un compte est facultative.',
   'home.point2Title': 'Pas de connexion à la banque',
   'home.point2Text':
     'Vous importez vous-même un fichier CSV ou Excel. L’application ne demande jamais vos identifiants bancaires.',

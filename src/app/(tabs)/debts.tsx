@@ -342,20 +342,7 @@ export default function DebtsScreen() {
   return (
     <ScreenContainer>
       <View style={styles.headerRow}>
-        <SelectableText style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1} maxFontSizeMultiplier={1.4}>{t('tabs.plan')}</SelectableText>
-        <HeaderActions showSearch={false}>
-          {segment === 'DEBTS' && (
-            <TouchableOpacity
-              style={[styles.addBtn, { backgroundColor: colors.accent }]}
-              onPress={openCreate}
-              activeOpacity={0.8}
-              accessibilityRole="button"
-              accessibilityLabel={t('debt.add')}
-            >
-              <Ionicons name="add" size={20} color="#FFFFFF" />
-            </TouchableOpacity>
-          )}
-        </HeaderActions>
+        <HeaderActions title={t('tabs.plan')} />
       </View>
 
       <View style={[styles.segmentedContainer, { backgroundColor: colors.track }]} accessibilityRole="tablist">
@@ -501,6 +488,17 @@ export default function DebtsScreen() {
             </TabSwipeBlocker>
           ))}
 
+          {/* The only way to add a debt by hand; the gates are in openCreate. */}
+          <TouchableOpacity
+            style={[styles.addBtn, { backgroundColor: colors.tintBackground }]}
+            onPress={openCreate}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+          >
+            <Ionicons name="add-circle-outline" size={18} color={colors.accent} />
+            <Text style={[styles.addBtnText, { color: colors.accent }]}>{t('debt.add')}</Text>
+          </TouchableOpacity>
+
           {suggestionCards}
         </ScrollView>
       )}
@@ -526,16 +524,19 @@ export default function DebtsScreen() {
 }
 
 const styles = StyleSheet.create({
-  headerRow: {
-    marginTop: 8,
-    marginBottom: 12,
-    paddingHorizontal: 20,
+  headerRow: { paddingHorizontal: 20 },
+  addBtn: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    minHeight: 48,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    marginTop: 4,
+    marginBottom: 12,
   },
-  headerTitle: { fontSize: 24, fontWeight: '700', letterSpacing: -0.5 },
-  addBtn: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  addBtnText: { fontSize: 15, fontWeight: '600', flexShrink: 1 },
   segmentedContainer: {
     flexDirection: 'row',
     borderRadius: 10,

@@ -39,6 +39,9 @@ export const tr: FaqCopy = {
   'faq.import.coverage.a':
     '{home} ekranındaki ekstre etiketi, seçili ayın ne kadarının ekstrelerinizle kapsandığını gösterir: henüz veri yok, içinde bulunulan ay, günleri eksik geçmiş bir ay veya ayın tamamı. Günleri eksik geçmiş bir ay ayrıca {forYou} altında da listelenir.',
 
+  'faq.import.manual.q': 'Elle işlem ekleyebilir miyim?',
+  'faq.import.manual.a':
+    'Evet. Sekme çubuğunun ortasındaki + düğmesine dokunun ve gider ya da gelir seçin; ardından tutar, açıklama, tarih ve kategori girin. Kendi girdiğiniz bir işlemi ayrıntı ekranından silebilirsiniz. Daha sonra aynı ödemeyi içeren bir ekstre içe aktarırsanız ödeme ikinci kez eklenir; o zaman kendi kaydınızı silin.',
   'faq.categories.title': 'Kategoriler ve bütçeler',
   'faq.categories.how.q': 'İşlemler nasıl kategorilere ayrılıyor?',
   'faq.categories.how.a':
@@ -78,7 +81,10 @@ export const tr: FaqCopy = {
   'faq.privacy.title': 'Gizlilik ve yedekler',
   'faq.privacy.where.q': 'Verilerim nerede saklanıyor?',
   'faq.privacy.where.a':
-    'Cihazınızdaki bir veritabanında. Hesap yoktur, verilerinizi alan bir sunucu yoktur ve uygulamada analitik veya reklam bulunmaz.',
+    'Cihazınızdaki bir veritabanında. Finansal verilerinizi hiçbir sunucu almaz ve uygulamada analitik veya reklam bulunmaz.',
+  'faq.privacy.account.q': 'Hesaba ihtiyacım var mı?',
+  'faq.privacy.account.a':
+    'Hayır. Uygulama hesap olmadan çalışır. Hesap yalnızca uygulama içi satın alma için gerekir; böylece satın alım yeni bir telefonda da sizinle kalır. Hesapta e-posta adresiniz, bir hesap kimliği ve oluşturulma tarihi saklanır; finansal verileriniz telefonunuzdan asla çıkmaz. Hesabı {settings} → {account} bölümünden silebilirsiniz.',
   'faq.privacy.lost.q': 'Telefonumu kaybedersem veya uygulamayı silersem ne olur?',
   'faq.privacy.lost.a':
     'Verileriniz yalnızca cihazınızda bulunur, bu yüzden yedek olmadan kurtarılamaz. Düzenli olarak yedek alın ve güvenli bir yerde saklayın; uygulama 30 gün sonra hatırlatır.',

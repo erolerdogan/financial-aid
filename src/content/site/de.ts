@@ -24,8 +24,8 @@ export const de: SiteCopy = {
   'home.lead':
     'Importiere den Kontoauszug, den du bei deiner Bank herunterladen kannst. Financial Aid sortiert die Transaktionen, behält Budgets und Schulden im Blick und speichert alles auf deinem Telefon.',
   'home.screen': 'Startbildschirm',
-  'home.point1Title': 'Kein Konto',
-  'home.point1Text': 'App öffnen und loslegen. Du musst dich nirgends anmelden.',
+  'home.point1Title': 'Kein Konto nötig',
+  'home.point1Text': 'App öffnen und loslegen. Ein Konto ist optional.',
   'home.point2Title': 'Keine Bankverbindung',
   'home.point2Text':
     'Du importierst selbst eine CSV- oder Excel-Datei. Die App fragt nie nach deinen Bankzugangsdaten.',

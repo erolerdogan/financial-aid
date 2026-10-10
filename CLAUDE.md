@@ -17,7 +17,7 @@ React Native / Expo SDK 57, TypeScript, Expo Router, expo-sqlite. Local-first pe
 - `npx expo customize tsconfig.json`: after adding a route file, regenerates `.expo/types/router.d.ts` so `tsc` knows the new path.
 
 ## Hard rules
-- IMPORTANT: Local-first. All data lives in SQLite via `src/db/database.ts`. No network calls with user data, no analytics; notifications are local only. The only `fetch` is the exchange rate request in `src/services/exchangeRates.ts`, which sends nothing about the user.
+- IMPORTANT: Local-first. All data lives in SQLite via `src/db/database.ts`. No network calls with financial data, no analytics; notifications are local only. Two places use the network and no others: the exchange rate request in `src/services/exchangeRates.ts`, which sends nothing about the user, and the optional account in `src/services/auth.ts` + `src/services/supabase.ts`, which sends the email address or the sign-in token of Apple / Google and nothing from the database.
 - IMPORTANT: Multi-profile. Every query is scoped by `profileId` (see ProfileContext).
 - IMPORTANT: Schema changes go only in `initDatabase`, as `CREATE TABLE IF NOT EXISTS` plus a try/catch `ALTER TABLE`. Never run `execAsync` DDL from screens (causes "database is locked").
 - IMPORTANT: No user-facing string literals in components: text via `t()`, numbers and dates via `format`, both from `useI18n()` (never `tNow` in a component). A new key goes into `en.ts` and all eight other locale files.
@@ -40,23 +40,34 @@ React Native / Expo SDK 57, TypeScript, Expo Router, expo-sqlite. Local-first pe
 
 ## Subscription
 - Tiers: Free and Pro. One entitlement "pro". Products later: monthly, yearly (7-day trial), lifetime.
-- 100% local and private: no account, no login, no analytics.
+- Private: no analytics, and no financial data leaves the device. The account (below) is optional for using the app and required to buy or restore Pro.
 - Never gate: backup/restore, export, delete, app lock, languages, data correctness (transfer detection, categorisation).
 - Downgrade never deletes or hides data: items beyond free limits stay visible, read-only, with a "Renew to edit" note.
 - IMPORTANT: All checks go through `useEntitlement()` and the `FEATURES` map (`src/constants/features.ts`). No scattered `isPro` checks. A new write path respects `useProfileAccess()` (read-only profile).
 - No payment SDK yet. `src/services/purchases.ts` is the only file the store plugs into. The Pro testing switch (`pro_dev_override`) counts only when `PRO_TESTING_ENABLED` (`src/constants/buildConfig.ts`: `__DEV__` or `EXPO_PUBLIC_PRO_TESTING=1` at build time) is true.
 
+## Account
+- IMPORTANT: The account stores only user id, email and created_at. No financial data ever leaves the device: no transactions, balances, profiles, categories or names of payees. Never add a table, a sync or a field to it.
+- Sign-in methods: Sign in with Apple (iOS), Sign in with Google, email magic link. No passwords.
+- Optional to use the app; required to purchase Pro (asked right before purchase / restore, through `useRequireAccount()`). Nothing in the app waits for the network or for `status`; a signed-in user stays signed in offline.
+- Tagline copy: "Your financial data never leaves your phone."
+- The session is in the Keychain / Keystore (`src/services/authStorage.ts`), never in `app_meta` (backups). Server secrets (service role key, RevenueCat secret key) exist only in the edge function, never in the app or `.env`.
+- A build without `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PUBLIC_SUPABASE_ANON_KEY` has no account UI (`AUTH_CONFIGURED`, `useAuth().available`); every account entry point checks it.
+
 ## Map
 - Source in `src/` (`@/` alias → `src/`). Routes in `src/app`, tabs in `src/app/(tabs)`.
+- Tab bar (Home, Trends, [+], Plan, You): `src/components/navigation/AppTabBar.tsx` + `AddActionSheet.tsx`; tab header: `src/components/HeaderActions.tsx` (avatar → `ProfileQuickSwitchSheet`, search, bell). You tab: `src/app/(tabs)/you.tsx`, rows `src/components/you/`.
+- Manual entry: `src/app/add-transaction.tsx`, pure rules `src/utils/manualEntry.ts`, `insertManualTransaction` / `deleteManualTransaction` in `database.ts` (`txType = 'MANUAL'`).
 - Schema and all queries: `src/db/database.ts` (debt math and payment linking at the bottom). Demo seed: `src/db/demoSeeder.ts`.
 - Import: `src/hooks/useStatementImporter.ts` (picker and share sheet) → `src/services/importService.ts` → `src/utils/parser.ts`. Bank layouts: `src/utils/bankFormats.ts`. PDF statements: `src/services/pdfText.ts` + `src/components/PdfTextHost.tsx` (text, hidden WebView) → `src/utils/pdfStatements/` (parsers, totals check, chain check).
 - Currency, demo mode, active profile: `src/contexts/ProfileContext.tsx`. Currency list (symbol, decimals): `src/constants/currencies.ts`, names: `src/i18n/currencyNames.ts`, both generated; picker: `src/components/CurrencyPickerSheet.tsx`. Rates: `src/services/exchangeRates.ts` (provider, cache in `app_meta`), pure part `src/utils/exchangeRates.ts`. Switching currency rewrites stored transaction, budget, debt and household amounts with the rate of the day (`switchProfileCurrency`; not `freedom_plans`); see `docs/navigation.md`, Currency.
 - Picked period: `PeriodContext`. Theme and Home chart type: `ThemeContext`. Language: `LanguageContext`, `src/i18n/`.
 - `app_meta`: key/value table (theme, language, last backup date, dismissals, intro flags). It survives "Reset" and is replaced by a restore.
 - Passcode lock: `src/contexts/PasscodeContext.tsx`, `src/components/passcode/`, pure logic `src/utils/passcode.ts`. Its hash is in a file (`src/services/passcodeStore.ts`), on purpose not in the database, so it stays out of backups; see `docs/navigation.md`.
+- Account: pure rules and state `src/utils/auth.ts`, client `src/services/auth.ts` (+ `supabase.ts`, `authStorage.ts`), `src/contexts/AuthContext.tsx`, `useRequireAccount` (`src/hooks/`), UI `src/components/account/`, `src/components/profile/AccountStep.tsx`, `src/app/account.tsx`; the email link returns through `src/app/+native-intent.ts`; edge function `supabase/functions/delete-account` (Deno, excluded from `tsc` and ESLint); native config that depends on env in `app.config.ts`.
 - Debt UI helpers: `src/utils/debt.ts`. Reminders and notifications: `src/utils/notifications.ts`.
-- Legal: privacy policy, terms of use and disclaimer are in `src/content/legal/` (nine files plus `LEGAL_DOCUMENTS`), shown in the app by `src/app/legal.tsx` (Settings → About → Personal Data & Privacy, Welcome) and published by the website from the same text; `src/app/data-privacy.tsx` is the short version of the privacy policy. Licenses screen: `src/app/licenses.tsx`.
-- FAQ: questions and answers are in `src/content/faq/` (nine files plus `FAQ_GROUPS`), shown in the app by `src/app/faq.tsx` (Settings → About) and published by the website from the same text. Answers follow `README.md` and `docs/`; update them when a feature they describe changes.
+- Legal: privacy policy, terms of use and disclaimer are in `src/content/legal/` (nine files plus `LEGAL_DOCUMENTS`), shown in the app by `src/app/legal.tsx` (You → Help & about → Personal Data & Privacy, Welcome) and published by the website from the same text; `src/app/data-privacy.tsx` is the short version of the privacy policy. Licenses screen: `src/app/licenses.tsx`.
+- FAQ: questions and answers are in `src/content/faq/` (nine files plus `FAQ_GROUPS`), shown in the app by `src/app/faq.tsx` (You → Help & about) and published by the website from the same text. Answers follow `README.md` and `docs/`; update them when a feature they describe changes.
 - Website: entry `scripts/build-site.ts`, page builders `scripts/site/pages/`, web-only copy `src/content/site/` (nine files, like the locales; legal texts in `src/content/legal/`, FAQ in `src/content/faq/`), images `site/`.
 - Free / Pro: limits and flags `src/constants/features.ts`, pure rules `src/utils/entitlement.ts`, `src/contexts/EntitlementContext.tsx`, hooks `usePaywall` / `useProfileAccess` / `useBudgetGate` (`src/hooks/`), UI `src/components/pro/`, paywall `src/app/paywall.tsx` + `src/constants/paywall.ts`, purchase stub `src/services/purchases.ts`.
 - Budget Health: engine `src/utils/budgetHealth.ts`, alerts `src/utils/healthAlerts.ts`, loaders `src/services/healthService.ts`, UI `src/components/health/`.
@@ -64,6 +75,7 @@ React Native / Expo SDK 57, TypeScript, Expo Router, expo-sqlite. Local-first pe
 Naming traps:
 - The "Plan" tab is the route `debts` (`src/app/(tabs)/debts.tsx`), with segments Health (Budget Health), Debts and Future Growth. "Debts tab" means its Debts segment.
 - "Future Growth" in the UI is "Freedom" in code (`src/components/freedom/`, `freedom_plans`, `segment: 'freedom'`).
+- Settings is the You tab (`src/app/(tabs)/you.tsx`); `src/app/settings.tsx` only redirects to it. The "+" of the tab bar is a button, not a route.
 - Budgets is `src/app/goals.tsx`. Home is `src/app/(tabs)/index.tsx`. Transactions is `src/app/transactions.tsx`, a pushed screen, not a tab.
 - Freedom keys keep old names: Outlook is `PESSIMISTIC | NEUTRAL | OPTIMISTIC`, the prices switch is `ValueMode` `NOMINAL | REAL`, Starting amount is `lumpSum`.
 - Not wired up (exists, nothing calls it): `detectRecurringPatterns` / `getRecurringCandidates` in `database.ts`.
@@ -77,8 +89,9 @@ Naming traps:
 | `docs/freedom.md` | Future Growth: layout, inputs, scenarios, persistence, math, goal solvers, reference test vector |
 | `docs/health.md` | Budget Health: benchmarks, tables, engine, pillars, alerts, UI, PDF report |
 | `docs/backup.md` | Backup and restore, encrypted `.fabackup` format, transaction export |
-| `docs/navigation.md` | Routes, headers, passcode lock, tab swipe, picked period, drill-down, Home chart, Trends, Transactions, For You inbox, themes, accessibility, performance |
+| `docs/navigation.md` | Routes, headers, tab bar and add button, manual entry, You tab, passcode lock, tab swipe, picked period, drill-down, Home chart, Trends, Transactions, For You inbox, themes, accessibility, performance |
 | `docs/i18n.md` | Languages, keys and plurals, `format`, category names, `Message`, what stays English |
+| `docs/account.md` | Optional account: rules, auth layer, session storage, email link, purchase identity, screens, delete-account edge function, env and native setup, dashboard checklist |
 | `docs/subscription.md` | Free and Pro: limits and flags, read-only rules, every gated location, paywall, purchase stub, Pro offers |
 | `docs/website.md` | Website pages, copy files, changelog, images, build settings, deployment |
 
@@ -87,4 +100,4 @@ Naming traps:
 - New text exists in all nine locale files; no hardcoded colors, strings, month names or `toLocaleString('en-US')`.
 - Queries are scoped by `profileId`; schema changes are in `initDatabase` only.
 - Docs follow the code: the matching `docs/*.md` for behaviour and gotchas, `README.md` for the feature list (keep it updated), `ROADMAP.md` when an item is finished, this file only for rules and the map.
-- The final message lists the changed files and says whether a native rebuild is needed. It is needed after adding or upgrading a native module or changing `app.json` plugins (today: the `expo-sharing` share target, `expo-crypto`, `expo-print`, `react-native-webview`).
+- The final message lists the changed files and says whether a native rebuild is needed. It is needed after adding or upgrading a native module or changing `app.json` plugins (today: the `expo-sharing` share target, `expo-secure-store`, `expo-apple-authentication`, `@react-native-google-signin/google-signin`, `expo-crypto`, `expo-print`, `react-native-webview`).

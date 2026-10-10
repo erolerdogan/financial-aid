@@ -7,6 +7,7 @@ import {
   syncCategoryColors
 } from '@/db/database';
 import { seedExpandedDemoData } from '@/db/demoSeeder';
+import { isProfileNameTaken } from '@/utils/profileSetup';
 import { useSQLiteContext } from 'expo-sqlite';
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 
@@ -227,7 +228,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   };
 
   const addNewProfile = async (name: string, color?: string, currency?: string): Promise<Profile | null> => {
-    if (!db || !name.trim()) return null;
+    if (!db || !name.trim() || isProfileNameTaken(name, profiles)) return null;
     const newProf = await createProfile(db, name.trim(), color || '#007AFF', currency || 'EUR');
     if (newProf) {
       setProfiles((prev) => [...prev, newProf]);
@@ -239,7 +240,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   };
 
   const editProfile = async (id: number, name: string, color: string): Promise<void> => {
-    if (!db || !name.trim()) return;
+    if (!db || !name.trim() || isProfileNameTaken(name, profiles, id)) return;
     try {
       await db.runAsync(
         'UPDATE profiles SET name = ?, avatarColor = ? WHERE id = ?;',

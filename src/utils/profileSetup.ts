@@ -77,3 +77,14 @@ export function defaultCurrency(
   const code = (regionCurrency ?? '').toUpperCase();
   return supported.includes(code) ? code : fallback;
 }
+
+/** Whether another profile already has this name: compared trimmed and ignoring case. `exceptId` is the profile being edited. */
+export function isProfileNameTaken(
+  name: string,
+  profiles: readonly { id: number; name: string }[],
+  exceptId?: number
+): boolean {
+  const wanted = name.trim().toLowerCase();
+  if (wanted === '') return false;
+  return profiles.some((profile) => profile.id !== exceptId && profile.name.trim().toLowerCase() === wanted);
+}

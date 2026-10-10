@@ -1,4 +1,4 @@
-// The frequently asked questions. The app shows them under Settings → About (`src/app/faq.tsx`) and the
+// The frequently asked questions. The app shows them under You → Help & about (`src/app/faq.tsx`) and the
 // website publishes the same text (`scripts/site/pages/faq.ts`), so there is one copy.
 // A `{name}` other than `{banks}` stands for a label the app already has (`FAQ_APP_NAMES` in `index.ts`).
 export const en = {
@@ -41,6 +41,9 @@ export const en = {
   'faq.import.coverage.a':
     'The statement label on {home} shows how much of the selected month your statements cover: no data yet, the current month in progress, a past month with days missing, or the whole month. A past month with days missing is also listed under {forYou}.',
 
+  'faq.import.manual.q': 'Can I add a transaction by hand?',
+  'faq.import.manual.a':
+    'Yes. Tap the + in the middle of the tab bar and choose an expense or income, then enter an amount, a description, a date and a category. A transaction you entered yourself can be deleted from its detail. If you later import a statement that contains the same payment, it is added a second time; delete your own entry then.',
   'faq.categories.title': 'Categories and budgets',
   'faq.categories.how.q': 'How are transactions categorised?',
   'faq.categories.how.a':
@@ -80,7 +83,10 @@ export const en = {
   'faq.privacy.title': 'Privacy and backups',
   'faq.privacy.where.q': 'Where is my data stored?',
   'faq.privacy.where.a':
-    'In a database on your device. There is no account and no server that receives your data, and the app contains no analytics or ads.',
+    'In a database on your device. No server receives your financial data, and the app contains no analytics or ads.',
+  'faq.privacy.account.q': 'Do I need an account?',
+  'faq.privacy.account.a':
+    'No. The app works without one. An account is needed only for a purchase in the app, so the purchase stays with you on a new phone. It stores your email address, an account ID and the date it was created; your financial data never leaves your phone. You can delete the account under {settings} → {account}.',
   'faq.privacy.lost.q': 'What if I lose my phone or delete the app?',
   'faq.privacy.lost.a':
     'Your data exists only on your device, so without a backup it cannot be recovered. Make a backup regularly and keep it somewhere safe; the app reminds you after 30 days.',

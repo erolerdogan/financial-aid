@@ -25,8 +25,8 @@ export const en = {
   'home.lead':
     'Import the statement your bank lets you download. Financial Aid sorts the transactions, tracks budgets and debts, and keeps everything on your phone.',
   'home.screen': 'Home screen',
-  'home.point1Title': 'No account',
-  'home.point1Text': 'Open the app and start. There is nothing to sign up for.',
+  'home.point1Title': 'No account needed',
+  'home.point1Text': 'Open the app and start. Signing up is optional.',
   'home.point2Title': 'No bank connection',
   'home.point2Text': 'You import a CSV or Excel file yourself. The app never asks for your bank login.',
   'home.point3Title': 'Nothing uploaded',

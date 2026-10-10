@@ -10,6 +10,7 @@
     "ios": {
       "icon": "./assets/expo.icon",
       "bundleIdentifier": "com.financialaid.mobile",
+      "usesAppleSignIn": true,
       "config": {
         "usesNonExemptEncryption": false
       }
@@ -86,7 +87,9 @@
             ]
           }
         }
-      ]
+      ],
+      "expo-secure-store",
+      "expo-apple-authentication"
     ],
     "experiments": {
       "typedRoutes": true,

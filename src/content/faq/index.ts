@@ -25,7 +25,9 @@ export const faqTranslate = (language: LanguageCode, key: FaqKey, params?: Trans
 
 /** Placeholders that stand for a label of the app, so an answer names a screen or a row the way the app does. */
 export const FAQ_APP_NAMES = {
-  settings: 'settings.title',
+  // The You tab; the placeholder kept its name from when that was the Settings screen.
+  settings: 'tabs.you',
+  account: 'account.title',
   importRow: 'settings.import',
   guide: 'guide.settingsRow',
   backup: 'settings.backup',
@@ -87,6 +89,7 @@ export const FAQ_GROUPS: FaqGroup[] = [
       { q: 'faq.import.twice.q', a: 'faq.import.twice.a' },
       { q: 'faq.import.share.q', a: 'faq.import.share.a' },
       { q: 'faq.import.coverage.q', a: 'faq.import.coverage.a' },
+      { q: 'faq.import.manual.q', a: 'faq.import.manual.a' },
     ],
   },
   {
@@ -117,6 +120,7 @@ export const FAQ_GROUPS: FaqGroup[] = [
     title: 'faq.privacy.title',
     items: [
       { q: 'faq.privacy.where.q', a: 'faq.privacy.where.a' },
+      { q: 'faq.privacy.account.q', a: 'faq.privacy.account.a' },
       { q: 'faq.privacy.lost.q', a: 'faq.privacy.lost.a' },
       { q: 'faq.privacy.backup.q', a: 'faq.privacy.backup.a' },
       { q: 'faq.privacy.password.q', a: 'faq.privacy.password.a' },

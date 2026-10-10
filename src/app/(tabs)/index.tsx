@@ -472,10 +472,7 @@ export default function DashboardScreen() {
         }
       >
         {/* Top Header Bar */}
-        <View style={styles.headerRow}>
-          <SelectableText style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1} maxFontSizeMultiplier={1.4}>{t('tabs.home')}</SelectableText>
-          <HeaderActions />
-        </View>
+        <HeaderActions title={t('tabs.home')} />
 
         {/* Empty Workspace View vs Main Dashboard */}
         {availableMonths.length === 0 ? (
@@ -703,18 +700,6 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: 20, paddingTop: 0, paddingBottom: 100 },
-  headerRow: {
-    marginTop: 8,
-    marginBottom: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    letterSpacing: -0.5,
-  },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   sheetContainer: {
     borderTopLeftRadius: 24,

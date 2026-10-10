@@ -1,20 +1,23 @@
-// The privacy policy, the terms of use and the disclaimer. The app shows them under Settings → Personal Data & Privacy
+// The privacy policy, the terms of use and the disclaimer. The app shows them under You → Personal Data & Privacy
 // (`src/app/legal.tsx`) and the website publishes the same text (`scripts/site/pages/`), so there is one copy.
 export const en = {
   'legal.supportPage': 'Support',
 
   'privacy.title': 'Privacy policy',
   'privacy.description':
-    'Financial Aid stores your data on your device and does not collect it. This page explains what that means.',
+    'Financial Aid stores your financial data on your device and does not collect it. This page explains what that means.',
   'privacy.updated': 'Last updated: {date}',
   'privacy.summary':
     'In short: Financial Aid does not collect, upload or share your financial data. It stays on your device.',
   'privacy.s1Title': 'Data the app stores',
   'privacy.s1Text':
-    'The statements you import and the categories, budgets, debts, plans and settings you create are stored in a database on your device. The app has no accounts and no server that receives this data.',
+    'The statements you import and the categories, budgets, debts, plans and settings you create are stored in a database on your device. No server receives this data, whether you have an account or not.',
   'privacy.s2Title': 'Data the app collects',
   'privacy.s2Text':
-    'None. The app contains no analytics, no advertising and no tracking, and it makes no network requests with your data. The only request the app makes: when you change the currency of a profile, it downloads the exchange rates of the day from exchangerate-api.com. This request contains none of your data and does not say which currencies you use; as with any internet request, that service sees your IP address.',
+    'No financial data. The app contains no analytics, no advertising and no tracking, and it makes no network requests with your financial data. It makes two kinds of requests. When you change the currency of a profile, it downloads the exchange rates of the day from exchangerate-api.com; this request contains none of your data and does not say which currencies you use. And if you create the optional account described below, signing in sends your email address or the sign-in token from Apple or Google to the account service. As with any internet request, these services see your IP address.',
+  'privacy.s9Title': 'The optional account',
+  'privacy.s9Text':
+    'You can use the app without an account. An account is needed only for a purchase in the app, so that the purchase can be restored on another device. If you create one, we store your email address, an account ID and the date the account was created, and nothing else. You sign in with Apple, with Google or with a link sent to your email address; Apple and Google confirm who you are and receive no data from the app. The account is stored by Supabase, a hosting service that processes it on our behalf. Your financial data is never part of the account and never leaves your device.',
   'privacy.s3Title': 'Files you import, save and share',
   'privacy.s3Text':
     'Statement files are read on the device. Backups, exported transactions and PDF reports are created on the device and saved or shared only where you choose. If you keep them in a cloud service, the privacy policy of that service applies.',
@@ -22,7 +25,7 @@ export const en = {
   'privacy.s4Text': 'Import reminders and alerts are scheduled on the device. They are not sent from a server.',
   'privacy.s5Title': 'Deleting your data',
   'privacy.s5Text':
-    'Settings has an option to reset all data and profiles. Deleting the app removes its database from the device. Backup files you saved elsewhere have to be deleted by you.',
+    'The You tab has an option to reset all data and profiles. Deleting the app removes its database from the device. Backup files you saved elsewhere have to be deleted by you. You can delete your account under You → Account; this removes your email address from the account service and leaves the data on your device as it is.',
   'privacy.s6Title': 'This website',
   'privacy.s6Text':
     'This website uses no cookies and no analytics. It is hosted on GitHub Pages, which may log technical data such as IP addresses; see the {link}.',
@@ -48,13 +51,13 @@ export const en = {
   'terms.s3Link': 'disclaimer',
   'terms.s4Title': 'Your data and backups',
   'terms.s4Text':
-    'Your data is stored on your device only, as described in the {link}. We cannot see it, restore it or recover it. Making backups and keeping them safe is up to you. A password you set on a backup cannot be reset: without it, the backup cannot be opened.',
+    'Your financial data is stored on your device only, as described in the {link}. We cannot see it, restore it or recover it. Making backups and keeping them safe is up to you. A password you set on a backup cannot be reset: without it, the backup cannot be opened.',
   'terms.s4Link': 'privacy policy',
   'terms.s5Title': 'Accuracy',
   'terms.s5Text':
     'The app reads files from many banks and sorts transactions automatically. Amounts, categories, linked debt payments and totals can be wrong or incomplete. Check important figures against the statements from your bank, which remain the record that counts.',
   'terms.s6Title': 'Open-source software',
-  'terms.s6Text': 'The app includes open-source software. Its licenses are listed in the app under Settings.',
+  'terms.s6Text': 'The app includes open-source software. Its licenses are listed in the app, in the You tab.',
   'terms.s7Title': 'No warranty',
   'terms.s7Text':
     'As far as the law allows, the app is provided as it is, without a warranty of any kind. We do not promise that it is free of errors, that it reads every file or that it stays available.',

@@ -40,6 +40,9 @@ export const es: FaqCopy = {
   'faq.import.coverage.a':
     'La etiqueta de extracto en {home} muestra qué parte del mes seleccionado cubren tus extractos: todavía sin datos, el mes en curso, un mes pasado al que le faltan días o el mes entero. Un mes pasado al que le faltan días aparece también en {forYou}.',
 
+  'faq.import.manual.q': '¿Puedo añadir una transacción a mano?',
+  'faq.import.manual.a':
+    'Sí. Toca el + en el centro de la barra de pestañas y elige gasto o ingreso; después introduce un importe, una descripción, una fecha y una categoría. Una transacción que has introducido tú se puede eliminar desde su detalle. Si más adelante importas un extracto que contiene el mismo pago, se añade por segunda vez; elimina entonces tu propia entrada.',
   'faq.categories.title': 'Categorías y presupuestos',
   'faq.categories.how.q': '¿Cómo se categorizan las transacciones?',
   'faq.categories.how.a':
@@ -79,7 +82,10 @@ export const es: FaqCopy = {
   'faq.privacy.title': 'Privacidad y copias de seguridad',
   'faq.privacy.where.q': '¿Dónde se guardan mis datos?',
   'faq.privacy.where.a':
-    'En una base de datos en tu dispositivo. No hay cuenta ni servidor que reciba tus datos, y la app no contiene analíticas ni anuncios.',
+    'En una base de datos en tu dispositivo. Ningún servidor recibe tus datos financieros, y la app no contiene analíticas ni anuncios.',
+  'faq.privacy.account.q': '¿Necesito una cuenta?',
+  'faq.privacy.account.a':
+    'No. La app funciona sin cuenta. La cuenta solo hace falta para una compra dentro de la app, así conservas la compra en un teléfono nuevo. Guarda tu correo electrónico, un identificador de cuenta y la fecha en que se creó; tus datos financieros nunca salen de tu teléfono. Puedes eliminar la cuenta en {settings} → {account}.',
   'faq.privacy.lost.q': '¿Y si pierdo el teléfono o elimino la app?',
   'faq.privacy.lost.a':
     'Tus datos solo existen en tu dispositivo, así que sin una copia de seguridad no se pueden recuperar. Haz una copia con regularidad y guárdala en un lugar seguro; la app te lo recuerda a los 30 días.',

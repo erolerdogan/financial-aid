@@ -16,7 +16,7 @@ import {
   View,
   type AppStateStatus,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BanksScene } from './scenes/BanksScene';
 import { CalendarScene } from './scenes/CalendarScene';
 import { DonutScene } from './scenes/DonutScene';
@@ -56,6 +56,7 @@ interface WelcomeIntroProps {
  */
 export function WelcomeIntro({ onDone }: WelcomeIntroProps) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const { t } = useI18n();
   const { locked, covered } = usePasscode();
   const [scene, setScene] = useState(0);
@@ -128,7 +129,7 @@ export function WelcomeIntro({ onDone }: WelcomeIntroProps) {
   const Scene = SCENES[scene];
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <View style={styles.topRow}>
         <TouchableOpacity
           style={styles.skip}
@@ -146,7 +147,7 @@ export function WelcomeIntro({ onDone }: WelcomeIntroProps) {
           {accessibility !== null && !covering && <Scene key={scene} reduceMotion={accessibility.reduceMotion} />}
         </Animated.View>
       </Pressable>
-    </SafeAreaView>
+    </View>
   );
 }
 
